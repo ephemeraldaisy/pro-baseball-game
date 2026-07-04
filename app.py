@@ -208,7 +208,7 @@ def play_turn(user_choice):
                 st.session_state.game_log.append("➔ 밀어내기 만루 볼넷으로 1점 추가!")
             elif st.session_state.base1 and st.session_state.base2: st.session_state.base3 = True
             elif st.session_state.base1: st.session_state.base2 = True
-            else: st.session_state.1 = True
+            else: st.session_state.base1 = True
             st.session_state.base1 = True
 
     elif st.session_state.strike == 3:
