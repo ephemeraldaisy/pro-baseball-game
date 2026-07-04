@@ -34,7 +34,7 @@ st.markdown("""
 # 2. 게임 상태(Session State) 관리
 # ==========================================
 if "game_setup" not in st.session_state:
-    st.session_state.game_setup = False  # 팀 선택 화면 상태
+    st.session_state.game_setup = False
 
 def start_new_game(my_team, enemy_team):
     st.session_state.my_team = my_team
@@ -42,7 +42,6 @@ def start_new_game(my_team, enemy_team):
     st.session_state.enemy_team = enemy_team
     st.session_state.enemy_emoji = TEAMS[enemy_team]
     
-    # 경기 시작과 동시에 선공/후공(홈/원정) 무작위 결정
     st.session_state.is_home_team = random.choice([True, False])
     
     st.session_state.our_score = 0
@@ -66,11 +65,12 @@ def start_new_game(my_team, enemy_team):
     setup_half_inning()
 
 def setup_half_inning():
+    # [정식 경기 종료 판단 조건] 연장전 돌입 전 동점이 아니라면 정규이닝 종료
     if st.session_state.inning > 9 and st.session_state.our_score != st.session_state.enemy_score:
         end_game()
         return
 
-    # 밸런스 패치: 점수 차가 너무 안 날 테지만 콜드게임 기준은 유지
+    # 콜드게임 규칙 유지
     score_gap = abs(st.session_state.our_score - st.session_state.enemy_score)
     if st.session_state.inning in [5, 6] and score_gap >= 10:
         st.session_state.game_result_msg = f"🚨 [COLD GAME] {st.session_state.inning}회 종료 시점 {score_gap}점 차로 콜드게임 선언!"
@@ -81,41 +81,55 @@ def setup_half_inning():
         end_game()
         return
 
-    if st.session_state.inning >= 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
+    # 홈팀인데 9회초 종료 기준 이미 이기고 있다면 9회말 없이 승리 (야구 규칙)
+    if st.session_state.inning == 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
+        st.session_state.game_log.append("👍 9회초까지 이미 우리 팀이 이기고 있어 9회말 공격 없이 경기가 끝납니다!")
         end_game()
         return
 
+    # 카운트 초기화
     st.session_state.strike = 0
     st.session_state.ball = 0
     
-    # 9회말 우리 팀(홈) 특별 위기 상황 이벤트 (연장전은 0아웃 클린슬레이트 자동 연동)
-    if st.session_state.inning == 9 and st.session_state.phase == "말" and st.session_state.is_home_team:
+    # 9회말 우리 팀(홈) 특별 위기 상황 이벤트 유지
+    if st.session_state.inning == 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score <= st.session_state.enemy_score:
         st.session_state.out_count = 2
         st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = True
-        st.session_state.game_log.append("🚨 [9회말 극장] 주자 만루! 사모님 타석이 다가옵니데이!")
+        st.session_state.game_log.append("🚨 [9회말 극장] 주자 만루 찬스! 사모님 타석이 다가옵니데이!")
     else:
         st.session_state.out_count = 0
         st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
 
+    # 현재가 우리 공격 턴인지 판별
     current_is_our_turn = (not st.session_state.is_home_team and st.session_state.phase == "초") or (st.session_state.is_home_team and st.session_state.phase == "말")
     
     if not current_is_our_turn:
-        # 상대 팀 AI 공격력 현실화 (0점: 50%, 1점: 25%, 2점: 15%, 3점: 7%, 4점: 3%)
-        enemy_pts = random.choices([0, 1, 2, 3, 4], weights=[50, 25, 15, 7, 3])[0]
+        # 상대 팀 AI 공격 (0.5% 확률 메가 이닝 포함)
+        base_pts = random.choices([0, 1, 2, 3, 4, -1], weights=[500, 250, 150, 70, 25, 5])[0]
         
+        if base_pts == -1:
+            enemy_pts = random.randint(5, 11)
+            st.session_state.game_log.append(f"😱 [🚨 메가 이닝 발생] 상대 팀 방망이가 미쳐 날뜁니다! 무려 {enemy_pts}실점!!")
+        else:
+            enemy_pts = base_pts
+
+        # 🌟 [패배 요건 수정 1] 상대 팀이 '말' 공격(9회말 또는 연장말)일 때는 '끝내기 요건' 실시간 계산
         if st.session_state.inning >= 9 and st.session_state.phase == "말":
             if enemy_pts > 0 and (st.session_state.enemy_score + enemy_pts) > st.session_state.our_score:
+                # 상대 팀이 우리 점수를 추월하는 순간 즉시 끝내기 패배 처리
                 st.session_state.enemy_score = st.session_state.our_score + 1
-                st.session_state.game_log.append(f"➔ 앗! 상대 팀이 {st.session_state.inning}회말 끝내기 점수를 올렸습니다...")
+                st.session_state.game_log.append(f"❌ 앗! 상대 팀이 {st.session_state.inning}회말 짜릿한 끝내기 득점을 올렸습니다...")
                 end_game()
                 return
             else:
                 st.session_state.enemy_score += enemy_pts
-                st.session_state.game_log.append(f"🔮 상대 팀 {st.session_state.inning}회말 공격: +{enemy_pts}점")
+                st.session_state.game_log.append(f"🔮 상대 팀 {st.session_state.inning}회말 공격 완료: +{enemy_pts}점")
         else:
+            # 일반적인 이닝에서는 메가 이닝이 터져서 점수 차가 아무리 벌어져도 경기를 안 끝내고 스코어만 더함!
             st.session_state.enemy_score += enemy_pts
-            st.session_state.game_log.append(f"🔮 상대 팀 {st.session_state.inning}회{st.session_state.phase} 공격: +{enemy_pts}점")
+            st.session_state.game_log.append(f"🔮 상대 팀 {st.session_state.inning}회{st.session_state.phase} 공격 완료: +{enemy_pts}점")
         
+        # 상대 턴 종료 후 즉시 다음 페이즈(우리 공격 혹은 다음 이닝)로 토스
         next_phase()
 
 def next_phase():
@@ -136,7 +150,7 @@ def end_game():
         st.session_state.game_result_msg = "🤝 12회 대혈투 끝에 무승부로 끝났습니다!"
 
 # ==========================================
-# 3. 매운맛 타격 액션 처리 (KBO 현실 밸런스 적용)
+# 3. 타격 액션 및 진루 처리 (병살타 엔진 장착)
 # ==========================================
 def play_turn(user_choice):
     pitches = ["직구", "슬라이더", "체인지업"]
@@ -146,7 +160,7 @@ def play_turn(user_choice):
     at_bat_result = None
     result = random.random()
 
-    # 1. 풀스윙 강타 (KBO 슬러거 모드)
+    # 1. 풀스윙 강타
     if user_choice == 1:
         if (pitch == "직구" and result < 0.15) or (pitch != "직구" and result < 0.08):
             at_bat_result = "홈런"
@@ -157,20 +171,46 @@ def play_turn(user_choice):
             st.session_state.game_log.append("➔ 헛스윙 삼진 유도구에 완전히 속았습니다!")
             st.session_state.strike += 1
 
-    # 2. 가볍게 밀어치기 (KBO 컨택트 모드)
+    # 2. 가볍게 밀어치기 (병살타 탑재)
     elif user_choice == 2:
-        if result < 0.30:  # 3할 타자 확률
+        if result < 0.30:
             at_bat_result = "안타"
-        elif result < 0.70:
-            st.session_state.game_log.append("➔ 범타! 빗맞은 타구가 파울 라인 밖으로 나갑니다.")
+        elif result < 0.45:
+            # 병살타 조건: 0아웃 혹은 1아웃이면서, 1루에 주자가 있을 때
+            if st.session_state.out_count < 2 and st.session_state.base1:
+                st.session_state.game_log.append(" Ground Ball!! 내야 땅볼 타구!")
+                st.session_state.game_log.append("⚡ [병살타] 유격수 ➔ 2루수 ➔ 1루수 더블 플레이!!! 아웃카운트 2개 소멸!")
+                
+                st.session_state.out_count += 2
+                st.session_state.strike = st.session_state.ball = 0
+                st.session_state.base1 = False
+                
+                if st.session_state.base3:
+                    st.session_state.our_score += 1
+                    st.session_state.game_log.append("➔ 그 와중에 3루 주자는 홈인하여 1점 만회!")
+                st.session_state.base3 = st.session_state.base2
+                st.session_state.base2 = False
+                
+                current_batter = st.session_state.my_batter_number
+                st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
+                
+                # 아웃카운트 변동으로 쓰리아웃 체인지 체크
+                check_three_out_change()
+                st.rerun()
+                return
+            else:
+                st.session_state.game_log.append("➔ 범타! 힘없는 타구가 파울 플라이가 되었습니다.")
+                if st.session_state.strike < 2: st.session_state.strike += 1
+        elif result < 0.75:
+            st.session_state.game_log.append("➔ 범타! 힘없는 타구가 파울 플라이가 되었습니다.")
             if st.session_state.strike < 2: st.session_state.strike += 1
         else:
             st.session_state.game_log.append("➔ 스트라이크! 배트가 허공을 가릅니다.")
             st.session_state.strike += 1
 
-    # 3. 공 끝까지 거르기 (선구안 모드)
+    # 3. 공 끝까지 거르기
     elif user_choice == 3:
-        if result < 0.35:  # 투수들이 스트라이크를 더 많이 던짐
+        if result < 0.35:
             st.session_state.game_log.append("➔ 볼! 유인구를 끈질기게 잘 참아냈습니다.")
             st.session_state.ball += 1
             if st.session_state.ball == 4: at_bat_result = "볼넷"
@@ -178,28 +218,25 @@ def play_turn(user_choice):
             st.session_state.game_log.append("➔ 앗! 스트라이크 존 한가운데 꽂히는 루킹 스트라이크!")
             st.session_state.strike += 1
 
-    # 주자 진루 세부 엔진 (리얼 야구 방식)
+    # 주자 진루 엔진 및 아웃 판정
     if at_bat_result in ["홈런", "안타", "볼넷"]:
-        st.session_state.strike = 0
-        st.session_state.ball = 0
+        st.session_state.strike = st.session_state.ball = 0
         current_batter = st.session_state.my_batter_number
         st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
 
         if at_bat_result == "홈런":
             pts = (1 if st.session_state.base1 else 0) + (1 if st.session_state.base2 else 0) + (1 if st.session_state.base3 else 0) + 1
             st.session_state.our_score += pts
-            st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {current_batter}번 타자 역대급 {pts}점짜리 홈런 대폭발!!!!!!!!")
+            st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {current_batter}번 타자 대형 {pts}점짜리 홈런 대폭발!!!!!!!!")
             st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
 
         elif at_bat_result == "안타":
             st.session_state.game_log.append(f"🌟 딱! {current_batter}번 타자의 안타! 주자 주루 플레이 개시!")
-            # [리얼 진루] 3루 주자 무조건 홈인, 2루 주자는 안타시 홈인, 1루 주자는 3루까지 이동
             if st.session_state.base3: st.session_state.our_score += 1
             if st.session_state.base2: st.session_state.our_score += 1
-            
-            st.session_state.base3 = st.session_state.base1  # 1루 주자는 3루로
+            st.session_state.base3 = st.session_state.base1
             st.session_state.base2 = False
-            st.session_state.base1 = True  # 타자는 1루로
+            st.session_state.base1 = True
 
         elif at_bat_result == "볼넷":
             st.session_state.game_log.append(f"🏃‍♂️ {current_batter}번 타자 볼넷 출루!")
@@ -212,22 +249,37 @@ def play_turn(user_choice):
             st.session_state.base1 = True
 
     elif st.session_state.strike == 3:
-        st.session_state.game_log.append(f"❌ 앗 삼진! {st.session_state.my_batter_number}번 타자가 아쉽게 돌아섭니다.")
+        st.session_state.game_log.append(f"❌ 삼진! {st.session_state.my_batter_number}번 타자가 아쉽게 돌아섭니다.")
         st.session_state.out_count += 1
-        st.session_state.strike = 0
-        st.session_state.ball = 0
+        st.session_state.strike = st.session_state.ball = 0
         current_batter = st.session_state.my_batter_number
         st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
+        
+        # 쓰리아웃 체인지 체크
+        check_three_out_change()
 
-        if st.session_state.out_count == 3:
-            st.session_state.game_log.append(f"📢 쓰리아웃 체인지!")
-            if st.session_state.phase == "말" and st.session_state.our_score < st.session_state.enemy_score:
-                end_game()
-                return
-            next_phase()
-
+    # 🌟 [끝내기 조건] 우리 팀이 '말' 공격이고 점수가 앞서는 순간 즉시 끝내기 승리 처리
     if st.session_state.inning >= 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
         end_game()
+
+def check_three_out_change():
+    """쓰리아웃이 되었을 때 야구 정식 요건에 맞춰 공수교대 또는 패배를 선언하는 함수"""
+    if st.session_state.out_count >= 3:
+        st.session_state.game_log.append(f"📢 쓰리아웃 체인지! 우리 팀의 이번 이닝 공격이 끝났습니다.")
+        
+        # 🌟 [패배 요건 수정 2] 점수가 지고 있다고 바로 지는 게 아니라, 우리 공격 스케줄이 완벽하게 끝났을 때만 패배 확정!
+        if st.session_state.inning >= 9:
+            # 요건 A: 우리가 선공(초)인데 9회초 공격이 다 끝났음에도 점수가 밀릴 때 패배 확정
+            if st.session_state.phase == "초" and st.session_state.our_score < st.session_state.enemy_score:
+                end_game()
+                return
+            # 요건 B: 우리가 후공(말)인데 9회말(또는 연장말) 공격이 다 끝났음에도 점수가 밀릴 때 패배 확정
+            elif st.session_state.phase == "말" and st.session_state.our_score < st.session_state.enemy_score:
+                end_game()
+                return
+        
+        # 패배 요건에 해당 안 되면 안전하게 다음 페이즈로 전환
+        next_phase()
 
 # ==========================================
 # 4. 웹 UI (팀 선택 화면 및 게임 화면)
@@ -237,8 +289,6 @@ st.title("⚾ KBO 매운맛 프로야구 시뮬레이터")
 if not st.session_state.game_setup:
     st.markdown("### 🏟️ 구단 선택 및 리그 매칭")
     my_choice = st.selectbox("사모님이 이끌어갈 우리 팀을 고르이소:", list(TEAMS.keys()))
-    
-    # 내 팀 제외하고 상대 팀 무작위 배정 준비
     remaining_teams = [t for t in TEAMS.keys() if t != my_choice]
     
     if st.button("경기 대진표 확정 및 입장 🎟️", type="primary"):
@@ -246,7 +296,6 @@ if not st.session_state.game_setup:
         start_new_game(my_choice, enemy_choice)
         st.rerun()
 else:
-    # 전광판 레이아웃
     col1, col2, col3 = st.columns([2, 1, 2])
     with col1:
         st.metric(label=f"우리 팀 {st.session_state.my_emoji}", value=f"{st.session_state.our_score} 점")
@@ -271,7 +320,6 @@ else:
             st.session_state.game_setup = False
             st.rerun()
     else:
-        # 야구 카운트 정보
         c1, c2 = st.columns([1, 1])
         with c1:
             st.markdown(f"### 📊 카운트 보드")
