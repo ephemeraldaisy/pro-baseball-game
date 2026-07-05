@@ -93,14 +93,9 @@ def setup_half_inning():
     st.session_state.strike = 0
     st.session_state.ball = 0
     
-    # 9회말 우리 팀(홈) 특별 위기 상황 이벤트 유지
-    if st.session_state.inning == 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score <= st.session_state.enemy_score:
-        st.session_state.out_count = 2
-        st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = True
-        st.session_state.game_log.append("🚨 [9회말 극장] 주자 만루 찬스! 사모님 타석이 다가옵니데이!")
-    else:
-        st.session_state.out_count = 0
-        st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
+    # 9회말 상황 유지
+    st.session_state.out_count = 0
+    st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
 
     # 현재가 우리 공격 턴인지 판별
     current_is_our_turn = (not st.session_state.is_home_team and st.session_state.phase == "초") or (st.session_state.is_home_team and st.session_state.phase == "말")
@@ -259,6 +254,10 @@ def play_turn(user_choice):
 
     # 3. 공 끝까지 거르기
     elif user_choice == 3:
+        result = random.choices(
+            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
+            weights=[100, 100, 150, 550, 100]  # 🔥 여기 4번째 숫자를 550 정도로 올려주라는 뜻입니다!
+        )[0]
         if result < 0.35:
             st.session_state.game_log.append("➔ 볼! 유인구를 끈질기게 잘 참아냈습니다.")
             st.session_state.ball += 1
@@ -337,7 +336,7 @@ st.title("⚾ KBO 스타일 매운맛 프로야구 시뮬레이터")
 
 if not st.session_state.game_setup:
     st.markdown("### 🏟️ 구단 선택 및 리그 매칭")
-    my_choice = st.selectbox("사모님이 이끌어갈 우리 팀을 고르이소:", list(TEAMS.keys()))
+    my_choice = st.selectbox("사모님이 이끌어갈 우리 팀을 고르소:", list(TEAMS.keys()))
     remaining_teams = [t for t in TEAMS.keys() if t != my_choice]
     
     if st.button("경기 대진표 확정 및 입장 🎟️", type="primary"):
@@ -366,12 +365,39 @@ else:
         if st.session_state.our_score > st.session_state.enemy_score:
             st.balloons()
             st.success(st.session_state.game_result_msg)
-            st.image("https://giphy.com/explore/congratulatios", use_container_width=True)
+            st.image("assets/congratulations.gif", use_container_width=True)
+            st.markdown(
+                """
+                <div style="
+                    position: fixed;
+                    top: 0; left: 0; width: 100vw; height: 100vh;
+                    pointer-events: none; z-index: 9999;
+                    overflow: hidden;
+                ">
+                    <span style="position: absolute; font-size: 50px; left: 10%; animation: congratulations 3s linear 3;">🎉</span>
+                    <span style="position: absolute; font-size: 40px; left: 25%; animation: congratulations 4s linear 3; animation-delay: 1s;">🎉</span>
+                    <span style="position: absolute; font-size: 60px; left: 40%; animation: congratulations 2.5s linear 3; animation-delay: 0.5s;">🎉</span>
+                    <span style="position: absolute; font-size: 45px; left: 60%; animation: congratulations 3.5s linear 3; animation-delay: 1.5s;">🎉</span>
+                    <span style="position: absolute; font-size: 55px; left: 75%; animation: congratulations 2.8s linear 3; animation-delay: 0.2s;">🎉</span>
+                    <span style="position: absolute; font-size: 50px; left: 90%; animation: congratulations 3.2s linear 3; animation-delay: 0.8s;">🎉</span>
+                </div>
+                <style>
+                    @keyframes congratulations {
+                        0% { top: -10%; transform: rotate(0deg); }
+                        100% { top: 110%; transform: rotate(360deg); }
+                    }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            st.markdown("<h3 style='text-align: center; color: #8B4513;'>🎉 승리의 축포를 날리자아아앗!!! 🎉</h3>", unsafe_allow_html=True)
+
         #패배하면 똥세례 
         else:
             st.error(st.session_state.game_result_msg)
             # 1. 킹받는 패배 전용 똥 움짤 배치
-            st.image("https://tenor.com/search/rainbow-poop-gifs", use_container_width=True)
+            st.image("assets/rainbowpoo.gif", use_container_width=True)
             
             # 2. 웹 브라우저 전체 화면에 💩 이모지가 비처럼 흘러내리는 똥세례 효과 (HTML/CSS 치트키)
             st.markdown(
@@ -382,12 +408,12 @@ else:
                     pointer-events: none; z-index: 9999;
                     overflow: hidden;
                 ">
-                    <span style="position: absolute; font-size: 50px; left: 10%; animation: poop 3s linear infinite;">💩</span>
-                    <span style="position: absolute; font-size: 40px; left: 25%; animation: poop 4s linear infinite; animation-delay: 1s;">💩</span>
-                    <span style="position: absolute; font-size: 60px; left: 40%; animation: poop 2.5s linear infinite; animation-delay: 0.5s;">💩</span>
-                    <span style="position: absolute; font-size: 45px; left: 60%; animation: poop 3.5s linear infinite; animation-delay: 1.5s;">💩</span>
-                    <span style="position: absolute; font-size: 55px; left: 75%; animation: poop 2.8s linear infinite; animation-delay: 0.2s;">💩</span>
-                    <span style="position: absolute; font-size: 50px; left: 90%; animation: poop 3.2s linear infinite; animation-delay: 0.8s;">💩</span>
+                    <span style="position: absolute; font-size: 50px; left: 10%; animation: poop 3s linear 3;">💩</span>
+                    <span style="position: absolute; font-size: 40px; left: 25%; animation: poop 4s linear 3; animation-delay: 1s;">💩</span>
+                    <span style="position: absolute; font-size: 60px; left: 40%; animation: poop 2.5s linear 3; animation-delay: 0.5s;">💩</span>
+                    <span style="position: absolute; font-size: 45px; left: 60%; animation: poop 3.5s linear 3; animation-delay: 1.5s;">💩</span>
+                    <span style="position: absolute; font-size: 55px; left: 75%; animation: poop 2.8s linear 3; animation-delay: 0.2s;">💩</span>
+                    <span style="position: absolute; font-size: 50px; left: 90%; animation: poop 3.2s linear 3; animation-delay: 0.8s;">💩</span>
                 </div>
                 <style>
                     @keyframes poop {
