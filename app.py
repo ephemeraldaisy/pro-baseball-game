@@ -366,12 +366,12 @@ else:
         if st.session_state.our_score > st.session_state.enemy_score:
             st.balloons()
             st.success(st.session_state.game_result_msg)
-            st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3o0NXN2bXJpM3JpY216d2Rnb3p0ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPEh5Lk3RGSIFEI/giphy.gif", use_container_width=True)
+            st.image("https://giphy.com/explore/congratulatios", use_container_width=True)
         #패배하면 똥세례 
         else:
             st.error(st.session_state.game_result_msg)
             # 1. 킹받는 패배 전용 똥 움짤 배치
-            st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3pjc3YyamMwaG9hMzh6N3VndXF0bHBsNm92M3B6ZGF6MXNpaTBsNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2wZp8t9WIPYyI/giphy.gif", use_container_width=True)
+            st.image("https://tenor.com/search/rainbow-poop-gifs", use_container_width=True)
             
             # 2. 웹 브라우저 전체 화면에 💩 이모지가 비처럼 흘러내리는 똥세례 효과 (HTML/CSS 치트키)
             st.markdown(
