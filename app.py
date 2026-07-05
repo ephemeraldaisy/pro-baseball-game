@@ -132,6 +132,34 @@ def setup_half_inning():
         # 상대 턴 종료 후 즉시 다음 페이즈(우리 공격 혹은 다음 이닝)로 토스
         next_phase()
 
+#작전용 도루와 로직
+def trigger_steal():
+    """🏃 65% 확률 작전용 도루 엔진"""
+    if not st.session_state.base1 and not st.session_state.base2:
+        st.warning("루상에 나간 주자가 있어야 도루를 시도하제예!")
+        return
+    
+    if random.random() < 0.65:
+        st.session_state.game_log.append("🚀 [도루 성공] 사모님의 완벽한 작전! 베이스를 훔쳤습니다!")
+        if st.session_state.base2 and not st.session_state.base3:
+            st.session_state.base3 = True
+            st.session_state.base2 = False
+        elif st.session_state.base1 and not st.session_state.base2:
+            st.session_state.base2 = True
+            st.session_state.base1 = False
+    else:
+        st.session_state.game_log.append("❌ [도루 실패] 포수의 칼송구에 그만 런다운 걸려 아웃!")
+        if st.session_state.base2: st.session_state.base2 = False
+        elif st.session_state.base1: st.session_state.base1 = False
+        st.session_state.out_count += 1
+        
+        # 아웃카운트 증가에 따른 공수교대 체크
+        if st.session_state.out_count >= 3:
+            st.session_state.game_log.append("📢 도루 실패로 쓰리아웃 체인지!")
+            next_phase()
+            
+    st.rerun()
+
 def next_phase():
     if st.session_state.phase == "초":
         st.session_state.phase = "말"
@@ -310,6 +338,9 @@ else:
     st.divider()
 
     if st.session_state.game_over:
+        #GAME SET 메시지
+        st.markdown("<h1 style='text-align: center; color: #FF4B4B; font-size: 60px; font-weight: bold; letter-spacing: 5px;'>💥 GAME SET 💥</h1>", unsafe_allow_html=True)
+        
         if st.session_state.our_score > st.session_state.enemy_score:
             st.balloons()
             st.success(st.session_state.game_result_msg)
@@ -342,7 +373,7 @@ else:
         st.divider()
 
         st.markdown("### 📢 사모님의 작전 지시")
-        col_b1, col_b2, col_b3 = st.columns(3)
+        col_b1, col_b2, col_b3, col_b4= st.columns(4)
         with col_b1:
             if st.button("💥 1. 풀스윙 강타"):
                 play_turn(1)
@@ -355,6 +386,9 @@ else:
             if st.button("👀 3. 공 끝까지 거르기"):
                 play_turn(3)
                 st.rerun()
+        with col_b4:
+            if st.button("🏃‍♂️ 4. 기습 도루 작전"):
+                trigger_steal()
 
     st.divider()
     st.markdown("### 🎙️ 실시간 중계 일지")
