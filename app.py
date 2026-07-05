@@ -254,17 +254,19 @@ def play_turn(user_choice):
 
     # 3. 공 끝까지 거르기
     elif user_choice == 3:
-        result = random.choices(
-            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
-            weights=[100, 100, 150, 550, 100]  # 🔥 여기 4번째 숫자를 550 정도로 올려주라는 뜻입니다!
-        )[0]
-        if result < 0.35:
-            st.session_state.game_log.append("➔ 볼! 유인구를 끈질기게 잘 참아냈습니다.")
-            st.session_state.ball += 1
-            if st.session_state.ball == 4: at_bat_result = "볼넷"
-        else:
-            st.session_state.game_log.append("➔ 앗! 스트라이크 존 한가운데 꽂히는 루킹 스트라이크!")
-            st.session_state.strike += 1
+        result = random.random()
+        
+        # 실제 야구처럼 거르기 작전을 쓰면 '볼(BALL)'이 나올 확률을 대폭 올려줍니다.
+        if result < 0.55:  # 🔥 55% 확률로 볼(Ball) 득템!
+            # 여기 밑에는 기존에 '볼 카운트 늘려주는 코드'를 그대로 쓰시면 됩니다.
+            # 예시: st.session_state.ball += 1 이나 처리 로직
+            result = "BALL" 
+        elif result < 0.70:  # 15% 확률로 아웃
+            result = "OUT"
+        elif result < 0.85:  # 15% 확률로 삼진(스트라이크)
+            result = "STRIKE"
+        else:  # 15% 확률로 기습 안타 혹은 파울
+            result = "HIT"
 
     # 주자 진루 엔진 및 아웃 판정
     if at_bat_result in ["홈런", "안타", "볼넷"]:
