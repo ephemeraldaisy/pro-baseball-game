@@ -333,7 +333,7 @@ def check_three_out_change():
 # ==========================================
 # 4. 웹 UI (팀 선택 화면 및 게임 화면)
 # ==========================================
-st.title("⚾ KBO 매운맛 프로야구 시뮬레이터")
+st.title("⚾ KBO 스타일 매운맛 프로야구 시뮬레이터")
 
 if not st.session_state.game_setup:
     st.markdown("### 🏟️ 구단 선택 및 리그 매칭")
@@ -366,9 +366,42 @@ else:
         if st.session_state.our_score > st.session_state.enemy_score:
             st.balloons()
             st.success(st.session_state.game_result_msg)
+            st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3o0NXN2bXJpM3JpY216d2Rnb3p0ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPEh5Lk3RGSIFEI/giphy.gif", use_container_width=True)
+        #패배하면 똥세례 
         else:
             st.error(st.session_state.game_result_msg)
+            # 1. 킹받는 패배 전용 똥 움짤 배치
+            st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3pjc3YyamMwaG9hMzh6N3VndXF0bHBsNm92M3B6ZGF6MXNpaTBsNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/2wZp8t9WIPYyI/giphy.gif", use_container_width=True)
             
+            # 2. 웹 브라우저 전체 화면에 💩 이모지가 비처럼 흘러내리는 똥세례 효과 (HTML/CSS 치트키)
+            st.markdown(
+                """
+                <div style="
+                    position: fixed;
+                    top: 0; left: 0; width: 100vw; height: 100vh;
+                    pointer-events: none; z-index: 9999;
+                    overflow: hidden;
+                ">
+                    <span style="position: absolute; font-size: 50px; left: 10%; animation: poop 3s linear infinite;">💩</span>
+                    <span style="position: absolute; font-size: 40px; left: 25%; animation: poop 4s linear infinite; animation-delay: 1s;">💩</span>
+                    <span style="position: absolute; font-size: 60px; left: 40%; animation: poop 2.5s linear infinite; animation-delay: 0.5s;">💩</span>
+                    <span style="position: absolute; font-size: 45px; left: 60%; animation: poop 3.5s linear infinite; animation-delay: 1.5s;">💩</span>
+                    <span style="position: absolute; font-size: 55px; left: 75%; animation: poop 2.8s linear infinite; animation-delay: 0.2s;">💩</span>
+                    <span style="position: absolute; font-size: 50px; left: 90%; animation: poop 3.2s linear infinite; animation-delay: 0.8s;">💩</span>
+                </div>
+                <style>
+                    @keyframes poop {
+                        0% { top: -10%; transform: rotate(0deg); }
+                        100% { top: 110%; transform: rotate(360deg); }
+                    }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            st.markdown("<h3 style='text-align: center; color: #8B4513;'>💩 패배의 똥세례를 받아라아아앗!!! 💩</h3>", unsafe_allow_html=True)
+
+        st.divider()
         if st.button("다른 구단 선택하러 가기 🔄", type="primary"):
             st.session_state.game_setup = False
             st.rerun()
