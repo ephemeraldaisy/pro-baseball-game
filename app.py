@@ -49,6 +49,8 @@ def start_new_game(my_team, enemy_team):
     st.session_state.my_batter_number = 1
     st.session_state.inning = 1
     st.session_state.phase = "초"
+    #투구수
+    st.session_state.our_total_pitches = 0 
     
     st.session_state.out_count = 0
     st.session_state.strike = 0
@@ -113,23 +115,42 @@ def setup_half_inning():
         else:
             enemy_pts = base_pts
 
-        # 🌟 [패배 요건 수정 1] 상대 팀이 '말' 공격(9회말 또는 연장말)일 때는 '끝내기 요건' 실시간 계산
+        # 🔋 점수가 정해졌으니 투구수부터 먼저 계산합니다.
+        if enemy_pts == 0:
+            inning_pitches = random.randint(10, 15)
+        elif enemy_pts == 1:
+            inning_pitches = random.randint(16, 22)
+        elif enemy_pts in [2, 3]:
+            inning_pitches = random.randint(23, 30)
+        else: # 4점 이상 혹은 메가 이닝
+            inning_pitches = random.randint(31, 45)
+
+        # 💥 계산된 이번 이닝 투구수를 총 투구수 변수에 누적해서 적립
+        st.session_state.our_total_pitches += inning_pitches
+
+        # 🌟 상대 팀이 '말' 공격(9회말 또는 연장말)일 때는 '끝내기 요건' 실시간 계산
         if st.session_state.inning >= 9 and st.session_state.phase == "말":
             if enemy_pts > 0 and (st.session_state.enemy_score + enemy_pts) > st.session_state.our_score:
-                # 상대 팀이 우리 점수를 추월하는 순간 즉시 끝내기 패배 처리
                 st.session_state.enemy_score = st.session_state.our_score + 1
-                st.session_state.game_log.append(f"❌ 앗! 상대 팀이 {st.session_state.inning}회말 짜릿한 끝내기 득점을 올렸습니다...")
+                st.session_state.game_log.append(
+                    f"❌ 앗! 상대 팀이 {st.session_state.inning}회말 짜릿한 끝내기 득점을 올렸습니다... "
+                    f"(우리 투수 최종 {st.session_state.our_total_pitches}구 역투)"
+                )
                 end_game()
                 return
             else:
                 st.session_state.enemy_score += enemy_pts
-                st.session_state.game_log.append(f"🔮 상대 팀 {st.session_state.inning}회말 공격 완료: +{enemy_pts}점")
         else:
-            # 일반적인 이닝에서는 메가 이닝이 터져서 점수 차가 아무리 벌어져도 경기를 안 끝내고 스코어만 더함!
+            # 일반적인 이닝에서는 스코어만 더함
             st.session_state.enemy_score += enemy_pts
-            st.session_state.game_log.append(f"🔮 상대 팀 {st.session_state.inning}회{st.session_state.phase} 공격 완료: +{enemy_pts}점")
+
+        # 🎙️ 중계 일지에 투구수 상황 기록
+        st.session_state.game_log.append(
+            f"🔮 상대 팀 {st.session_state.inning}회{st.session_state.phase} 공격 완료: "
+            f"+{enemy_pts}점 (우리 투수 이번 이닝 {inning_pitches}구 던짐 / 총 {st.session_state.our_total_pitches}구)"
+        )
         
-        # 상대 턴 종료 후 즉시 다음 페이즈(우리 공격 혹은 다음 이닝)로 토스
+        # 다음 페이즈로 이동
         next_phase()
 
 #작전용 도루와 로직
@@ -328,6 +349,7 @@ else:
     with col1:
         st.metric(label=f"우리 팀 {st.session_state.my_emoji}", value=f"{st.session_state.our_score} 점")
         st.caption(st.session_state.my_team)
+        st.markdown(f"🔋 **우리 투수 총 투구수:** `{st.session_state.our_total_pitches}구`")
     with col2:
         st.markdown(f"<h3 style='text-align: center; color: red;'>{st.session_state.inning}회{st.session_state.phase}</h3>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center; font-size:12px;'>진영: {'🏠 홈팀(후공)' if st.session_state.is_home_team else '🚌 원정팀(선공)'}</p>", unsafe_allow_html=True)
