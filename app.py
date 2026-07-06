@@ -190,27 +190,30 @@ def play_turn(user_choice):
     enemy_pitch_count = 0
     at_bat_result = "지속"  # 루상 주자 진루 엔진을 구동시킬 트리거 변수
 
-    # 1. 유저 작전별 주사위 굴리기 및 상대 투구수 산정
+    # 1. 유저의 작전 선택에 따른 확률 결과 계산 및 투구수 밸런스 패치
     if user_choice == 1:    # 💥 1. 풀스윙 강타
         result = random.choices(
             ["HOMERUN", "HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
-            weights=[50, 150, 400, 250, 50, 100] # 풀스윙 특성상 홈런 슬롯 추가
+            weights=[50, 150, 400, 250, 50, 100]
         )[0]
-        enemy_pitch_count = 1
+        # 타석당 투구수 상향 (기존 1~3구 ➔ 3~5구)
+        enemy_pitch_count = random.randint(3, 5)
 
     elif user_choice == 2:  # 🌟 2. 가볍게 밀어치기
         result = random.choices(
             ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
             weights=[300, 400, 150, 50, 100]
         )[0]
-        enemy_pitch_count = 1
+        # 타석당 투구수 상향 (기존 2~4구 ➔ 4, 5구)
+        enemy_pitch_count = random.randint(4, 5)
 
-    elif user_choice == 3:  # 👀 3. 공 끝까지 거르기 (★BSO 트리거 연동 영역★)
+    elif user_choice == 3:  # 👀 3. 공 끝까지 거르기
         result = random.choices(
             ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
             weights=[100, 100, 150, 550, 100]
         )[0]
-        enemy_pitch_count = 1
+        # 거르기 작전은 용량을 대폭 늘려 투수를 말려 죽입니다! (기존 3~6구 ➔ 5~8구)
+        enemy_pitch_count = random.randint(5, 8)
 
     # 💥 상대 투수 총 투구수 누적 적립
     st.session_state.enemy_total_pitches += enemy_pitch_count
