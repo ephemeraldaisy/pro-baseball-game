@@ -351,7 +351,7 @@ st.title("⚾ KBO 스타일 매운맛 프로야구 시뮬레이터")
 if st.button("📜 KBO 스타일 구단 설정집 열람"):
     st.session_state.show_stories = True
 
-if st.session_state.show_stories:
+if st.session_state.get("show_stories", False):
     file_path = "assets/team_stories.txt"
     st.markdown("---")
     st.subheader("🕵️‍♂️ 10대 구단 비사(秘史) 및 성격 설정집")
