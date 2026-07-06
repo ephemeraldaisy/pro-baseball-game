@@ -222,8 +222,8 @@ def play_turn(user_choice):
     enemy_team = st.session_state.enemy_team
 
     # 장부에서 두 팀의 프로필 가져오기 (없으면 기본값 0)
-    my_buff = TEAM_PROFILES.get(my_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
-    enemy_buff = TEAM_PROFILES.get(enemy_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
+    my_buff = TEAMS.get(my_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
+    enemy_buff = TEAMS.get(enemy_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
 
     # 상성 계산 예시: 상대가 수비/제구가 좋은 팀(예: 화이트이글스, 블랙나이츠)이면 우리 안타 확률이 감소함
     # 상대의 이점이 우리의 패널티가 되는 리얼 상성 연동!
