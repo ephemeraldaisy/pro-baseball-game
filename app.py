@@ -3,13 +3,11 @@ import streamlit as st
 import os 
 
 # ==========================================
-# 1. 페이지 설정 및 팀 데이터 (색상별 이모지)
+# 1. 페이지 설정 및 팀 데이터 (능력치 통합 딕셔너리)
 # ==========================================
 st.set_page_config(page_title="이 사장의 프로야구 시뮬레이터 Pro", page_icon="⚾", layout="centered")
 
-# =====================================================================
-# [app.py 최상단] 기존 TEAMS 리스트 대신, 능력치가 통합된 대장부로 교체!
-# =====================================================================
+# [핵심 통합] 구단 목록 선언과 능력치 장부를 하나로 완벽 연동!
 TEAMS = {
     "🔴 레드 파이어스": {"homerun": 5, "hit": 30, "out": -10, "strike_p": -30, "ball_p": 30},
     "🔵 블루 웨이브스": {"homerun": 20, "hit": 40, "out": -20, "strike_p": 10, "ball_p": -10},
@@ -41,11 +39,14 @@ st.markdown("""
 if "game_setup" not in st.session_state:
     st.session_state.game_setup = False
 
+# [버그 박멸] 하드코딩 없이 가변적으로 이름(문자열)과 이모지를 분리수거해서 깨짐 박멸!
 def start_new_game(my_team, enemy_team):
-    st.session_state.my_team = my_team
-    st.session_state.my_emoji = TEAMS[my_team]
-    st.session_state.enemy_team = enemy_team
-    st.session_state.enemy_emoji = TEAMS[enemy_team]
+    st.session_state.my_team = my_team        # 텍스트 이름 그대로 저장
+    st.session_state.enemy_team = enemy_team  # 텍스트 이름 그대로 저장
+    
+    # 가변 추출: 구단명에서 이모지(앞 2글자)만 동적으로 쏙 뜯어오기
+    st.session_state.my_emoji = my_team[:2]
+    st.session_state.enemy_emoji = enemy_team[:2]
     
     st.session_state.is_home_team = random.choice([True, False])
     
@@ -93,7 +94,7 @@ def setup_half_inning():
         end_game()
         return
 
-    # 새로운 이닝 시작 시 카운터 및 주자 깔끔하게 리셋 (보통 게임처럼 공정하게 시작)
+    # 새로운 이닝 시작 시 카운터 및 주자 깔끔하게 리셋
     st.session_state.strike = 0
     st.session_state.ball = 0
     st.session_state.out_count = 0
@@ -110,19 +111,20 @@ def setup_half_inning():
         else:
             enemy_pts = base_pts
 
-        # =======================================================
-        # [수정 위치] setup_half_inning() 함수 중간의 투구수 계산 구역
-        # =======================================================
-        # 밸런스 패치: 1클릭 1구에 맞춰 상대 AI가 소모시키는 우리 투구수도 대폭 하향 조정!
+        # 밸런스 패치 및 상대 성향 연동 가변 투구수 계산구역
+        enemy_team = st.session_state.enemy_team
+        enemy_buff = TEAMS.get(enemy_team, {"ball_p": 0})
+        
         if enemy_pts == 0:
-            inning_pitches = random.randint(3, 5)   # 3아웃 초스피드 이닝 고증
+            inning_pitches = random.randint(3, 5) + int(enemy_buff["ball_p"] / 40)
         elif enemy_pts == 1:
-            inning_pitches = random.randint(5, 8)
+            inning_pitches = random.randint(5, 8) + int(enemy_buff["ball_p"] / 30)
         elif enemy_pts in [2, 3]:
-            inning_pitches = random.randint(8, 12)
+            inning_pitches = random.randint(8, 12) + int(enemy_buff["ball_p"] / 20)
         else: 
-            inning_pitches = random.randint(12, 18) # 메가 이닝도 최대 18구 정도로 방어
+            inning_pitches = random.randint(12, 18) + int(enemy_buff["ball_p"] / 10)
 
+        inning_pitches = max(3, inning_pitches) # 투구수 마이너스 방어 안전장치
         st.session_state.our_total_pitches += inning_pitches
 
         if st.session_state.inning >= 9 and st.session_state.phase == "말":
@@ -182,17 +184,11 @@ def next_phase():
 def end_game():
     st.session_state.game_over = True
     
-    # 🚨 [이닝 뻥튀기 버그 방지 패치] 
-    # 정규이닝(9회) 안에서 승부가 났는데 이닝이 10으로 먼저 올라갔다면 9회로 보정해 줍니다.
     if st.session_state.inning >= 10:
-        # 연장전 대혈투 끝에 끝난 게 아니라, 9회 점수 차로 일반 종료된 케이스라면
-        score_gap = abs(st.session_state.our_score - st.session_state.enemy_score)
-        # 연장 동점이 깨진 게 아니라 정규이닝 종료 요건이라면 9회로 유지
         if st.session_state.inning == 10 and st.session_state.phase == "초":
             st.session_state.inning = 9
-            st.session_state.phase = "말" # 9회말로 정정하여 표기
+            st.session_state.phase = "말"
 
-    # 기존 승패 메시지 출력 로직 (그대로 유지)
     if st.session_state.our_score > st.session_state.enemy_score:
         st.session_state.game_result_msg = f"🎉 {st.session_state.my_team} 대승리!!! 오늘 경기 수당은 사모님 기라!!"
     elif st.session_state.our_score < st.session_state.enemy_score:
@@ -201,7 +197,7 @@ def end_game():
         st.session_state.game_result_msg = "🤝 12회 대혈투 끝에 무승부로 끝났습니다!"
 
 # ==========================================
-# 3. 타격 액션 및 진루 처리 (에러 완전 박멸 버전)
+# 3. 타격 액션 및 진루 처리 (구단 서사 완벽 실시간 연동)
 # ==========================================
 def play_turn(user_choice):
     if st.session_state.game_over:
@@ -213,27 +209,19 @@ def play_turn(user_choice):
 
     current_batter = st.session_state.my_batter_number
     log_msg = ""
-    at_bat_result = "지속"  # 타석이 끝났는지 판단하는 트리거
+    at_bat_result = "지속"
 
-    # -----------------------------------------------------------
-    # 🔥 [핵심 패치] 우리 팀의 스타일 및 상대 팀과의 상성 버프 계산구역
-    # -----------------------------------------------------------
+    # 가변 상성 버프 데이터 자동 매칭 파트
     my_team = st.session_state.my_team
     enemy_team = st.session_state.enemy_team
 
-    # 장부에서 두 팀의 프로필 가져오기 (없으면 기본값 0)
     my_buff = TEAMS.get(my_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
     enemy_buff = TEAMS.get(enemy_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
 
-    # 상성 계산 예시: 상대가 수비/제구가 좋은 팀(예: 화이트이글스, 블랙나이츠)이면 우리 안타 확률이 감소함
-    # 상대의 이점이 우리의 패널티가 되는 리얼 상성 연동!
     defense_penalty = 15 if enemy_team in ["⚪ 화이트 이글스", "⚫ 블랙 나이츠"] else 0
 
-    # =======================================================
-    # 💥 1. 풀스윙 강타 (구단 스타일 적용)
-    # =======================================================
+    # 💥 1. 풀스윙 강타
     if user_choice == 1:
-        # 구단 스타일 보너스 적용 (그린몬스터즈나 핑크돌핀스는 홈런률 폭발!)
         w_homerun = max(10, 80 + my_buff["homerun"])
         w_hit = max(10, 170 + my_buff["hit"] - defense_penalty)
         w_out = max(10, 550 + my_buff["out"])
@@ -255,11 +243,8 @@ def play_turn(user_choice):
                 st.session_state.game_log.append(f"💥 작전[풀스윙 강타]: 2S 이후 아슬아슬한 파울 홈런! 타석을 이어갑니다. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 총 {st.session_state.enemy_total_pitches}구)")
             return
 
-    # =======================================================
-    # 🌟 2. 가볍게 밀어치기 (구단 스타일 적용)
-    # =======================================================
+    # 🌟 2. 가볍게 밀어치기
     elif user_choice == 2:
-        # 화이트이글스 같은 팀은 안타 확률 대폭 상승!
         w_hit = max(10, 350 + my_buff["hit"] * 1.2 - defense_penalty)
         w_out = max(10, 450 + my_buff["out"])
         w_foul = 200
@@ -279,11 +264,8 @@ def play_turn(user_choice):
                 st.session_state.game_log.append(f"💥 작전[가볍게 밀어치기]: 2S 이후 끈질기게 커트, 파울! 타석을 이어갑니다. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 총 {st.session_state.enemy_total_pitches}구)")
             return
 
-    # =======================================================
-    # 👀 3. 공 끝까지 거르기 (구단 스타일 및 상대 투수 상성 반영)
-    # =======================================================
+    # 👀 3. 공 끝까지 거르기
     elif user_choice == 3:
-        # 퍼플 바이퍼스는 볼넷 확률 극대화! 상대 투수가 제구 좋은 팀이면 스트라이크 존에 더 잘 꽂음
         w_strike = max(10, 400 + my_buff["strike_p"] + enemy_buff["strike_p"])
         w_ball = max(10, 600 + my_buff["ball_p"] + enemy_buff["ball_p"])
 
@@ -308,9 +290,7 @@ def play_turn(user_choice):
         if log_msg:
             st.session_state.game_log.append(f" 작전[공 끝까지 거르기]: {log_msg}")
 
-    # =======================================================
-    # 🏃‍♂️ [통합 진루 및 타자 교체 엔진] (기존 로직 100% 동일 유지)
-    # =======================================================
+    # 통합 진루 및 타자 교체 엔진
     if at_bat_result != "지속":
         st.session_state.strike = 0
         st.session_state.ball = 0
@@ -370,7 +350,6 @@ def check_three_out_change():
 # ==========================================
 st.title("⚾ KBO 스타일 매운맛 프로야구 시뮬레이터")
 
-# 📜 여기에 딱 배치하면 게임 시작하기 전에 언제든 열어볼 수 있습니다!
 if st.button("📜 KBO 스타일 구단 설정집 열람"):
     st.session_state.show_stories = True
 
@@ -412,7 +391,7 @@ else:
     with col3:
         st.metric(label=f"상대 팀 {st.session_state.enemy_emoji}", value=f"{st.session_state.enemy_score} 점")
         st.caption(st.session_state.enemy_team)
-        st.markdown(f"🥎 **상대 투수 총 투구수:** `{st.session_state.enemy_total_pitches}구`") # UI에 상대 투구수 추가 지표 노출
+        st.markdown(f"🥎 **상대 투수 총 투구수:** `{st.session_state.enemy_total_pitches}구`")
 
     st.divider()
 
