@@ -1,5 +1,5 @@
 import random
-import streamlit st
+import streamlit as st
 
 # ==========================================
 # 1. 페이지 설정 및 팀 데이터 (색상별 이모지)
