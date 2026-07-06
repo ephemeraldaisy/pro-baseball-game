@@ -1,5 +1,6 @@
 import random
 import streamlit as st
+import os 
 
 # ==========================================
 # 1. 페이지 설정 및 팀 데이터 (색상별 이모지)
@@ -29,6 +30,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # ==========================================
 # 2. 게임 상태(Session State) 관리
@@ -344,6 +346,27 @@ def check_three_out_change():
 # 4. 웹 UI (팀 선택 화면 및 게임 화면)
 # ==========================================
 st.title("⚾ KBO 스타일 매운맛 프로야구 시뮬레이터")
+
+# 📜 여기에 딱 배치하면 게임 시작하기 전에 언제든 열어볼 수 있습니다!
+if st.button("📜 KBO 스타일 구단 설정집 열람"):
+    st.session_state.show_stories = True
+
+if st.session_state.show_stories:
+    file_path = "assets/team_stories.txt"
+    st.markdown("---")
+    st.subheader("🕵️‍♂️ 10대 구단 비사(秘史) 및 성격 설정집")
+    
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            stories_text = f.read()
+        st.text_area("구단별 성격 및 스토리", value=stories_text, height=300, disabled=True)
+    else:
+        st.error("⚠️ assets/team_stories.txt 파일을 찾을 수 없습니다!")
+        
+    if st.button("❌ 설정집 닫기"):
+        st.session_state.show_stories = False
+        st.rerun()
+    st.markdown("---")
 
 if not st.session_state.game_setup:
     st.markdown("### 🏟️ 구단 선택 및 리그 매칭")
