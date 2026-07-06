@@ -196,21 +196,21 @@ def play_turn(user_choice):
             ["HOMERUN", "HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
             weights=[50, 150, 400, 250, 50, 100] # 풀스윙 특성상 홈런 슬롯 추가
         )[0]
-        enemy_pitch_count = random.randint(1, 3)
+        enemy_pitch_count = 1
 
     elif user_choice == 2:  # 🌟 2. 가볍게 밀어치기
         result = random.choices(
             ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
             weights=[300, 400, 150, 50, 100]
         )[0]
-        enemy_pitch_count = random.randint(2, 4)
+        enemy_pitch_count = 1
 
     elif user_choice == 3:  # 👀 3. 공 끝까지 거르기 (★BSO 트리거 연동 영역★)
         result = random.choices(
             ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
             weights=[100, 100, 150, 550, 100]
         )[0]
-        enemy_pitch_count = random.randint(3, 6)
+        enemy_pitch_count = 1
 
     # 💥 상대 투수 총 투구수 누적 적립
     st.session_state.enemy_total_pitches += enemy_pitch_count
