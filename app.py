@@ -105,14 +105,18 @@ def setup_half_inning():
         else:
             enemy_pts = base_pts
 
+        # =======================================================
+        # [수정 위치] setup_half_inning() 함수 중간의 투구수 계산 구역
+        # =======================================================
+        # 밸런스 패치: 1클릭 1구에 맞춰 상대 AI가 소모시키는 우리 투구수도 대폭 하향 조정!
         if enemy_pts == 0:
-            inning_pitches = random.randint(10, 15)
+            inning_pitches = random.randint(3, 5)   # 3아웃 초스피드 이닝 고증
         elif enemy_pts == 1:
-            inning_pitches = random.randint(16, 22)
+            inning_pitches = random.randint(5, 8)
         elif enemy_pts in [2, 3]:
-            inning_pitches = random.randint(23, 30)
-        else:
-            inning_pitches = random.randint(31, 45)
+            inning_pitches = random.randint(8, 12)
+        else: 
+            inning_pitches = random.randint(12, 18) # 메가 이닝도 최대 18구 정도로 방어
 
         st.session_state.our_total_pitches += inning_pitches
 
@@ -182,131 +186,116 @@ def end_game():
 # ==========================================
 # 3. 타격 액션 및 진루 처리 (에러 완전 박멸 버전)
 # ==========================================
+
 def play_turn(user_choice):
     if st.session_state.game_over:
         return
 
-    # 🔋 [메커니즘] 상대 투수의 투구수 가산값 기본 정의
-    enemy_pitch_count = 0
-    at_bat_result = "지속"  # 루상 주자 진루 엔진을 구동시킬 트리거 변수
-
-    # 1. 유저의 작전 선택에 따른 확률 결과 계산 및 투구수 밸런스 패치
-    if user_choice == 1:    # 💥 1. 풀스윙 강타
-        result = random.choices(
-            ["HOMERUN", "HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
-            weights=[50, 150, 400, 250, 50, 100]
-        )[0]
-        # 타석당 투구수 상향 (기존 1~3구 ➔ 3~5구)
-        enemy_pitch_count = random.randint(3, 5)
-
-    elif user_choice == 2:  # 🌟 2. 가볍게 밀어치기
-        result = random.choices(
-            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
-            weights=[300, 400, 150, 50, 100]
-        )[0]
-        # 타석당 투구수 상향 (기존 2~4구 ➔ 4, 5구)
-        enemy_pitch_count = random.randint(4, 5)
-
-    elif user_choice == 3:  # 👀 3. 공 끝까지 거르기
-        result = random.choices(
-            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
-            weights=[100, 100, 150, 550, 100]
-        )[0]
-        # 거르기 작전은 용량을 대폭 늘려 투수를 말려 죽입니다! (기존 3~6구 ➔ 5~8구)
-        enemy_pitch_count = random.randint(5, 8)
-
-    # 💥 상대 투수 총 투구수 누적 적립
+    # 🟢 [핵심 패치 1] 형님 말씀대로 버튼 딱 한 번 클릭에 정직하게 무조건 '1구'만 증가!
+    enemy_pitch_count = 1
     st.session_state.enemy_total_pitches += enemy_pitch_count
 
-    # 2. ⚾ BSO 카운트 및 주자 판정 필터 (1, 2, 3번 공통 적용)
+    # 2. 유저 작전별 '공 1구'에 대한 주사위 확률 (현실적인 볼카운트 싸움용 세팅)
+    if user_choice == 1:    # 💥 1. 풀스윙 강타 (공격적, 헛스윙 삼진이나 인플레이 타구 위주)
+        result = random.choices(
+            ["HOMERUN", "HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
+            weights=[30, 120, 250, 400, 50, 150]
+        )[0]
+
+    elif user_choice == 2:  # 🌟 2. 가볍게 밀어치기 (정교하게 공을 맞추고 커트하는 성향)
+        result = random.choices(
+            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
+            weights=[150, 200, 250, 100, 300] # 파울 확률을 높여 투구수를 유도
+        )[0]
+
+    elif user_choice == 3:  # 👀 3. 공 끝까지 거르기 (방망이 안 나가고 신중하게 공 고르기)
+        result = random.choices(
+            ["STRIKE", "BALL"], 
+            weights=[400, 600] # 배트를 휘두르지 않으므로 오직 스트라이크와 볼만 나옴!
+        )[0]
+
+    # 3. ⚾ BSO 카운트 처리 및 아웃 시 즉시 다음 타자 전환 로직
     log_msg = ""
     current_batter = st.session_state.my_batter_number
     
     if result == "HOMERUN":
-        at_bat_result = "홈런"
-        
+        # 홈런 패널티/보너스 및 진루 처리
+        pts = (1 if st.session_state.base1 else 0) + (1 if st.session_state.base2 else 0) + (1 if st.session_state.base3 else 0) + 1
+        st.session_state.our_score += pts
+        st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {current_batter}번 타자 대형 {pts}점짜리 홈런 대폭발!!!!!!!! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+        st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
+        # 타석 종료 ➔ 카운트 리셋 및 즉시 다음 타자!
+        st.session_state.strike = st.session_state.ball = 0
+        st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
+
     elif result == "HIT":
-        at_bat_result = "안타"
+        if st.session_state.base3: st.session_state.our_score += 1
+        if st.session_state.base2: st.session_state.our_score += 1
+        st.session_state.base3 = st.session_state.base1
+        st.session_state.base2 = False
+        st.session_state.base1 = True
+        st.session_state.game_log.append(f"🌟 딱! {current_batter}번 타자의 안타! 주자 나갑니다! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+        # 타석 종료 ➔ 카운트 리셋 및 즉시 다음 타자!
+        st.session_state.strike = st.session_state.ball = 0
+        st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
         
     elif result == "OUT":
         st.session_state.out_count += 1
-        log_msg = " Ah... 아쉽게도 내야 땅볼 아웃입니다."
-        st.session_state.strike = 0
-        st.session_state.ball = 0
-        
-        # 🚶‍♂️ [추가] 아웃되었으니 타자 상자 교체!
-        current_batter = st.session_state.my_batter_number
+        st.session_state.game_log.append(f" Ah... {current_batter}번 타자 아쉽게도 내야 땅볼 아웃입니다. (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+        # 타석 종료 ➔ 카운트 리셋 및 즉시 다음 타자!
+        st.session_state.strike = st.session_state.ball = 0
         st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
         
         if st.session_state.out_count >= 3:
-            st.session_state.game_log.append(f"❌ 쓰리아웃 체인지! 상대 투수 현재 총 {st.session_state.enemy_total_pitches}구 던짐.")
             check_three_out_change()
             return
 
     elif result == "STRIKE":
         st.session_state.strike += 1
-        log_msg = f"❌ 공을 지켜봅니다, 스트라이크! (현재 {st.session_state.strike}S)"
+        log_msg = f"❌ 스트라이크! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
+        
+        # 🔥 [삼진 로직 체인지] 스트라이크가 3개가 되는 순간 즉시 아웃 처리 및 타자 교체!
         if st.session_state.strike >= 3:
             st.session_state.out_count += 1
-            log_msg = " ⚡ 삼진 아웃!! 앗 아아..."
+            st.session_state.game_log.append(f"⚡ 앗 아아... {current_batter}번 타자 3구 삼진 아웃!! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
             st.session_state.strike = 0
             st.session_state.ball = 0
-            
-            # 🚶‍♂️ [추가] 삼진 먹었으니 다음 타자 대기석으로!
-            current_batter = st.session_state.my_batter_number
             st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
             
             if st.session_state.out_count >= 3:
-                st.session_state.game_log.append(f"❌ 삼진으로 쓰리아웃 체인지! 상대 투수 총 {st.session_state.enemy_total_pitches}구 던짐.")
                 check_three_out_change()
                 return
 
     elif result == "BALL":
         st.session_state.ball += 1
-        log_msg = f"🟢 좋은 공 골라냅니다, 볼! (현재 {st.session_state.ball}B)"
+        log_msg = f"🟢 볼 골라냅니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
+        
+        # 🔥 [볼넷 로직 체인지] 볼이 4개가 되는 순간 즉시 출루 및 다음 타자 교체!
         if st.session_state.ball >= 4:
-            at_bat_result = "볼넷"
-
-    elif result == "FOUL":
-        if st.session_state.strike < 2:
-            st.session_state.strike += 1
-        log_msg = f" 💥 빗맞았습니다, 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
-
-    # 🎙️ 중계 로그 일지에 행동 출력
-    action_names = {1: "풀스윙 강타", 2: "가볍게 밀어치기", 3: "공 끝까지 거르기"}
-    if log_msg:
-        st.session_state.game_log.append(f" 작전[{action_names[user_choice]}]: {log_msg} (+{enemy_pitch_count}구 / 총 {st.session_state.enemy_total_pitches}구)")
-
-    # 3. 🏃‍♂️ 주자 진루 엔진 실시간 가동 (at_bat_result 연동형으로 전면 전개)
-    if at_bat_result in ["홈런", "안타", "볼넷"]:
-        st.session_state.strike = 0
-        st.session_state.ball = 0
-        st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
-
-        if at_bat_result == "홈런":
-            pts = (1 if st.session_state.base1 else 0) + (1 if st.session_state.base2 else 0) + (1 if st.session_state.base3 else 0) + 1
-            st.session_state.our_score += pts
-            st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {current_batter}번 타자 대형 {pts}점짜리 홈런 대폭발!!!!!!!! (+{enemy_pitch_count}구 / 총 {st.session_state.enemy_total_pitches}구)")
-            st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
-
-        elif at_bat_result == "안타":
-            if st.session_state.base3: st.session_state.our_score += 1
-            if st.session_state.base2: st.session_state.our_score += 1
-            st.session_state.base3 = st.session_state.base1
-            st.session_state.base2 = False
-            st.session_state.base1 = True
-            st.session_state.game_log.append(f"🌟 딱! {current_batter}번 타자의 안타! 주자 주루 플레이 개시! (+{enemy_pitch_count}구 / 총 {st.session_state.enemy_total_pitches}구)")
-
-        elif at_bat_result == "볼넷":
-            st.session_state.game_log.append(f"🚶‍♂️ {current_batter}번 타자 눈야구로 볼넷 출루! (+{enemy_pitch_count}구 / 총 {st.session_state.enemy_total_pitches}구)")
+            st.session_state.game_log.append(f"🚶‍♂️ {current_batter}번 타자 끈질긴 눈야구로 볼넷 출루! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
             if st.session_state.base1 and st.session_state.base2 and st.session_state.base3:
                 st.session_state.our_score += 1
                 st.session_state.game_log.append("➔ 밀어내기 만루 볼넷으로 1점 추가!")
             elif st.session_state.base1 and st.session_state.base2: st.session_state.base3 = True
             elif st.session_state.base1: st.session_state.base2 = True
             else: st.session_state.base1 = True
+            
+            st.session_state.strike = 0
+            st.session_state.ball = 0
+            st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
 
-    # 🌟 [끝내기 조건 체크]
+    elif result == "FOUL":
+        # 2스트라이크 미만일 때만 스트라이크 카운트 증가
+        if st.session_state.strike < 2:
+            st.session_state.strike += 1
+        log_msg = f"💥 커트합니다, 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
+
+    # 스트라이크/볼/파울 같은 진행형 카운트만 중계창에 브리핑 출력
+    action_names = {1: "풀스윙 강타", 2: "가볍게 밀어치기", 3: "공 끝까지 거르기"}
+    if log_msg:
+        st.session_state.game_log.append(f" 작전[{action_names[user_choice]}]: {log_msg}")
+
+    # 연장전 끝내기 조건 체크
     if st.session_state.inning >= 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
         end_game()
 
