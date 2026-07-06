@@ -7,17 +7,20 @@ import os
 # ==========================================
 st.set_page_config(page_title="이 사장의 프로야구 시뮬레이터 Pro", page_icon="⚾", layout="centered")
 
+# =====================================================================
+# [app.py 최상단] 기존 TEAMS 리스트 대신, 능력치가 통합된 대장부로 교체!
+# =====================================================================
 TEAMS = {
-    "🔴 레드 파이어스": "🔴",
-    "🔵 블루 웨이브스": "🔵",
-    "🟢 그린 몬스터즈": "🟢",
-    "🟡 옐로우 타이거즈": "🟡",
-    "🟣 퍼플 바이퍼스": "🟣",
-    "🟠 오렌지 자이언츠": "🟠",
-    "⚫ 블랙 나이츠": "⚫",
-    "🟤 브라운 베어스": "🟤",
-    "⚪ 화이트 이글스": "⚪",
-    "💖 핑크 돌핀스": "💖"
+    "🔴 레드 파이어스": {"homerun": 5, "hit": 30, "out": -10, "strike_p": -30, "ball_p": 30},
+    "🔵 블루 웨이브스": {"homerun": 20, "hit": 40, "out": -20, "strike_p": 10, "ball_p": -10},
+    "🟢 그린 몬스터즈": {"homerun": 60, "hit": -20, "out": 20, "strike_p": 50, "ball_p": -50},
+    "🟡 옐로우 타이거즈": {"homerun": 30, "hit": 10, "out": -10, "strike_p": 20, "ball_p": -20},
+    "🟣 퍼플 바이퍼스": {"homerun": -30, "hit": 20, "out": -30, "strike_p": -50, "ball_p": 80},
+    "🟠 오렌지 자이언츠": {"homerun": 25, "hit": 0, "out": 10, "strike_p": 10, "ball_p": -10},
+    "🟤 브라운 베어스": {"homerun": 10, "hit": 20, "out": -10, "strike_p": -10, "ball_p": 10},
+    "⚪ 화이트 이글스": {"homerun": -10, "hit": 50, "out": -20, "strike_p": 10, "ball_p": 0},
+    "⚫ 블랙 나이츠": {"homerun": 0, "hit": 10, "out": -20, "strike_p": -20, "ball_p": 20},
+    "💖 핑크 돌핀스": {"homerun": 40, "hit": 30, "out": 10, "strike_p": 30, "ball_p": -20}
 }
 
 st.markdown("""
@@ -212,20 +215,39 @@ def play_turn(user_choice):
     log_msg = ""
     at_bat_result = "지속"  # 타석이 끝났는지 판단하는 트리거
 
+    # -----------------------------------------------------------
+    # 🔥 [핵심 패치] 우리 팀의 스타일 및 상대 팀과의 상성 버프 계산구역
+    # -----------------------------------------------------------
+    my_team = st.session_state.my_team
+    enemy_team = st.session_state.enemy_team
+
+    # 장부에서 두 팀의 프로필 가져오기 (없으면 기본값 0)
+    my_buff = TEAM_PROFILES.get(my_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
+    enemy_buff = TEAM_PROFILES.get(enemy_team, {"homerun": 0, "hit": 0, "out": 0, "strike_p": 0, "ball_p": 0})
+
+    # 상성 계산 예시: 상대가 수비/제구가 좋은 팀(예: 화이트이글스, 블랙나이츠)이면 우리 안타 확률이 감소함
+    # 상대의 이점이 우리의 패널티가 되는 리얼 상성 연동!
+    defense_penalty = 15 if enemy_team in ["⚪ 화이트 이글스", "⚫ 블랙 나이츠"] else 0
+
     # =======================================================
-    # [방향 전환] 1번, 2번 작전은 카운트 없이 '즉시 타석 결판'! (단, 파울은 고증 적용)
+    # 💥 1. 풀스윙 강타 (구단 스타일 적용)
     # =======================================================
-    if user_choice == 1:    # 💥 1. 풀스윙 강타
+    if user_choice == 1:
+        # 구단 스타일 보너스 적용 (그린몬스터즈나 핑크돌핀스는 홈런률 폭발!)
+        w_homerun = max(10, 80 + my_buff["homerun"])
+        w_hit = max(10, 170 + my_buff["hit"] - defense_penalty)
+        w_out = max(10, 550 + my_buff["out"])
+        w_foul = 200
+        
         result = random.choices(
             ["HOMERUN", "HIT", "OUT", "FOUL"], 
-            weights=[80, 170, 550, 200]  # 카운트 없이 바로 결과 유도!
+            weights=[w_homerun, w_hit, w_out, w_foul]
         )[0]
         
         if result == "HOMERUN": at_bat_result = "홈런"
         elif result == "HIT": at_bat_result = "안타"
         elif result == "OUT": at_bat_result = "아웃"
         elif result == "FOUL":
-            # ⚾ [파울 고증] 2스트라이크 미만이면 스트라이크 1개 추가!
             if st.session_state.strike < 2:
                 st.session_state.strike += 1
                 st.session_state.game_log.append(f"💥 작전[풀스윙 강타]: 아슬아슬하게 파울 홈런! 스트라이크가 추가됩니다. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 총 {st.session_state.enemy_total_pitches}구)")
@@ -233,16 +255,23 @@ def play_turn(user_choice):
                 st.session_state.game_log.append(f"💥 작전[풀스윙 강타]: 2S 이후 아슬아슬한 파울 홈런! 타석을 이어갑니다. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 총 {st.session_state.enemy_total_pitches}구)")
             return
 
-    elif user_choice == 2:  # 🌟 2. 가볍게 밀어치기
+    # =======================================================
+    # 🌟 2. 가볍게 밀어치기 (구단 스타일 적용)
+    # =======================================================
+    elif user_choice == 2:
+        # 화이트이글스 같은 팀은 안타 확률 대폭 상승!
+        w_hit = max(10, 350 + my_buff["hit"] * 1.2 - defense_penalty)
+        w_out = max(10, 450 + my_buff["out"])
+        w_foul = 200
+        
         result = random.choices(
             ["HIT", "OUT", "FOUL"], 
-            weights=[350, 450, 200]  # 안타율이 조금 더 높은 정교한 타격
+            weights=[w_hit, w_out, w_foul]
         )[0]
         
         if result == "HIT": at_bat_result = "안타"
         elif result == "OUT": at_bat_result = "아웃"
         elif result == "FOUL":
-            # ⚾ [파울 고증] 2스트라이크 미만이면 스트라이크 1개 추가!
             if st.session_state.strike < 2:
                 st.session_state.strike += 1
                 st.session_state.game_log.append(f"💥 작전[가볍게 밀어치기]: 빗맞은 타구 파울! 스트라이크가 추가됩니다. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 총 {st.session_state.enemy_total_pitches}구)")
@@ -251,20 +280,21 @@ def play_turn(user_choice):
             return
 
     # =======================================================
-    # [핵심 패치] 3번 작전을 눌러야만 전광판 볼 카운트가 트리거됨!
+    # 👀 3. 공 끝까지 거르기 (구단 스타일 및 상대 투수 상성 반영)
     # =======================================================
-    elif user_choice == 3:  # 👀 3. 공 끝까지 거르기
-        # 배트를 전혀 휘두르지 않으므로 오직 스트라이크와 볼만 쌓입니다.
+    elif user_choice == 3:
+        # 퍼플 바이퍼스는 볼넷 확률 극대화! 상대 투수가 제구 좋은 팀이면 스트라이크 존에 더 잘 꽂음
+        w_strike = max(10, 400 + my_buff["strike_p"] + enemy_buff["strike_p"])
+        w_ball = max(10, 600 + my_buff["ball_p"] + enemy_buff["ball_p"])
+
         result = random.choices(
             ["STRIKE", "BALL"], 
-            weights=[400, 600] # 볼 고를 확률 60%
+            weights=[w_strike, w_ball]
         )[0]
 
         if result == "STRIKE":
             st.session_state.strike += 1
             log_msg = f"❌ 스트라이크를 지켜봅니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
-            
-            # 3스트라이크가 되면 삼진 아웃 확정!
             if st.session_state.strike >= 3:
                 st.session_state.game_log.append(f"⚡ 앗 아아... {current_batter}번 타자 공만 보다가 루킹 삼진 아웃!! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
                 at_bat_result = "삼진"
@@ -272,24 +302,18 @@ def play_turn(user_choice):
         elif result == "BALL":
             st.session_state.ball += 1
             log_msg = f"🟢 훌륭한 선구안! 볼을 골라냅니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
-            
-            # 4볼이 되면 볼넷 출루 확정!
             if st.session_state.ball >= 4:
                 at_bat_result = "볼넷"
 
-        # 볼/스트라이크 진행 상황 실시간 중계 브리핑
         if log_msg:
             st.session_state.game_log.append(f" 작전[공 끝까지 거르기]: {log_msg}")
 
-
     # =======================================================
-    # 🏃‍♂️ [통합 진루 및 타자 교체 엔진] 타석이 결판났을 때만 가동!
+    # 🏃‍♂️ [통합 진루 및 타자 교체 엔진] (기존 로직 100% 동일 유지)
     # =======================================================
     if at_bat_result != "지속":
-        # 타석이 완전히 끝났으므로 전광판 볼카운트는 깨끗이 청소!
         st.session_state.strike = 0
         st.session_state.ball = 0
-        # 즉시 다음 타자로 넘기기 설정
         st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
 
         if at_bat_result == "홈런":
@@ -324,7 +348,6 @@ def play_turn(user_choice):
             elif st.session_state.base1: st.session_state.base2 = True
             else: st.session_state.base1 = True
 
-    # 🌟 9회말 끝내기 요건 체크
     if st.session_state.inning >= 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
         end_game()
 
@@ -370,12 +393,12 @@ if st.session_state.get("show_stories", False):
 
 if not st.session_state.game_setup:
     st.markdown("### 🏟️ 구단 선택 및 리그 매칭")
-    my_choice = st.selectbox("사모님이 이끌어갈 우리 팀을 고르소:", list(TEAMS.keys()))
-    remaining_teams = [t for t in TEAMS.keys() if t != my_choice]
+    my_team = st.selectbox("사모님이 이끌어갈 우리 팀을 고르소:", list(TEAMS.keys()))
+    remaining_teams = [t for t in TEAMS.keys() if t != my_team]
     
     if st.button("경기 대진표 확정 및 입장 🎟️", type="primary"):
-        enemy_choice = random.choice(remaining_teams)
-        start_new_game(my_choice, enemy_choice)
+        enemy_team = random.choice(remaining_teams)
+        start_new_game(my_team, enemy_team)
         st.rerun()
 else:
     col1, col2, col3 = st.columns([2, 1, 2])
