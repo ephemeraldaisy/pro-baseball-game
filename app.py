@@ -230,6 +230,11 @@ def play_turn(user_choice):
         log_msg = " Ah... 아쉽게도 내야 땅볼 아웃입니다."
         st.session_state.strike = 0
         st.session_state.ball = 0
+        
+        # 🚶‍♂️ [추가] 아웃되었으니 타자 상자 교체!
+        current_batter = st.session_state.my_batter_number
+        st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
+        
         if st.session_state.out_count >= 3:
             st.session_state.game_log.append(f"❌ 쓰리아웃 체인지! 상대 투수 현재 총 {st.session_state.enemy_total_pitches}구 던짐.")
             check_three_out_change()
@@ -240,9 +245,14 @@ def play_turn(user_choice):
         log_msg = f"❌ 공을 지켜봅니다, 스트라이크! (현재 {st.session_state.strike}S)"
         if st.session_state.strike >= 3:
             st.session_state.out_count += 1
-            log_msg = " ⚡ 루킹 삼진 아웃!! 앗 아아..."
+            log_msg = " ⚡ 삼진 아웃!! 앗 아아..."
             st.session_state.strike = 0
             st.session_state.ball = 0
+            
+            # 🚶‍♂️ [추가] 삼진 먹었으니 다음 타자 대기석으로!
+            current_batter = st.session_state.my_batter_number
+            st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
+            
             if st.session_state.out_count >= 3:
                 st.session_state.game_log.append(f"❌ 삼진으로 쓰리아웃 체인지! 상대 투수 총 {st.session_state.enemy_total_pitches}구 던짐.")
                 check_three_out_change()
