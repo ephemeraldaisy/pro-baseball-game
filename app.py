@@ -176,6 +176,18 @@ def next_phase():
 
 def end_game():
     st.session_state.game_over = True
+    
+    # 🚨 [이닝 뻥튀기 버그 방지 패치] 
+    # 정규이닝(9회) 안에서 승부가 났는데 이닝이 10으로 먼저 올라갔다면 9회로 보정해 줍니다.
+    if st.session_state.inning >= 10:
+        # 연장전 대혈투 끝에 끝난 게 아니라, 9회 점수 차로 일반 종료된 케이스라면
+        score_gap = abs(st.session_state.our_score - st.session_state.enemy_score)
+        # 연장 동점이 깨진 게 아니라 정규이닝 종료 요건이라면 9회로 유지
+        if st.session_state.inning == 10 and st.session_state.phase == "초":
+            st.session_state.inning = 9
+            st.session_state.phase = "말" # 9회말로 정정하여 표기
+
+    # 기존 승패 메시지 출력 로직 (그대로 유지)
     if st.session_state.our_score > st.session_state.enemy_score:
         st.session_state.game_result_msg = f"🎉 {st.session_state.my_team} 대승리!!! 오늘 경기 수당은 사모님 기라!!"
     elif st.session_state.our_score < st.session_state.enemy_score:
