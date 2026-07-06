@@ -51,6 +51,7 @@ def start_new_game(my_team, enemy_team):
     st.session_state.phase = "초"
     #투구수
     st.session_state.our_total_pitches = 0 
+    st.session_state.enemy_total_pitches = 0 
     
     st.session_state.out_count = 0
     st.session_state.strike = 0
@@ -197,76 +198,97 @@ def end_game():
 # 3. 타격 액션 및 진루 처리 (병살타 엔진 장착)
 # ==========================================
 def play_turn(user_choice):
-    pitches = ["직구", "슬라이더", "체인지업"]
-    pitch = random.choice(pitches)
-    st.session_state.game_log.append(f"⚾ 투수가 구석을 찌르는 '[{pitch}]'을 던졌습니다!")
+    if st.session_state.game_over:
+        return
 
-    at_bat_result = None
-    result = random.random()
+    # 🔋 [메커니즘 1] 한 번 휘두르거나 고를 때마다 늘어날 상대 투수의 투구수 기본 세팅
+    enemy_pitch_count = 0
 
-    # 1. 풀스윙 강타
-    if user_choice == 1:
-        if (pitch == "직구" and result < 0.15) or (pitch != "직구" and result < 0.08):
-            at_bat_result = "홈런"
-        elif result < 0.55:
-            st.session_state.game_log.append("➔ 파울! 타이밍은 맞았는데 빗맞았습니다.")
-            if st.session_state.strike < 2: st.session_state.strike += 1
-        else:
-            st.session_state.game_log.append("➔ 헛스윙 삼진 유도구에 완전히 속았습니다!")
-            st.session_state.strike += 1
+    # 1. 유저의 작전 선택에 따른 확률 결과 계산
+    if user_choice == 1:    # 💥 1. 풀스윙 강타
+        result = random.choices(
+            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
+            weights=[200, 400, 250, 50, 100]
+        )[0]
+        # 풀스윙은 보통 1구~3구 안으로 승부가 많이 남
+        enemy_pitch_count = random.randint(1, 3)
 
-    # 2. 가볍게 밀어치기 (병살타 탑재)
-    elif user_choice == 2:
-        if result < 0.30:
-            at_bat_result = "안타"
-        elif result < 0.45:
-            # 병살타 조건: 0아웃 혹은 1아웃이면서, 1루에 주자가 있을 때
-            if st.session_state.out_count < 2 and st.session_state.base1:
-                st.session_state.game_log.append(" Ground Ball!! 내야 땅볼 타구!")
-                st.session_state.game_log.append("⚡ [병살타] 유격수 ➔ 2루수 ➔ 1루수 더블 플레이!!! 아웃카운트 2개 소멸!")
-                
-                st.session_state.out_count += 2
-                st.session_state.strike = st.session_state.ball = 0
-                st.session_state.base1 = False
-                
-                if st.session_state.base3:
-                    st.session_state.our_score += 1
-                    st.session_state.game_log.append("➔ 그 와중에 3루 주자는 홈인하여 1점 만회!")
-                st.session_state.base3 = st.session_state.base2
-                st.session_state.base2 = False
-                
-                current_batter = st.session_state.my_batter_number
-                st.session_state.my_batter_number = 1 if current_batter == 9 else current_batter + 1
-                
-                # 아웃카운트 변동으로 쓰리아웃 체인지 체크
-                check_three_out_change()
-                st.rerun()
-                return
-            else:
-                st.session_state.game_log.append("➔ 범타! 힘없는 타구가 파울 플라이가 되었습니다.")
-                if st.session_state.strike < 2: st.session_state.strike += 1
-        elif result < 0.75:
-            st.session_state.game_log.append("➔ 범타! 힘없는 타구가 파울 플라이가 되었습니다.")
-            if st.session_state.strike < 2: st.session_state.strike += 1
-        else:
-            st.session_state.game_log.append("➔ 스트라이크! 배트가 허공을 가릅니다.")
-            st.session_state.strike += 1
+    elif user_choice == 2:  # 🌟 2. 가볍게 밀어치기
+        result = random.choices(
+            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
+            weights=[300, 400, 150, 50, 100]
+        )[0]
+        # 밀어치기도 커트하거나 지켜보며 2구~4구 정도 소모
+        enemy_pitch_count = random.randint(2, 4)
 
-    # 3. 공 끝까지 거르기
-    elif user_choice == 3:
-        result = random.random()
+    elif user_choice == 3:  # 👀 3. 공 끝까지 거르기 (★BSO 먹통 해결 구역★)
+        result = random.choices(
+            ["HIT", "OUT", "STRIKE", "BALL", "FOUL"], 
+            weights=[100, 100, 150, 550, 100]  # 지난번 상향한 볼넷 확률 유지!
+        )[0]
+        # 공을 끝까지 지켜보므로 상대 투수 공을 최소 3구~6구까지 많이 뺍니다.
+        enemy_pitch_count = random.randint(3, 6)
+
+    # 💥 [상대 투수 투구수 누적] 우리 세션 상태에 상대 투수 총 투구수 변수가 없다면 자동 생성 후 적립!
+    if "enemy_total_pitches" not in st.session_state:
+        st.session_state.enemy_total_pitches = 0
+    st.session_state.enemy_total_pitches += enemy_pitch_count
+
+    # 2. ⚾ [BSO 트리거 엔진] 어떤 버튼(1, 2, 3번)을 눌렀든 무조건 이 카운트 필터를 거치게 만듭니다!
+    log_msg = ""
+    
+    if result == "HIT":
+        # 안타 처리 로직 (기존 형님 코드의 안타 함수나 로직 호출)
+        # 예시: hit_result = process_hit()
+        log_msg = "🔥 시원한 안타! 주자 나갑니다!"
+        st.session_state.strike = 0
+        st.session_state.ball = 0
         
-        # 실제 야구처럼 거르기 작전을 쓰면 '볼(BALL)'이 나올 확률을 대폭 올려줍니다.
-        if result < 0.55:  # 🔥 55% 확률로 볼(Ball) 득템!
-            # 여기 밑에는 기존에 '볼 카운트 늘려주는 코드'를 그대로 쓰시면 됩니다.
-            # 예시: st.session_state.ball += 1 이나 처리 로직
-            result = "BALL" 
-        elif result < 0.70:  # 15% 확률로 아웃
-            result = "OUT"
-        elif result < 0.85:  # 15% 확률로 삼진(스트라이크)
-            result = "STRIKE"
-        else:  # 15% 확률로 기습 안타 혹은 파울
-            result = "HIT"
+    elif result == "OUT":
+        # 일반 아웃 또는 병살타 체크 구역
+        st.session_state.out_count += 1
+        log_msg = " Ah... 아쉽게도 아웃입니다."
+        st.session_state.strike = 0
+        st.session_state.ball = 0
+        if st.session_state.out_count >= 3:
+            st.session_state.game_log.append(f" 쓰리아웃 체인지! 상대 투수 현재 총 {st.session_state.enemy_total_pitches}구 던짐.")
+            setup_half_inning()
+            return
+
+    elif result == "STRIKE":
+        st.session_state.strike += 1
+        log_msg = f"❌ 스트라이크! (현재 {st.session_state.strike}S)"
+        if st.session_state.strike >= 3:
+            st.session_state.out_count += 1
+            log_msg = " ⚡ 루킹 삼진 아웃!! 앗 아아..."
+            st.session_state.strike = 0
+            st.session_state.ball = 0
+            if st.session_state.out_count >= 3:
+                st.session_state.game_log.append(f" 쓰리아웃 체인지! 상대 투수 현재 총 {st.session_state.enemy_total_pitches}구 던짐.")
+                setup_half_inning()
+                return
+
+    elif result == "BALL":
+        st.session_state.ball += 1
+        log_msg = f"👀 볼 고릅니다! (현재 {st.session_state.ball}B)"
+        if st.session_state.ball >= 4:
+            # 볼넷 처리 로직 (주자 진루)
+            log_msg = " 🚶 걸어 나갑니다! 기적의 볼넷 완성!"
+            st.session_state.strike = 0
+            st.session_state.ball = 0
+            # 여기에 기존 형님 코드의 볼넷 진루 함수 호출 집어넣으시면 됩니다!
+
+    elif result == "FOUL":
+        if st.session_state.strike < 2:
+            st.session_state.strike += 1
+        log_msg = f" 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
+
+    # 🎙️ [통합 중계 로그 출력] 상대 투수의 투구수 상황까지 실시간으로 브리핑!
+    action_names = {1: "풀스윙 강타", 2: "가볍게 밀어치기", 3: "공 끝까지 거르기"}
+    st.session_state.game_log.append(
+        f" 작전[{action_names[user_choice]}]: {log_msg} "
+        f"(상대 투수 {enemy_pitch_count}구 던짐 / 총 {st.session_state.enemy_total_pitches}구)"
+    )
 
     # 주자 진루 엔진 및 아웃 판정
     if at_bat_result in ["홈런", "안타", "볼넷"]:
