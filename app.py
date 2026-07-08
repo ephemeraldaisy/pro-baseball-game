@@ -564,7 +564,11 @@ if st.session_state.show_matrix:
         return ""
 
     # 스트림릿 화면에 엑셀 판때기 렌더링
-    st.dataframe(df.style.applymap(color_cells), use_container_width=True)
+    try: 
+        st.dataframe(df.style.map(color_cells), use_container_width=True)
+    except AttributeError:
+        st.dataframe(df.style.applymap(color_cells), use_container_width=True)
+    
 
     if st.button("❌ 상성 대장부 닫기"):
         st.session_state.show_matrix = False
