@@ -353,10 +353,43 @@ def play_turn(user_choice):
 
     defense_penalty = 15 if enemy_team in ["⚪ 화이트 이글스", "⚫ 블랙 나이츠"] else 0
 
+    # ------------------------------------------------------------------
+    # ⚾ [트렌드 고증] 요즘 프로야구 1번~9번 타순별 가변 버프/패널티 및 서사 부여
+    # ------------------------------------------------------------------
+    batter_context_msg = ""
+    batter_homerun_mod = 0
+    batter_hit_mod = 0
+    batter_ball_mod = 0
+
+    if current_batter == 1:
+        batter_context_msg = "🏃‍♂️ [1번 출루머신] "
+        batter_hit_mod = 20  # 안타 확률 업
+        batter_ball_mod = 30 # 눈야구 보너스
+    elif current_batter in [2, 3]:
+        # ★요즘 KBO 대세: 가장 잘 치는 타자를 2, 3번에 전진 배치!
+        batter_context_msg = "🔥 [요즘 대세! 강한 2/3번 핵심 타자] "
+        batter_homerun_mod = 25 # 홈런 대폭 증가
+        batter_hit_mod = 35     # 안타 대폭 증가
+    elif current_batter == 4:
+        batter_context_msg = "👑 [전통의 4번 해결사: 사모님 타석!] "
+        batter_homerun_mod = 40 # 홈런 확률 극대화 (한방 타작)
+        batter_hit_mod = -10    # 모 아니면 도 (정확도 소폭 감소)
+    elif current_batter in [5, 6]:
+        batter_context_msg = "⚔️ [5/6번 클러치 히터] "
+        batter_homerun_mod = 15
+    elif current_batter in [7, 8]:
+        batter_context_msg = "🛡️ [7/8번 하위 타선 폭탄 돌리기] "
+        batter_hit_mod = -20    # 백업/하위 타선 패널티 (안타 확률 감소)
+    elif current_batter == 9:
+        # ★요즘 야구 9번: 단순 식물 타자가 아닌, 1번으로 연결하는 가교 타자!
+        batter_context_msg = "🎯 [9번 가교 타자] "
+        batter_hit_mod = 15     # 안타 확률 살짝 보정
+        batter_ball_mod = 20    # 상위 타선 연결용 눈야구 보너스
+
     # 💥 1. 풀스윙 강타
     if user_choice == 1:
-        w_homerun = max(10, 80 + my_buff["homerun"])
-        w_hit = max(10, 170 + my_buff["hit"] - defense_penalty)
+        w_homerun = max(10, 80 + my_buff["homerun"] + batter_homerun_mod)
+        w_hit = max(10, 170 + my_buff["hit"] - defense_penalty + batter_hit_mod)
         w_out = max(10, 550 + my_buff["out"])
         w_foul = 200
         
@@ -371,14 +404,14 @@ def play_turn(user_choice):
         elif result == "FOUL":
             if st.session_state.strike < 2:
                 st.session_state.strike += 1
-                st.session_state.game_log.append(f"💥 작전[풀스윙 강타]: 파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 {st.session_state.enemy_total_pitches}구)")
+                st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             else:
-                st.session_state.game_log.append(f"💥 작전[풀스윙 강타]: 2S 이후 커트 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 {st.session_state.enemy_total_pitches}구)")
+                st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}2S 이후 벼락같은 커트 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             return
 
     # 🌟 2. 가볍게 밀어치기
     elif user_choice == 2:
-        w_hit = max(10, 350 + my_buff["hit"] * 1.2 - defense_penalty)
+        w_hit = max(10, 350 + (my_buff["hit"] * 1.2) - defense_penalty + (batter_hit_mod * 1.5))
         w_out = max(10, 450 + my_buff["out"])
         w_foul = 200
         
@@ -392,15 +425,15 @@ def play_turn(user_choice):
         elif result == "FOUL":
             if st.session_state.strike < 2:
                 st.session_state.strike += 1
-                st.session_state.game_log.append(f"💥 작전[가볍게 밀어치기]: 빗맞은 파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 {st.session_state.enemy_total_pitches}구)")
+                st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}빗맞은 파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             else:
-                st.session_state.game_log.append(f"💥 작전[가볍게 밀어치기]: 2S 이후 끈질기게 파울 커트! (현재 {st.session_state.strike}S {st.session_state.ball}B / 상대 투수 {st.session_state.enemy_total_pitches}구)")
+                st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}끈질기게 파울 커트 연발! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             return
 
     # 👀 3. 공 끝까지 거르기
     elif user_choice == 3:
         w_strike = max(10, 400 + my_buff["strike_p"] + enemy_buff["strike_p"])
-        w_ball = max(10, 600 + my_buff["ball_p"] + enemy_buff["ball_p"])
+        w_ball = max(10, 600 + my_buff["ball_p"] + enemy_buff["ball_p"] + batter_ball_mod)
 
         result = random.choices(
             ["STRIKE", "BALL"], 
@@ -411,7 +444,7 @@ def play_turn(user_choice):
             st.session_state.strike += 1
             log_msg = f"❌ 스트라이크를 지켜봅니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
             if st.session_state.strike >= 3:
-                st.session_state.game_log.append(f"⚡ Ah... {current_batter}번 타자 루킹 삼진 아웃!! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+                st.session_state.game_log.append(f"⚡ Ah... {batter_context_msg}{current_batter}번 타자 루킹 삼진 아웃!!")
                 at_bat_result = "삼진"
 
         elif result == "BALL":
@@ -421,10 +454,10 @@ def play_turn(user_choice):
                 at_bat_result = "볼넷"
 
         if log_msg:
-            st.session_state.game_log.append(f" 작전[공 끝까지 거르기]: {log_msg}")
+            st.session_state.game_log.append(f" 작전[거르기]: {batter_context_msg}{log_msg}")
 
     # =======================================================
-    # 🏃‍♂️ [통합 진루 및 타자 교체 엔진] (디테일 고증)
+    # 🏃‍♂️ [진루 및 타자 교체 엔진 연동]
     # =======================================================
     if at_bat_result != "지속":
         st.session_state.strike = 0
@@ -434,7 +467,7 @@ def play_turn(user_choice):
         if at_bat_result == "홈런":
             pts = (1 if st.session_state.base1 else 0) + (1 if st.session_state.base2 else 0) + (1 if st.session_state.base3 else 0) + 1
             st.session_state.our_score += pts
-            st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {current_batter}번 타자 대형 {pts}점짜리 홈런 대폭발!!!!!!!! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+            st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {batter_context_msg}{current_batter}번 타자 대형 {pts}점짜리 홈런 대폭발!!!!!!!!")
             st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
 
         elif at_bat_result == "안타":
@@ -443,28 +476,21 @@ def play_turn(user_choice):
             st.session_state.base3 = st.session_state.base1
             st.session_state.base2 = False
             st.session_state.base1 = True
-            st.session_state.game_log.append(f"🌟 딱! {current_batter}번 타자의 안타! 주자 나갑니다! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+            st.session_state.game_log.append(f"🌟 딱! {batter_context_msg}{current_batter}번 타자의 안타! 주자 나갑니다!")
 
-        # 💥 [대수술 3] 병살타 및 희생플라이 가변 고증 분기문
         elif at_bat_result == "아웃":
-            # 시나리오 A: 주자 1루에 있고 아웃 카운트가 2아웃 미만일 때 ➔ 40% 확률로 병살타!
             if st.session_state.base1 and st.session_state.out_count < 2 and random.random() < 0.40:
                 st.session_state.out_count += 2
                 st.session_state.base1 = False
-                st.session_state.game_log.append(f"😱 아앗! {current_batter}번 타자 최악의 내야 땅볼! 유격수-2루수-1루수로 이어지는 '병살타(투아웃)'가 터집니다! (상대 {st.session_state.enemy_total_pitches}구)")
-            
-            # 시나리오 B: 주자 3루에 있고 아웃 카운트가 2아웃 미만일 때 ➔ 50% 확률로 희생플라이 점수 추가!
+                st.session_state.game_log.append(f"😱 아앗! {batter_context_msg}{current_batter}번 타자 내야 땅볼! 유격수-2루수-1루수 '병살타(투아웃)'!")
             elif st.session_state.base3 and st.session_state.out_count < 2 and random.random() < 0.50:
                 st.session_state.out_count += 1
                 st.session_state.base3 = False
                 st.session_state.our_score += 1
-                st.session_state.game_log.append(f"🕊️ [희생 플라이] {current_batter}번 타자가 큼지막한 외야 플라이를 쳤습니다! 3루 주자 태그업 홈인! 1점 추가! (상대 {st.session_state.enemy_total_pitches}구)")
-            
-            # 일반 아웃
+                st.session_state.game_log.append(f"🕊️ [희생 플라이] {batter_context_msg}{current_batter}번 타자의 큰 타구! 3루 주자 태그업 홈인!")
             else:
                 st.session_state.out_count += 1
-                st.session_state.game_log.append(f" Ah... {current_batter}번 타자 범타 아웃입니다. (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
-            
+                st.session_state.game_log.append(f" Ah... {batter_context_msg}{current_batter}번 타자 범타 아웃입니다.")
             check_three_out_change()
 
         elif at_bat_result == "삼진":
@@ -472,7 +498,7 @@ def play_turn(user_choice):
             check_three_out_change()
 
         elif at_bat_result == "볼넷":
-            st.session_state.game_log.append(f"🚶‍♂️ {current_batter}번 타자 볼넷 출루! (상대 투수 총 {st.session_state.enemy_total_pitches}구)")
+            st.session_state.game_log.append(f"🚶‍♂️ {batter_context_msg}{current_batter}번 타자 볼넷 출루!")
             if st.session_state.base1 and st.session_state.base2 and st.session_state.base3:
                 st.session_state.our_score += 1
                 st.session_state.game_log.append("➔ 밀어내기 만루 볼넷으로 1점 추가!")
@@ -480,7 +506,6 @@ def play_turn(user_choice):
             elif st.session_state.base1: st.session_state.base2 = True
             else: st.session_state.base1 = True
 
-    # 🔥 [끝내기 고증 2] 우리가 홈팀(후공)인데 9회말 공격 도중 역전하는 순간 즉시 경기 끝내기 승리 처리!
     if st.session_state.inning >= 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
         st.session_state.game_log.append(f"🎉 9회말!!! 우리 팀 타석에서 짜릿한 '끝내기 득점'이 터지며 경기를 그대로 끝냅니다!!")
         end_game()
@@ -502,9 +527,9 @@ def check_three_out_change():
 # ==========================================
 # 4. 웹 UI (팀 선택 화면 및 게임 화면)
 # ==========================================
-st.title("⚾ KBO 스타일 매운맛 프로야구 시뮬레이터")
+st.title("⚾ 순야보: 순수한 야구를 보여주마!")
 
-if st.button("📜 KBO 스타일 구단 설정집 열람"):
+if st.button("📜 구단 설정집 열람"):
     st.session_state.show_stories = True
 
 if st.session_state.get("show_stories", False):
@@ -664,8 +689,12 @@ else:
             st.markdown(f"* **아웃:** {'🔴' * st.session_state.out_count}{'⚪' * (3-st.session_state.out_count)}")
             st.markdown(f"* **스트라이크:** {'🔥' * st.session_state.strike}{'⚪' * (3-st.session_state.strike)}")
             st.markdown(f"* **볼:** {'🟢' * st.session_state.ball}{'⚪' * (4-st.session_state.ball)}")
-            st.markdown(f"* **타순:** `{st.session_state.my_batter_number}번 타자 타석` " + ("(👑 사모님!)" if st.session_state.my_batter_number == 4 else ""))
-
+            st.markdown(f"* **타순:** `{st.session_state.my_batter_number}번 타자 타석` " + 
+            ("(👑 사모님!)" if st.session_state.my_batter_number == 4 else 
+             "(🔥 대세 강타자!)" if st.session_state.my_batter_number in [2, 3] else 
+             "(🏃‍♂️ 출루머신)" if st.session_state.my_batter_number == 1 else 
+             "(🎯 상위연결)" if st.session_state.my_batter_number == 9 else ""))
+            
         with c2:
             st.markdown("### 🏃 루상 주자")
             b1 = "🏃" if st.session_state.base1 else "◯"
