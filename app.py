@@ -528,6 +528,7 @@ def check_three_out_change():
 # 4. 웹 UI (팀 선택 화면 및 게임 화면)
 # ==========================================
 st.title("⚾ 순야보: 순수한 야구를 보여주마!")
+st.subheader("이 사장님의 프로야구 시뮬레이터")
 
 if st.button("📜 구단 설정집 열람"):
     st.session_state.show_stories = True
