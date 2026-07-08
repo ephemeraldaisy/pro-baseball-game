@@ -101,68 +101,140 @@ def setup_half_inning():
 
     current_is_our_turn = (not st.session_state.is_home_team and st.session_state.phase == "초") or (st.session_state.is_home_team and st.session_state.phase == "말")
     
-    # 💥 [가변 수비 로그 엔진 활성화]
+    # 💥 [가변 수비 로그 및 상성 매트릭스 엔진 활성화]
     if not current_is_our_turn:
-        base_pts = random.choices([0, 1, 2, 3, 4, -1], weights=[510, 240, 150, 70, 25, 5])[0]
+        my_team = st.session_state.my_team
+        enemy_team = st.session_state.enemy_team
+        
+        # 장부 정보 연동
+        enemy_buff = TEAMS.get(enemy_team, {"ball_p": 0, "out": 0})
+        my_buff = TEAMS.get(my_team, {"out": 0})
+        
+        # -----------------------------------------------------------
+        # 📊 [Matrix 고증] 상성에 따른 실점 확률 주사위(weights) 조율 파트
+        # -----------------------------------------------------------
+        # 기본 확률: [0점, 1점, 2점, 3점, 4점, 메가이닝]
+        base_weights = [510, 240, 150, 70, 25, 5]
+        
+        # 상대(공격)가 우리(수비)에게 강한 천적 구도일 때 (예: 레드가 그린을 만났을 때)
+        # 10x10 상성 대장부 서사를 기반으로 가변 조정
+        is_enemy_dominant = (
+            (enemy_team == "🔴 레드 파이어스" and my_team == "🟢 그린 몬스터즈") or
+            (enemy_team == "🔵 븍루 웨이브스" and my_team == "⚫ 블랙 나이츠") or
+            (enemy_team == "🟢 그린 몬스터즈" and my_team == "🟠 오렌지 자이언츠") or
+            (enemy_team == "🟡 옐로우 타이거즈" and my_team == "🟤 브라운 베어스") or
+            (enemy_team == "🟣 퍼플 바이퍼스" and my_team == "🔵 블루 웨이브스") or
+            (enemy_team == "🟠 오렌지 자이언츠" and my_team == "⚪ 화이트 이글스") or
+            (enemy_team == "🟤 브라운 베어스" and my_team == "💖 핑크 돌핀스") or
+            (enemy_team == "⚪ 화이트 이글스" and my_team == "🔴 레드 파이어스") or
+            (enemy_team == "⚫ 블랙 나이츠" and my_team == "🟡 옐로우 타이거즈") or
+            (enemy_team == "💖 핑크 돌핀스" and my_team == "🟣 퍼플 바이퍼스")
+        )
+        
+        # 우리가 상대(공격)를 꽁꽁 틀어막는 우세 구도일 때 (역상성)
+        is_we_dominant = (
+            (my_team == "🔴 레드 파이어스" and enemy_team == "🟢 그린 몬스터즈") or
+            (my_team == "🔵 블루 웨이브스" and enemy_team == "⚫ 블랙 나이츠") or
+            (my_team == "🟢 그린 몬스터즈" and enemy_team == "🟠 오렌지 자이언츠") or
+            (my_team == "🟡 옐로우 타이거즈" and enemy_team == "🟤 브라운 베어스") or
+            (my_team == "🟣 퍼플 바이퍼스" and enemy_team == "🔵 블루 웨이브스") or
+            (my_team == "🟠 오렌지 자이언츠" and enemy_team == "⚪ 화이트 이글스") or
+            (my_team == "🟤 브라운 베어스" and enemy_team == "💖 핑크 돌핀스") or
+            (my_team == "⚪ 화이트 이글스" and enemy_team == "🔴 레드 파이어스") or
+            (my_team == "⚫ 블랙 나이츠" and enemy_team == "🟡 옐로우 타이거즈") or
+            (my_team == "💖 핑크 돌핀스" and enemy_team == "🟣 퍼플 바이퍼스")
+        )
+
+        if is_enemy_dominant:
+            # 천적을 만나 아우토반 뚫리듯 실점 확률 폭등! (0점 확률 깎고, 대량실점 확률 업)
+            base_weights = [350, 280, 200, 110, 50, 10]
+        elif is_we_dominant:
+            # 우리가 킬러 자석! 상성 우위로 탈탈 털어버림 (0점 확률 폭발)
+            base_weights = [680, 180, 90, 40, 10, 0]
+
+        # 최종 실점 주사위 굴리기
+        base_pts = random.choices([0, 1, 2, 3, 4, -1], weights=base_weights)[0]
         
         if base_pts == -1:
             enemy_pts = random.randint(5, 10)
             def_log = f"😱 [🚨 메가 이닝 발생] 상대 팀 타선이 불타오릅니다! 난타전 끝에 {enemy_pts}실점..."
         else:
             enemy_pts = base_pts
-            # 점수 상황별 야구 맛 가변 수비 로그 연출
+            
+            # 🟢 [대개조] 0점 무실점일 때 고증 엔진 가동
             if enemy_pts == 0:
-                def_log = random.choice([
-                    "🛡️ 우리 투수가 삼자범퇴로 상대 타선을 꽁꽁 틀어막았습니다! (무실점)",
-                    "🛡️ 내야진의 환상적인 더블플레이가 터지며 위기를 실점 없이 넘깁니다!", 
-                    "🛡️ 우리 투수가 KKK로 이번 이닝을 막아냈습니다!"
-                ])
+                # KKK 삼진쇼 / 일반 삼자범퇴 / 병살타 무작위 세부 분화
+                defense_type = random.choice(["KKK", "일반", "병살"])
+                if is_we_dominant and random.random() < 0.40: 
+                    defense_type = "KKK" # 상성 우위면 삼진쇼 확률 추가 보정
+                
+                if defense_type == "KKK":
+                    def_log = "🛡️ 마운드의 우리 투수가 미쳐 날뜁니다! 세 타자를 연속 KKK 3삼진으로 완벽하게 돌려세웁니다!"
+                elif defense_type == "일반":
+                    def_log = random.choice([
+                        "🛡️ 우리 투수가 삼자범퇴로 상대 타선을 꽁꽁 틀어막았습니다! (무실점)",
+                        "🛡️ 우리 투수가 안정된 제구력으로 상대 타선을 깔끔한 삼자범퇴로 요리했습니다!"
+                    ])
+                else:
+                    def_log = "🛡️ 루상에 주자가 나갔으나, 내야진의 환상적인 '더블플레이(병살타)'가 터지며 위기를 실점 없이 넘깁니다!"
+
+            # 형님의 피와 살이 담긴 실점 멘트 가변 연동
             elif enemy_pts == 1:
-                def_log = random.choice(["💥 아쉽게 상대 팀에게 솔로 홈런 한 방을 허용하며 1실점합니다.",
-    "💥 아쉽게 상대 팀에게 적시타를 허용하여 1실점 합니다.",
-    "📐 외야 깊숙한 희생플라이로 3루 주자가 홈을 밟으며 1점을 내어줍니다.",
-    "🏃‍♂️ 발 빠른 2루 주자가 단타 한 방에 홈까지 파고들어 아쉽게 실점합니다.",
-    " 실책으로 주자를 내보내더니, 결국 내야 땅볼 때 홈을 허용하며 1실점합니다.",
-    "🥶 투수가 흔들리며 만루 위기에서 밀어내기 볼넷으로 1점을 헌납합니다."])
+                def_log = random.choice([
+                    "💥 아쉽게 상대 팀에게 솔로 홈런 한 방을 허용하며 1실점합니다.",
+                    "💥 아쉽게 상대 팀에게 적시타를 허용하여 1실점 합니다.",
+                    "📐 외야 깊숙한 희생플라이로 3루 주자가 홈을 밟으며 1점을 내어줍니다.",
+                    "🏃‍♂️ 발 빠른 2루 주자가 단타 한 방에 홈까지 파고들어 아쉽게 실점합니다.",
+                    " 실책으로 주자를 내보내더니, 결국 내야 땅볼 때 홈을 허용하며 1실점합니다.",
+                    "굴러온 수비 실책으로 주자를 내보내더니, 결국 내야 땅볼 때 홈을 허용하며 1실점합니다."
+                ])
             elif enemy_pts == 2:
-                def_log = random.choice(["🚀 담장을 훌쩍 넘어가는 투런 홈런을 얻어맞으며 순식간에 2실점합니다.",
-    "🔥 좌우중간을 완전히 가르는 싹쓸이 2루타! 루상의 주자 2명이 모두 홈을 밟습니다.",
-    "연속 안타를 얻어맞으며 수비진이 흔들립니다. 순식간에 2점을 내어줍니다.",
-    " 무사 만루 대위기! 밀어내기 볼넷에 이어 희생플라이까지 나오며 2실점합니다.",
-    " 안타에 수비 실책까지 겹치면서, 주자 2명이 연달아 홈으로 들어옵니다.",
-    " 적시타를 허용한 뒤 외야수의 홈 송구가 뒤로 빠지면서 주자 두 명이 모두 득점합니다."])
+                def_log = random.choice([
+                    "🚀 담장을 훌쩍 넘어가는 투런 홈런을 얻어맞으며 순식간에 2실점합니다.",
+                    "🔥 좌우중간을 완전히 가르는 싹쓸이 2루타! 루상의 주자 2명이 모두 홈을 밟습니다.",
+                    "연속 안타를 얻어맞으며 수비진이 흔들립니다. 순식간에 2점을 내어줍니다.",
+                    " 무사 만루 대위기! 밀어내기 볼넷에 이어 희생플라이까지 나오며 2실점합니다.",
+                    " 안타에 수비 실책까지 겹치면서, 주자 2명이 연달아 홈으로 들어옵니다.",
+                    " 적시타를 허용한 뒤 외야수의 홈 송구가 뒤로 빠지면서 주자 두 명이 모두 득점합니다."
+                ])
             elif enemy_pts == 3:
                 def_log = random.choice([
-    "🚀 비거리 대폭발! 벼락같은 쓰리런 홈런을 얻어맞으며 순식간에 3실점합니다.",
-    "🔥 주자 만루 상황, 우익수 키를 넘기는 싹쓸이 3루타가 터지며 주자 3명이 모두 홈인합니다!",
-    " 연속 안타에 볼넷까지, 마운드가 완전히 무너지며 이번 이닝에만 3점을 헌납합니다.",
-    " 아웃카운트를 잡지 못하고 밀어내기 볼넷에 이어 2타점 적시타까지 허용, 3실점째 기록합니다.",
-    " 결정적인 수비 실책으로 이닝이 끝나지 않더니, 결국 3타점 2루타로 연결되며 피눈물을 흘립니다."])
+                    "🚀 비거리 대폭발! 벼락같은 쓰리런 홈런을 얻어맞으며 순식간에 3실점합니다.",
+                    "🔥 주자 만루 상황, 우익수 키를 넘기는 싹쓸이 3루타가 터지며 주자 3명이 모두 홈인합니다!",
+                    " 연속 안타에 볼넷까지, 마운드가 완전히 무너지며 이번 이닝에만 3점을 헌납합니다.",
+                    " 아웃카운트를 잡지 못하고 밀어내기 볼넷에 이어 2타점 적시타까지 허용, 3실점째 기록합니다.",
+                    " 결정적인 수비 실책으로 이닝이 끝나지 않더니, 결국 3타점 2루타로 연결되며 피눈물을 흘립니다."
+                ])
             elif enemy_pts == 4: 
                 def_log = random.choice([
-    "😱 이보다 더 최악일 수 없습니다! 담장을 넘어가는 만루 홈런(그랜드 슬램)을 허용하며 4실점합니다!",
-    "🥶 마운드가 완전히 폭발합니다. 백투백 홈런을 포함해 안타를 무차별로 얻어맞으며 4점을 내어줍니다.",
-    " 타자 일순하며 수비진의 멘탈이 흔들립니다. 적시타와 실책이 겹치며 이번 이닝 대거 4실점합니다.",
-    " 만루 위기에서 싹쓸이 2루타를 맞은 뒤, 곧바로 추가 적시타까지 터지며 스코어가 4점 차로 벌어집니다.",
-    " 투수 교체 카드도 통하지 않았습니다. 연속 볼넷과 장타가 이어지며 허무하게 4점을 실점합니다."
-])              
+                    "😱 이보다 더 최악일 수 없습니다! 담장을 넘어가는 만루 홈런(그랜드 슬램)을 허용하며 4실점합니다!",
+                    "🥶 마운드가 완전히 폭발합니다. 백투백 홈런을 포함해 안타를 무차별로 얻어맞으며 4점을 내어줍니다.",
+                    " 타자 일순하며 수비진의 멘탈이 흔들립니다. 적시타와 실책이 겹치며 이번 이닝 대거 4실점합니다.",
+                    " 만루 위기에서 싹쓸이 2루타를 맞은 뒤, 곧바로 추가 적시타까지 터지며 스코어가 4점 차로 벌어집니다.",
+                    " 투수 교체 카드도 통하지 않았습니다. 연속 볼넷과 장타가 이어지며 허무하게 4점을 실점합니다."
+                ])              
             else:
                 def_log = random.choice([
-    "🚨 마운드가 처참하게 무너져 내립니다! 타자 일순하며 무차별 폭격을 당해 대거 5실점 이상을 허용합니다.",
-    "🥶 이닝이 끝나지 않는 악몽이 계속됩니다. 안타, 볼넷, 홈런 가릴 것 없이 얻어맞으며 빅이닝을 내어줍니다.",
-    "😱 수비진의 연쇄 실책과 투수진의 난조가 겹쳤습니다! 상대의 대폭발에 속절없이 대량 실점합니다.",
-    "🔥 상대 타선이 그야말로 활산처럼 타오릅니다. 투수를 교체해 보아도 불을 끄지 못하고 대거 실점합니다.",
-    "💣 만루 홈런을 포함해 장타가 쉴 새 없이 터집니다. 이번 이닝에만 무더기 점수를 내주며 경기 흐름이 완전히 넘어갑니다.",
-    " 실점의 늪에 빠졌습니다. 상대 팀의 완벽한 작전 수행과 폭발적인 타력에 마운드가 난타당하며 빅이닝을 헌납합니다."
-])
+                    "🚨 마운드가 처참하게 무너져 내립니다! 타자 일순하며 무차별 폭격을 당해 대거 5실점 이상을 허용합니다.",
+                    "🥶 이닝이 끝나지 않는 악몽이 계속됩니다. 안타, 볼넷, 홈런 가릴 것 없이 얻어맞으며 빅이닝을 내어줍니다.",
+                    "😱 수비진의 연쇄 실책과 투수진의 난조가 겹쳤습니다! 상대의 대폭발에 속절없이 대량 실점합니다.",
+                    "🔥 상대 타선이 그야말로 활산처럼 타오릅니다. 투수를 교체해 보아도 불을 끄지 못하고 대거 실점합니다.",
+                    "💣 만루 홈런을 포함해 장타가 쉴 새 없이 터집니다. 이번 이닝에만 무더기 점수를 내주며 경기 흐름이 완전히 넘어갑니다.",
+                    " 실점의 늪에 빠졌습니다. 상대 팀의 완벽한 작전 수행과 폭발적인 타력에 마운드가 난타당하며 빅이닝을 헌납합니다."
+                ])
 
-        # 투구수 계산 구역
-        enemy_team = st.session_state.enemy_team
-        enemy_buff = TEAMS.get(enemy_team, {"ball_p": 0})
+        # -----------------------------------------------------------
+        # 🥎 투구수 WEIGHT 고증 및 가변 조율 구역
+        # -----------------------------------------------------------
         team_pitch_modifier = int(enemy_buff["ball_p"] / 10)
         
         if enemy_pts == 0:
-            inning_pitches = random.randint(9, 14) + team_pitch_modifier
+            # KKK 삼진쇼가 떴을 때 분기 수식: 무조건 정직하게 '최소 9구 이상' 저격 고정!
+            if "KKK" in locals() or ("defense_type" in locals() and defense_type == "KKK"):
+                inning_pitches = random.randint(9, 14) + team_pitch_modifier
+            else:
+                # 일반 삼자범퇴는 초구 타격 아웃 고증으로 최소 5구까지 연동 허용
+                inning_pitches = random.randint(6, 12) + team_pitch_modifier
         elif enemy_pts == 1:
             inning_pitches = random.randint(13, 18) + team_pitch_modifier
         elif enemy_pts in [2, 3]:
@@ -170,10 +242,14 @@ def setup_half_inning():
         else: 
             inning_pitches = random.randint(25, 32) + team_pitch_modifier
 
+        # 천적 구도일 때 투구수 스트레스 가중치 추가 보정 (+3구)
+        if is_enemy_dominant:
+            inning_pitches += 3
+
         inning_pitches = max(5, inning_pitches)
         st.session_state.our_total_pitches += inning_pitches
 
-        # 🔥 [끝내기 고증] 9회말 상대 공격(우리가 수비) 때, 상대가 득점해서 역전하는 순간 즉시 끝내기 패배!
+        # 🔥 [끝내기 고증] 9회말 상대 끝내기 연출 요건
         if st.session_state.inning == 9 and st.session_state.phase == "말" and not st.session_state.is_home_team:
             if (st.session_state.enemy_score + enemy_pts) > st.session_state.our_score:
                 st.session_state.enemy_score = st.session_state.our_score + 1
@@ -445,6 +521,53 @@ if st.session_state.get("show_stories", False):
         
     if st.button("❌ 설정집 닫기"):
         st.session_state.show_stories = False
+        st.rerun()
+    st.markdown("---")
+
+# --- [📊 KBO 10대 구단 10x10 상성 대장부 열람 버튼 구역] ---
+if "show_matrix" not in st.session_state:
+    st.session_state.show_matrix = False
+
+if st.button("📊 KBO 10대 구단 10x10 상성 대장부 열람"):
+    st.session_state.show_matrix = True
+
+if st.session_state.show_matrix:
+    st.markdown("---")
+    st.subheader("📊 10대 구단 가변 상성 판독표 (세로: 공격 / 가로: 수비)")
+    st.caption("💡 팁: 초록(극상성 우세) / 연두(우세) / 노랑(백중세) / 오렌지(열세) / 빨강(천적 극열세)")
+
+    # 엑셀 데이터 파이썬 가변 맵 (setup_half_inning 내부의 상성 판정과 100% 일치)
+    matrix_data = {
+        "🔴레드":   ["노랑", "연두", "초록", "노랑", "연두", "오렌지", "연두", "빨강", "오렌지", "노랑"],
+        "🔵블루":   ["오렌지", "노랑", "연두", "오렌지", "빨강", "노랑", "오렌지", "연두", "초록", "연두"],
+        "🟢그린":   ["빨강", "오렌지", "노랑", "오렌지", "연두", "초록", "오렌지", "노랑", "연두", "빨강"],
+        "🟡옐로우": ["노랑", "연두", "연두", "노랑", "오렌지", "연두", "초록", "오렌지", "빨강", "오렌지"],
+        "🟣퍼플":   ["오렌지", "초록", "오렌지", "연두", "노랑", "연두", "노랑", "오렌지", "연두", "빨강"],
+        "🟠오렌지": ["연두", "노랑", "빨강", "오렌지", "오렌지", "노랑", "연두", "초록", "노랑", "연두"],
+        "🟤브라운": ["오렌지", "연두", "연두", "빨강", "노랑", "오렌지", "노랑", "연두", "노랑", "초록"],
+        "⚪화이트": ["초록", "오렌지", "노랑", "연두", "연두", "빨강", "오렌지", "노랑", "오렌지", "노랑"],
+        "⚫블랙":   ["연두", "빨강", "오렌지", "초록", "오렌지", "노랑", "노랑", "연두", "노랑", "오렌지"],
+        "💖핑크":   ["노랑", "오렌지", "초록", "연두", "초록", "오렌지", "빨강", "노랑", "연두", "노랑"]
+    }
+    columns_teams = ["🔴레드", "🔵블루", "🟢그린", "🟡옐로우", "🟣퍼플", "🟠오렌지", "🟤브라운", "⚪화이트", "⚫블랙", "💖핑크"]
+    
+    import pandas as pd
+    df = pd.DataFrame.from_dict(matrix_data, orient='index', columns=columns_teams)
+
+    # 셀 마다 조건부로 무지개 전광판 색상 도포하는 가변 함수
+    def color_cells(val):
+        if val == "초록": return "background-color: #2e7d32; color: white; font-weight: bold;"
+        elif val == "연두": return "background-color: #aed581; color: black; font-weight: bold;"
+        elif val == "노랑": return "background-color: #fff59d; color: black;"
+        elif val == "오렌지": return "background-color: #ffb74d; color: black;"
+        elif val == "빨강": return "background-color: #e53935; color: white; font-weight: bold;"
+        return ""
+
+    # 스트림릿 화면에 엑셀 판때기 렌더링
+    st.dataframe(df.style.applymap(color_cells), use_container_width=True)
+
+    if st.button("❌ 상성 대장부 닫기"):
+        st.session_state.show_matrix = False
         st.rerun()
     st.markdown("---")
 
