@@ -506,8 +506,16 @@ def play_turn(user_choice):
             elif st.session_state.base1: st.session_state.base2 = True
             else: st.session_state.base1 = True
 
-    if st.session_state.inning >= 9 and st.session_state.phase == "말" and st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
-        st.session_state.game_log.append(f"🎉 9회말!!! 우리 팀 타석에서 짜릿한 '끝내기 득점'이 터지며 경기를 그대로 끝냅니다!!")
+    # ------------------------------------------------------------------
+    # 🚨 [버그 박살] 실제 경기 진행 중에만 끝내기가 작동하도록 조건 정밀화
+    # ------------------------------------------------------------------
+    if (st.session_state.inning >= 9 and 
+        st.session_state.phase == "말" and 
+        st.session_state.is_home_team and 
+        st.session_state.our_score > st.session_state.enemy_score and 
+        not st.session_state.game_over):  # 이미 게임이 끝난 상태면 무시!
+        
+        st.session_state.game_log.append(f"🎉 {st.session_state.inning}회말!!! 우리 팀 타석에서 짜릿한 '끝내기 득점'이 터지며 경기를 그대로 끝냅니다!!")
         end_game()
 
 def check_three_out_change():
