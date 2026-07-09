@@ -73,10 +73,13 @@ def start_new_game(my_team, enemy_team):
 
 # [대수술 1] 가변 수비 로그 연출 및 9회말 상대 끝내기 요건 고증
 def setup_half_inning():
-    if st.session_state.inning > 9 and st.session_state.our_score != st.session_state.enemy_score:
-        end_game()
-        return
+    #연장전 
+    if st.session_state.inning > 9 and st.session_state.phase == "초":
+        if st.session_state.our_score != st.session_state.enemy_score:
+            end_game()
+            return 
 
+    #콜드게임 규정 
     score_gap = abs(st.session_state.our_score - st.session_state.enemy_score)
     if st.session_state.inning in [5, 6] and score_gap >= 10:
         st.session_state.game_result_msg = f"🚨 [COLD GAME] {st.session_state.inning}회 종료 시점 {score_gap}점 차로 콜드게임 선언!"
@@ -250,15 +253,15 @@ def setup_half_inning():
         st.session_state.our_total_pitches += inning_pitches
 
         # 🔥 [끝내기 고증] 9회말 상대 끝내기 연출 요건
-        if st.session_state.inning == 9 and st.session_state.phase == "말" and not st.session_state.is_home_team:
+        if st.session_state.inning >= 9 and st.session_state.phase == "말" and not st.session_state.is_home_team:
             if (st.session_state.enemy_score + enemy_pts) > st.session_state.our_score:
                 st.session_state.enemy_score = st.session_state.our_score + 1
-                st.session_state.game_log.append(f"❌ Ah... 9회말 상대 팀에게 짜릿한 '끝내기 안타'를 얻어맞고 패배했습니다. (최종 {st.session_state.our_total_pitches}구 역투)")
+                st.session_state.game_log.append(f"❌ Ah... {st.session_state.inning}회말 상대 팀에게 짜릿한 '끝내기 안타'를 얻어맞고 패배했습니다. (최종 {st.session_state.our_total_pitches}구 역투)")
                 end_game()
                 return
             else:
                 st.session_state.enemy_score += enemy_pts
-                st.session_state.game_log.append(f"🎉 {def_log} ➔ 9회말 심장이 쫄깃한 마지막 반격을 무사히 막아내며 경기 세트!! 마무리 만세!!")
+                st.session_state.game_log.append(f"🎉 {def_log} ➔ {st.session_state.inning}회말 심장이 쫄깃한 마지막 반격을 무사히 막아내며 경기 세트!! 마무리 만세!!")
                 end_game()
                 return
         else:
