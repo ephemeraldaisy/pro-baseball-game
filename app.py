@@ -73,7 +73,7 @@ def start_new_game(my_team, enemy_team):
 
 # [대수술 1] 가변 수비 로그 연출 및 9회말 상대 끝내기 요건 고증
 def setup_half_inning():
-    #연장전 
+    #연장전이 시작될 때 초라면, 말에서 승패가 갈렸는지 확인  
     if st.session_state.inning > 9 and st.session_state.phase == "초":
         if st.session_state.our_score != st.session_state.enemy_score:
             end_game()
@@ -97,6 +97,7 @@ def setup_half_inning():
             end_game()
             return
 
+    #타석 초기화 
     st.session_state.strike = 0
     st.session_state.ball = 0
     st.session_state.out_count = 0
