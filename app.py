@@ -337,6 +337,13 @@ def trigger_steal():
     st.rerun()
 
 def next_phase():
+    if st.session_state.inning == 9 and st.session_state.phase == "초":
+        if st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
+            st.session_state.game_log.append("👍 9회초까지 이미 우리 팀이 이기고 있어 9회말 공격 없이 경기가 끝납니다! (9회말 X)")
+            st.session_state.home_inning_scores[8] = "X"
+            end_game()
+            return
+            
     idx = st.session_state.inning - 1
     if idx < 12:
         if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 0
