@@ -316,8 +316,9 @@ def trigger_steal():
     if st.session_state.base3:
         st.session_state.game_log.append("🚨 [비상 작전!] 3루 주자가 상대 투수의 투구 타이밍을 완전히 빼앗고 홈으로 과감하게 돌진합니다!!! 대담무쌍한 홈스틸 감행!!!")
         if random.random() < 0.20:
-            st.session_state.our_score += 1
+            st.session_state.our_score += 1 #Add 1 point 
             st.session_state.base3 = False
+            
             idx = st.session_state.inning - 1
             if idx < 12:
                 if st.session_state.is_home_team:
