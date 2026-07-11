@@ -776,7 +776,26 @@ else:
         if st.button("다른 구단 선택하러 가기 🔄", type="primary"):
             st.session_state.away_inning_scores = [""] * 12
             st.session_state.home_inning_scores = [""] * 12
-        st.rerun()
+
+            st.session_state.game_over = False
+
+            st.session_state.inning = 1
+            st.session_state.phase = "초"
+            st.session_state.our_score = 0
+            st.session_state.enemy_score = 0
+            st.session_state.out_count = 0
+            st.session_state.strike = 0
+            st.session_state.ball = 0
+            st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
+            st.session_state.game_log = []
+
+            if "game_setup" in st.session_state:
+                st.session_state.game_setup = False
+
+            st.rerun()
+
+    
+        
     else:
         c1, c2 = st.columns([1, 1])
         with c1:
