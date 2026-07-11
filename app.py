@@ -1,6 +1,7 @@
 import random
 import streamlit as st
 import os 
+import pandas as pd 
 
 # ==========================================
 # 1. 페이지 설정 및 팀 데이터 (능력치 및 도루 성향 통합)
@@ -38,6 +39,11 @@ st.markdown("""
 # ==========================================
 if "game_setup" not in st.session_state:
     st.session_state.game_setup = False
+
+if "away_inning_scores" not in st.session_state:
+    st.session_state.away_inning_scores = [""] * 12
+if "home_inning_scores" not in st.session_state:
+    st.session_state.home_inning_scores = [""] * 12
 
 def start_new_game(my_team, enemy_team):
     st.session_state.my_team = my_team        
@@ -271,6 +277,16 @@ def setup_half_inning():
                 return
         else:
             st.session_state.enemy_score += enemy_pts
+
+
+        idx = st.session_state.inning - 1
+        if idx < 12:
+            if st.session_state.is_home_team: # 우리가 홈이면 상대는 원정(Away)
+                current_pts = st.session_state.away_inning_scores[idx]
+                st.session_state.away_inning_scores[idx] = (current_pts if current_pts != "" else 0) + enemy_pts
+            else:
+                current_pts = st.session_state.home_inning_scores[idx]
+                st.session_state.home_inning_scores[idx] = (current_pts if current_pts != "" else 0) + enemy_pts
 
         # 완성된 수비 로그 전광판 중계 일지에 수급
         st.session_state.game_log.append(
@@ -514,6 +530,15 @@ def play_turn(user_choice):
             elif st.session_state.base1: st.session_state.base2 = True
             else: st.session_state.base1 = True
 
+    idx = st.session_state.inning - 1
+    if idx < 12:
+        if st.session_state.is_home_team:
+            current_pts = st.session_state.home_inning_scores[idx]
+            st.session_State.home_inning_scores[idx] = (current_pts if current_pts != "" else 0) + pts
+        else:
+            current_pts = st.session_state.away_inning_scores[idx]
+            st.session_state.away_inning_scores[idx] = (current_pts if current_pts != "" else 0) + pts
+
     # ------------------------------------------------------------------
     # 🚨 [버그 박살] 실제 경기 진행 중에만 끝내기가 작동하도록 조건 정밀화
     # ------------------------------------------------------------------
@@ -593,7 +618,6 @@ if st.session_state.show_matrix:
     }
     columns_teams = ["🔴레드", "🔵블루", "🟢그린", "🟡옐로우", "🟣퍼플", "🟠오렌지", "🟤브라운", "⚪화이트", "⚫블랙", "💖핑크"]
     
-    import pandas as pd
     df = pd.DataFrame.from_dict(matrix_data, orient='index', columns=columns_teams)
 
     # 셀 마다 조건부로 무지개 전광판 색상 도포하는 가변 함수
@@ -643,6 +667,34 @@ else:
         st.markdown(f"🥎 **상대 투수 총 투구수:** `{st.session_state.enemy_total_pitches}구`")
 
     st.divider()
+
+    away_name = st.session_state.enemy_team if st.session_state.is_home_team else st.session_state.my_team
+    home_name = st.session_state.my_team if st.session_state.is_home_team else st.session_state.enemy_team
+
+    scoreboard_data = {
+    "TEAM": [f"⚪ {away_name} (원정)", f"🏟️ {home_name} (홈)"],
+    "1": [st.session_state.away_inning_scores[0], st.session_state.home_inning_scores[0]],
+    "2": [st.session_state.away_inning_scores[1], st.session_state.home_inning_scores[1]],
+    "3": [st.session_state.away_inning_scores[2], st.session_state.home_inning_scores[2]],
+    "4": [st.session_state.away_inning_scores[3], st.session_state.home_inning_scores[3]],
+    "5": [st.session_state.away_inning_scores[4], st.session_state.home_inning_scores[4]],
+    "6": [st.session_state.away_inning_scores[5], st.session_state.home_inning_scores[5]],
+    "7": [st.session_state.away_inning_scores[6], st.session_state.home_inning_scores[6]],
+    "8": [st.session_state.away_inning_scores[7], st.session_state.home_inning_scores[7]],
+    "9": [st.session_state.away_inning_scores[8], st.session_state.home_inning_scores[8]],
+    "10": [st.session_state.away_inning_scores[9], st.session_state.home_inning_scores[9]],
+    "11": [st.session_state.away_inning_scores[10], st.session_state.home_inning_scores[10]],
+    "12": [st.session_state.away_inning_scores[11], st.session_state.home_inning_scores[11]],
+    "R": [
+        st.session_state.enemy_score if st.session_state.is_home_team else st.session_state.our_score,
+        st.session_state.our_score if st.session_state.is_home_team else st.session_state.enemy_score
+    ]
+}
+
+    df_sb = pd.DataFrame(scoreboard_data).set_index("TEAM")
+
+    st.markdown("### 🏟️ 실시간 라인 스코어보드")
+    st.table(df_sb)
 
     if st.session_state.game_over:
         st.markdown("<h1 style='text-align: center; color: #FF4B4B; font-size: 60px; font-weight: bold; letter-spacing: 5px;'>💥 GAME SET 💥</h1>", unsafe_allow_html=True)
