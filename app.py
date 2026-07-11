@@ -337,6 +337,11 @@ def trigger_steal():
     st.rerun()
 
 def next_phase():
+    idx = st.session_state.inning - 1
+    if idx < 12:
+        if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 0
+        if st.session_state.home_inning_scores[idx] == "": st.session_state.home_inning_scores[idx] = 0
+            
     if st.session_state.phase == "초":
         st.session_state.phase = "말"
     else:
@@ -536,18 +541,28 @@ def play_turn(user_choice):
 
     idx = st.session_state.inning - 1
     if idx < 12:
-        gained_pts = pts if 'pts' in locals() else 1
         
         if st.session_state.is_home_team:
-            if st.session_state.home_inning_scores[idx] == "":
-                st.session_state.home_inning_scores[idx] = gained_pts
-            else:
-                st.session_state.home_inning_scores[idx] += gained_pts
+            # 1. 기록 전 현재 전광판의 총점(R)을 기억
+            prev_score = sum([x for x in st.session_state.home_inning_scores if type(x) in [int, float]])
+            # 2. 이번 타석 직후 실제 올라간 순수 득점(런) 계산
+            actual_gained_run = st.session_state.our_score - prev_score
+            
+            if actual_gained_run > 0:
+                if st.session_state.home_inning_scores[idx] == "":
+                    st.session_state.home_inning_scores[idx] = actual_gained_run
+                else:
+                    st.session_state.home_inning_scores[idx] += actual_gained_run
+
         else:
-            if st.session_state.away_inning_scores[idx] == "":
-                st.session_state.away_inning_scores[idx] = gained_pts
-            else:
-                st.session_state.away_inning_scores[idx] += gained_pts
+            prev_score = sum([x for x in st.session_state.away_inning_scores if type(x) in [int, float]])
+            actual_gained_run = st.session_state.our_score - prev_score
+            if actual_gained_run > 0:
+                if st.session_state.away_inning_scores[idx] == "":
+                    st.session_state.away_inning_scores[idx] = actual_gained_run
+                else:
+                    st.session_state.away_inning_scores[idx] += actual_gained_run
+                    
 
     # ------------------------------------------------------------------
     # 🚨 [버그 박살] 실제 경기 진행 중에만 끝내기가 작동하도록 조건 정밀화
