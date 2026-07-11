@@ -302,7 +302,8 @@ def setup_half_inning():
 
 # [대수술 2] 도루 상성(우리 주력 vs 상대 수비) 완벽 가변 반영
 def trigger_steal():
-    if not st.session_state.base1 and not st.session_state.base2:
+    # 🚨 [버그 완치] 1루, 2루, 3루 모두 주자가 없을 때만 도루를 막습니다!
+    if not st.session_state.base1 and not st.session_state.base2 and not st.session_state.base3:
         st.warning("루상에 나간 주자가 있어야 도루를 시도하제예!")
         return
     
@@ -312,24 +313,32 @@ def trigger_steal():
     my_buff = TEAMS.get(my_team, {"steal_b": 0})
     enemy_buff = TEAMS.get(enemy_team, {"out": 0}) # 수비가 묵직한 팀은 도루 저지력 보너스
 
-    #3루 주자 홈스틸
+    # 🏟️ 3루 주자 홈스틸 로직
     if st.session_state.base3:
         st.session_state.game_log.append("🚨 [비상 작전!] 3루 주자가 상대 투수의 투구 타이밍을 완전히 빼앗고 홈으로 과감하게 돌진합니다!!! 대담무쌍한 홈스틸 감행!!!")
         if random.random() < 0.20:
-            st.session_state.our_score += 1 #Add 1 point 
-            st.session_state.base3 = False
+            st.session_state.our_score += 1 # 총점에 1점 더함 
+            st.session_state.base3 = False # 3루 주자 홈인
             
             idx = st.session_state.inning - 1
             if idx < 12:
                 if st.session_state.is_home_team:
-                    if st.session_state.home_inning_scores[idx] == "": st.session_state.home_inning_scores[idx] = 1
-                    else: st.session_state.home_inning_scores[idx] += 1
+                    if st.session_state.home_inning_scores[idx] == "" or st.session_state.home_inning_scores[idx] == 0: 
+                        st.session_state.home_inning_scores[idx] = 1
+                    else: 
+                        st.session_state.home_inning_scores[idx] += 1
                 else:
-                    if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 1
-                    else: st.session_state.away_inning_scores[idx] += 1
+                    if st.session_state.away_inning_scores[idx] == "" or st.session_state.away_inning_scores[idx] == 0: 
+                        st.session_state.away_inning_scores[idx] = 1
+                    else: 
+                        st.session_state.away_inning_scores[idx] += 1
+                        
             st.session_state.game_log.append("🎉 🎉 [HOME STEAL SUCCESS!!!] 포수가 깜짝 놀라 미트를 뻗었지만, 우리 주자의 손이 홈플레이트를 먼저 쓸었습니다!!! 기적 같은 홈스틸 대성공!!! (+1점)")
             st.session_state.strike = 0 
             st.session_state.ball = 0
+            
+            # ⚡ [추가] 성공하자마자 전광판 갱신용 즉시 새로고침!
+            st.rerun()
         else:
             st.session_state.out_count += 1
             st.session_state.base3 = False  # 3루에서 횡사
@@ -341,8 +350,9 @@ def trigger_steal():
                 next_phase()
                 return
             else:
-                pass
-        return 
+                # ⚡ [추가] 아웃되어 주자가 사라진 상태를 화면에 바로 반영!
+                st.rerun()
+        return
             
     
     # 기본 성공률 65% + 우리 팀 주력 보너스 - 상대 팀 수비 패널티
