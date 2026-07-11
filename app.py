@@ -697,7 +697,7 @@ else:
     home_name = st.session_state.my_team if st.session_state.is_home_team else st.session_state.enemy_team
 
     scoreboard_data = {
-    "TEAM": [f"⚪ {away_name} (원정)", f"🏟️ {home_name} (홈)"],
+    "TEAM": [f"🚌 {away_name} (원정)", f"🏟️ {home_name} (홈)"],
     "1": [st.session_state.away_inning_scores[0], st.session_state.home_inning_scores[0]],
     "2": [st.session_state.away_inning_scores[1], st.session_state.home_inning_scores[1]],
     "3": [st.session_state.away_inning_scores[2], st.session_state.home_inning_scores[2]],
