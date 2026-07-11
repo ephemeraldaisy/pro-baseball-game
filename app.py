@@ -282,11 +282,15 @@ def setup_half_inning():
         idx = st.session_state.inning - 1
         if idx < 12:
             if st.session_state.is_home_team: # 우리가 홈이면 상대는 원정(Away)
-                current_pts = st.session_state.away_inning_scores[idx]
-                st.session_state.away_inning_scores[idx] = (current_pts if current_pts != "" else 0) + enemy_pts
+                if st.session_state.away_inning_scores[idx] == "":
+                    st.session_state.away_inning_scores[idx] = enemy_pts
+                else:
+                    st.session_state.away_inning_scores[idx] += enemy_pts
             else:
-                current_pts = st.session_state.home_inning_scores[idx]
-                st.session_state.home_inning_scores[idx] = (current_pts if current_pts != "" else 0) + enemy_pts
+                if st.session_state.home_inning_scores[idx] == "":
+                    st.session_state.home_inning_scores[idx] = enemy_pts
+                else:
+                    st.session_state.home_inning_scores[idx] += enemy_pts
 
         # 완성된 수비 로그 전광판 중계 일지에 수급
         st.session_state.game_log.append(
@@ -532,12 +536,18 @@ def play_turn(user_choice):
 
     idx = st.session_state.inning - 1
     if idx < 12:
+        gained_pts = pts if 'pts' in locals() else 1
+        
         if st.session_state.is_home_team:
-            current_pts = st.session_state.home_inning_scores[idx]
-            st.session_State.home_inning_scores[idx] = (current_pts if current_pts != "" else 0) + pts
+            if session_state.home_inning_scores[idx] == "":
+                st.session_state.home_inning_scores[idx] = gained_pts
+            else:
+                st.session_state.home_inning_scores[idx] += gained_pts
         else:
-            current_pts = st.session_state.away_inning_scores[idx]
-            st.session_state.away_inning_scores[idx] = (current_pts if current_pts != "" else 0) + pts
+            if session_state.away_inning_scores[idx] == "":
+                st.session_state.away_inning_scores[idx] = gained_pts
+            else:
+                st.session_state.away_inning_scores[idx] += gained_pts
 
     # ------------------------------------------------------------------
     # 🚨 [버그 박살] 실제 경기 진행 중에만 끝내기가 작동하도록 조건 정밀화
