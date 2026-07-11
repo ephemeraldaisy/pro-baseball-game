@@ -311,6 +311,38 @@ def trigger_steal():
     
     my_buff = TEAMS.get(my_team, {"steal_b": 0})
     enemy_buff = TEAMS.get(enemy_team, {"out": 0}) # 수비가 묵직한 팀은 도루 저지력 보너스
+
+    #3루 주자 홈스틸
+    if st.session_state.base3:
+        st.session_state.game_log.append("🚨 [비상 작전!] 3루 주자가 상대 투수의 투구 타이밍을 완전히 빼앗고 홈으로 과감하게 돌진합니다!!! 대담무쌍한 홈스틸 감행!!!")
+        if random.random() < 0.20:
+            st.session_state.our_score += 1
+            st.session_state.base3 = False
+            idx = st.session_state.inning - 1
+            if idx < 12:
+                if st.session_state.is_home_team:
+                    if st.session_state.home_inning_scores[idx] == "": st.session_state.home_inning_scores[idx] = 1
+                    else: st.session_state.home_inning_scores[idx] += 1
+                else:
+                    if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 1
+                    else: st.session_state.away_inning_scores[idx] += 1
+            st.session_state.game_log.append("🎉 🎉 [HOME STEAL SUCCESS!!!] 포수가 깜짝 놀라 미트를 뻗었지만, 우리 주자의 손이 홈플레이트를 먼저 쓸었습니다!!! 기적 같은 홈스틸 대성공!!! (+1점)")
+            st.session_state.strike = 0 
+            st.session_state.ball = 0
+        else:
+            st.session_state.out_count += 1
+            st.session_state.base3 = False  # 3루에서 횡사
+            
+            st.session_state.game_log.append("❌ [HOME STEAL FAIL...] Ah... 상대 투수가 기민하게 간파하고 피치아웃! 포수의 미트에 주자가 그대로 걸리며 태그 아웃되었습니다. (아웃카운트 +1)")
+
+            if st.session_state.out_count >= 3:
+                st.session_state.game_log.append("🚫 쓰리아웃 체인지! 홈스틸 실패로 이닝이 허무하게 막을 내립니다.")
+                next_phase()
+                return
+            else:
+                pass
+        return 
+            
     
     # 기본 성공률 65% + 우리 팀 주력 보너스 - 상대 팀 수비 패널티
     steal_success_rate = 0.65 + (my_buff["steal_b"] / 100) - (enemy_buff["out"] / -100)
