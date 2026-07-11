@@ -539,12 +539,12 @@ def play_turn(user_choice):
         gained_pts = pts if 'pts' in locals() else 1
         
         if st.session_state.is_home_team:
-            if session_state.home_inning_scores[idx] == "":
+            if st.session_state.home_inning_scores[idx] == "":
                 st.session_state.home_inning_scores[idx] = gained_pts
             else:
                 st.session_state.home_inning_scores[idx] += gained_pts
         else:
-            if session_state.away_inning_scores[idx] == "":
+            if st.session_state.away_inning_scores[idx] == "":
                 st.session_state.away_inning_scores[idx] = gained_pts
             else:
                 st.session_state.away_inning_scores[idx] += gained_pts
