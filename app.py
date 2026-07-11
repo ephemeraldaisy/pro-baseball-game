@@ -774,7 +774,8 @@ else:
 
         st.divider()
         if st.button("다른 구단 선택하러 가기 🔄", type="primary"):
-            st.session_state.game_setup = False
+            st.session_state.away_inning_scores = [""] * 12
+            st.session_state.home_inning_scores = [""] * 12
             st.rerun()
     else:
         c1, c2 = st.columns([1, 1])
