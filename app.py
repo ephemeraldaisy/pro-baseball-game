@@ -425,11 +425,14 @@ def play_turn(user_choice):
     st.session_state.pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "스플리터"])
     
     # 2. 스트라이크 존 9분할 박스 중 공이 꽂힐 실제 위치 결정 (1~9)
-    st.session_state.pitch_zone = random.randint(1, 9)
+    if random.random() < 0.70:
+        st.session_state.pitch_zone = random.randint(1, 9)
+    else:
+        st.session_state.pitch_zone = 0
     
     # 3. (옵션) 타자의 예상 노림수 구역도 매번 랜덤하게 바뀌게 하거나, 
     # 사모님이 버튼으로 직접 고르게 하려면 이 줄은 빼셔도 됩니다!
-    st.session_state.guess_zone = random.randint(1, 9)
+    st.session_state.guess_zone = random.randint(0, 9)
     
     # 중계 로그에 투수가 뭘 던졌는지 살짝 흘려주는 센스!
     st.session_state.game_log.append(f"🔮 투수가 {st.session_state.pitch_type}를 선택해 {st.session_state.pitch_zone}번 구역으로 던졌습니다!")
@@ -785,6 +788,11 @@ else:
     st.table(df_sb)
 
     st.markdown(f"### ⚾ 투수 구종: **{st.session_state.pitch_type}**")
+
+    if st.session_state.pitch_zone == 0:
+        st.error("🚨 [PITCH OUT!] 투수가 스트라이크 존을 완전히 벗어나는 유인구(BALL)를 던졌습니다!")
+    else:
+        st.success("🎯 [STRIKE ZONE] 공이 스트라이크 존 안으로 들어옵니다!")
 
     cols = [st.columns(3), st.columns(3), st.columns(3)]
     zone_matrix = [
