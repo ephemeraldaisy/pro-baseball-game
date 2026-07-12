@@ -616,16 +616,18 @@ def play_turn(user_choice):
 
         elif at_bat_result == "아웃":
             if st.session_state.base1 and st.session_state.out_count < 2 and random.random() < 0.40:
+                # 🚨 [병살타 고증 완치] 타자 아웃(+1) + 1루 주자도 아웃(+1) = 총 투아웃 추가!
                 st.session_state.out_count += 2
-                st.session_state.base1 = False
+                st.session_state.base1 = False  # 🔥 1루 주자 완벽 삭제! 유령 주자 차단!
                 st.session_state.game_log.append(f"😱 아앗! {batter_context_msg}{current_batter}번 타자 내야 땅볼! 유격수-2루수-1루수 '병살타(투아웃)'!")
+            
             elif st.session_state.base3 and st.session_state.out_count < 2 and random.random() < 0.50:
                 st.session_state.out_count += 1
-                st.session_state.base3 = False
+                st.session_state.base3 = False  # 🔥 3루 주자는 홈인했으니 3루 비우기!
                 st.session_state.our_score += 1
                 st.session_state.game_log.append(f"🕊️ [희생 플라이] {batter_context_msg}{current_batter}번 타자의 큰 타구! 3루 주자 태그업 홈인!")
                 
-                # 📊 [전광판 강제 연동 추가] 희생플라이 1점 주입
+                # 📊 전광판 실시간 1점 주입
                 idx = st.session_state.inning - 1
                 if idx < 12:
                     if st.session_state.is_home_team:
@@ -635,13 +637,19 @@ def play_turn(user_choice):
                         if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 1
                         else: st.session_state.away_inning_scores[idx] += 1
             else:
+                # ⚾ 일반 범타 아웃 (주자는 그대로 유지, 타자만 아웃)
                 st.session_state.out_count += 1
                 st.session_state.game_log.append(f" Ah... {batter_context_msg}{current_batter}번 타자 범타 아웃입니다.")
+            
+            # 쓰리아웃 체인지 확인 및 화면 즉시 새로고침
             check_three_out_change()
+            st.rerun()
 
         elif at_bat_result == "삼진":
             st.session_state.out_count += 1
+            # ⚡ 삼진 당했으니 화면 전광판 카운트 바로 비워주기
             check_three_out_change()
+            st.rerun()
 
         elif at_bat_result == "볼넷":
             st.session_state.game_log.append(f"🚶‍♂️ {batter_context_msg}{current_batter}번 타자 볼넷 출루!")
