@@ -40,6 +40,11 @@ st.markdown("""
 if "game_setup" not in st.session_state:
     st.session_state.game_setup = False
 
+#구종과 타자 예상 위치
+if "pitch_type" not in st.session_state: st.session_state.pitch_type = "직구"
+if "pitch_zone" not in st.session_state: st.session_state.pitch_zone = 5 # 1~9번 구역 (5번은 한가운데)
+if "guess_zone" not in st.session_state: st.session_state.guess_zone = 5
+
 if "away_inning_scores" not in st.session_state:
     st.session_state.away_inning_scores = [""] * 12
 if "home_inning_scores" not in st.session_state:
@@ -301,83 +306,78 @@ def setup_half_inning():
         next_phase()
 
 # [대수술 2] 도루 상성(우리 주력 vs 상대 수비) 완벽 가변 반영
+
 def trigger_steal():
-    # 🚨 [버그 완치] 1루, 2루, 3루 모두 주자가 없을 때만 도루를 막습니다!
+    # 1. 아예 주자가 없으면 튕겨냅니다.
     if not st.session_state.base1 and not st.session_state.base2 and not st.session_state.base3:
         st.warning("루상에 나간 주자가 있어야 도루를 시도하제예!")
         return
     
     my_team = st.session_state.my_team
     enemy_team = st.session_state.enemy_team
-    
     my_buff = TEAMS.get(my_team, {"steal_b": 0})
-    enemy_buff = TEAMS.get(enemy_team, {"out": 0}) # 수비가 묵직한 팀은 도루 저지력 보너스
+    enemy_buff = TEAMS.get(enemy_team, {"out": 0})
 
-    # 🏟️ 3루 주자 홈스틸 로직
-    if st.session_state.base3:
-        st.session_state.game_log.append("🚨 [비상 작전!] 3루 주자가 상대 투수의 투구 타이밍을 완전히 빼앗고 홈으로 과감하게 돌진합니다!!! 대담무쌍한 홈스틸 감행!!!")
-        if random.random() < 0.20:
-            st.session_state.our_score += 1 # 총점에 1점 더함 
-            st.session_state.base3 = False # 3루 주자 홈인
+    # =====================================================================
+    # 🎯 [우선순위 엔진] 3루 주자가 있어도 '다른 루(1, 2루)'에 주자가 있다면 일반 도루 우선!
+    # =====================================================================
+    if st.session_state.base1 or st.session_state.base2:
+        st.session_state.game_log.append("🏃‍♂️ [작전 발동] 1, 2루 주자가 다음 베이스를 향해 기민하게 스타트를 끊습니다! (일반 도루 시도)")
+        
+        # --- 여기에 형님이 기존에 쓰시던 일반 1, 2루 도루 주사위 연산 로직을 넣으시면 됩니다 ---
+        # (예시 스케치)
+        if random.random() < 0.60:  # 일반 도루는 성공률이 좀 더 높음
+            if st.session_state.base2 and not st.session_state.base3:
+                st.session_state.base3 = True
+                st.session_state.base2 = False
+                st.session_state.game_log.append("🎉 2루 주자 3루 안착 성공!")
+            if st.session_state.base1 and not st.session_state.base2:
+                st.session_state.base2 = True
+                st.session_state.base1 = False
+                st.session_state.game_log.append("🎉 1루 주자 2루 안착 성공!")
+        else:
+            st.session_state.out_count += 1
+            st.session_state.game_log.append("❌ 포수의 칼 같은 송구에 주자가 걸려 아웃되었습니다!")
+            if st.session_state.out_count >= 3:
+                st.session_state.game_log.append("🚫 쓰리아웃 체인지!")
+                next_phase()
+        st.rerun()
+        return
+
+    # =====================================================================
+    # 🚨 다른 루가 텅 비고 오직 '3루 주자 단독'인 최후의 상황에만 홈스틸 발동!
+    # =====================================================================
+    elif st.session_state.base3:
+        st.session_state.game_log.append("🚨 [독단적 허를 찌르기!] 루상이 고요한 틈을 타 3루 주자가 홈으로 번개처럼 쇄도합니다!!! 낭만의 홈스틸 감행!!!")
+        
+        if random.random() < 0.20: # 20% 성공 확률
+            st.session_state.our_score += 1
+            st.session_state.base3 = False
             
             idx = st.session_state.inning - 1
             if idx < 12:
                 if st.session_state.is_home_team:
-                    if st.session_state.home_inning_scores[idx] == "" or st.session_state.home_inning_scores[idx] == 0: 
-                        st.session_state.home_inning_scores[idx] = 1
-                    else: 
-                        st.session_state.home_inning_scores[idx] += 1
+                    if st.session_state.home_inning_scores[idx] == "" or st.session_state.home_inning_scores[idx] == 0: st.session_state.home_inning_scores[idx] = 1
+                    else: st.session_state.home_inning_scores[idx] += 1
                 else:
-                    if st.session_state.away_inning_scores[idx] == "" or st.session_state.away_inning_scores[idx] == 0: 
-                        st.session_state.away_inning_scores[idx] = 1
-                    else: 
-                        st.session_state.away_inning_scores[idx] += 1
+                    if st.session_state.away_inning_scores[idx] == "" or st.session_state.away_inning_scores[idx] == 0: st.session_state.away_inning_scores[idx] = 1
+                    else: st.session_state.away_inning_scores[idx] += 1
                         
-            st.session_state.game_log.append("🎉 🎉 [HOME STEAL SUCCESS!!!] 포수가 깜짝 놀라 미트를 뻗었지만, 우리 주자의 손이 홈플레이트를 먼저 쓸었습니다!!! 기적 같은 홈스틸 대성공!!! (+1점)")
+            st.session_state.game_log.append("🎉 🎉 [HOME STEAL SUCCESS!!!] 허를 찔린 투수가 멍하니 바라보는 사이 홈플레이트 슬라이딩 세이프!!! 대성공!!! (+1점)")
             st.session_state.strike = 0 
             st.session_state.ball = 0
-            
-            # ⚡ [추가] 성공하자마자 전광판 갱신용 즉시 새로고침!
             st.rerun()
         else:
             st.session_state.out_count += 1
-            st.session_state.base3 = False  # 3루에서 횡사
+            st.session_state.base3 = False
+            st.session_state.game_log.append("❌ [HOME STEAL FAIL] 포수가 미리 홈 베이스를 커버하며 태그 아웃. 3루 주자 횡사. (아웃 +1)")
             
-            st.session_state.game_log.append("❌ [HOME STEAL FAIL...] Ah... 상대 투수가 기민하게 간파하고 피치아웃! 포수의 미트에 주자가 그대로 걸리며 태그 아웃되었습니다. (아웃카운트 +1)")
-
             if st.session_state.out_count >= 3:
-                st.session_state.game_log.append("🚫 쓰리아웃 체인지! 홈스틸 실패로 이닝이 허무하게 막을 내립니다.")
+                st.session_state.game_log.append("🚫 쓰리아웃 체인지! 이닝이 종료됩니다.")
                 next_phase()
-                return
             else:
-                # ⚡ [추가] 아웃되어 주자가 사라진 상태를 화면에 바로 반영!
                 st.rerun()
         return
-            
-    
-    # 기본 성공률 65% + 우리 팀 주력 보너스 - 상대 팀 수비 패널티
-    steal_success_rate = 0.65 + (my_buff["steal_b"] / 100) - (enemy_buff["out"] / -100)
-    steal_success_rate = max(0.20, min(0.90, steal_success_rate)) # 최소 20% ~ 최대 90% 보장
-
-    if random.random() < steal_success_rate:
-        st.session_state.game_log.append(f"🚀 [도루 성공] ({int(steal_success_rate*100)}% 돌파!) 완벽한 스타트로 상대 베이스를 훔쳤습니다!")
-        if st.session_state.base2 and not st.session_state.base3:
-            st.session_state.base3 = True
-            st.session_state.base2 = False
-        elif st.session_state.base1 and not st.session_state.base2:
-            st.session_state.base2 = True
-            st.session_state.base1 = False
-    else:
-        st.session_state.game_log.append(f"❌ [도루 실패] 저지율에 걸렸습니다! 포수의 칼송구에 그대로 아웃!")
-        if st.session_state.base2: st.session_state.base2 = False
-        elif st.session_state.base1: st.session_state.base1 = False
-        st.session_state.out_count += 1
-        
-        if st.session_state.out_count >= 3:
-            st.session_state.game_log.append("📢 도루 실패로 허무하게 쓰리아웃 체인지!")
-            next_phase()
-            
-    st.rerun()
 
 def next_phase():
     if st.session_state.inning == 9 and st.session_state.phase == "초":
@@ -420,6 +420,19 @@ def end_game():
 def play_turn(user_choice):
     if st.session_state.game_over:
         return
+
+    # 1. 투수가 던질 구종을 무작위로 선택
+    st.session_state.pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "스플리터"])
+    
+    # 2. 스트라이크 존 9분할 박스 중 공이 꽂힐 실제 위치 결정 (1~9)
+    st.session_state.pitch_zone = random.randint(1, 9)
+    
+    # 3. (옵션) 타자의 예상 노림수 구역도 매번 랜덤하게 바뀌게 하거나, 
+    # 사모님이 버튼으로 직접 고르게 하려면 이 줄은 빼셔도 됩니다!
+    st.session_state.guess_zone = random.randint(1, 9)
+    
+    # 중계 로그에 투수가 뭘 던졌는지 살짝 흘려주는 센스!
+    st.session_state.game_log.append(f"🔮 투수가 {st.session_state.pitch_type}를 선택해 {st.session_state.pitch_zone}번 구역으로 던졌습니다!")
 
     enemy_pitch_count = 1
     st.session_state.enemy_total_pitches += enemy_pitch_count
@@ -770,6 +783,29 @@ else:
 
     st.markdown("### 🏟️ 실시간 라인 스코어보드")
     st.table(df_sb)
+
+    st.markdown(f"### ⚾ 투수 구종: **{st.session_state.pitch_type}**")
+
+    cols = [st.columns(3), st.columns(3), st.columns(3)]
+    zone_matrix = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+    st.write("🔽 **스트라이크 존 (⚾: 공 꽂힌 곳 / 👁️: 타자 노림수)**")
+    for i in range(3):
+        with cols[i][0]:
+            z = zone_matrix[i][0]
+            icon = "⚾" if st.session_state.pitch_zone == z else ("👁️" if st.session_state.guess_zone == z else "🟩")
+            st.button(f"{icon} ({z}번)", key=f"zone_{z}", disabled=True)
+        with cols[i][1]:
+            z = zone_matrix[i][1]
+            icon = "⚾" if st.session_state.pitch_zone == z else ("👁️" if st.session_state.guess_zone == z else "🟩")
+            st.button(f"{icon} ({z}번)", key=f"zone_{z}", disabled=True)
+        with cols[i][2]:
+            z = zone_matrix[i][2]
+            icon = "⚾" if st.session_state.pitch_zone == z else ("👁️" if st.session_state.guess_zone == z else "🟩")
+            st.button(f"{icon} ({z}번)", key=f"zone_{z}", disabled=True)
 
     if st.session_state.game_over:
         st.markdown("<h1 style='text-align: center; color: #FF4B4B; font-size: 60px; font-weight: bold; letter-spacing: 5px;'>💥 GAME SET 💥</h1>", unsafe_allow_html=True)
