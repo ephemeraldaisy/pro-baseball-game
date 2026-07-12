@@ -485,11 +485,13 @@ def play_turn(user_choice):
         batter_hit_mod = 15     # 안타 확률 살짝 보정
         batter_ball_mod = 20    # 상위 타선 연결용 눈야구 보너스
     
-    # 💥 1. 풀스윙 강타
+    # 초기값 설정
+    at_bat_result = "지속"
+    log_msg = ""
+    
+    # 💥 1. 풀스윙 강타 (배트를 휘둘렀으므로 스트라이크/볼 판정 없이 타격 결과만 냅니다!)
     if user_choice == 1:
-        # 투수가 0번(유인구)을 던졌다면 풀스윙 시 아웃/파울 확률 상승 (보너스 고증)
         zone_mod = 1.5 if st.session_state.pitch_zone == 0 else 1.0
-        
         w_homerun = max(10, 80 + my_buff["homerun"] + batter_homerun_mod)
         w_hit = max(10, 170 + my_buff["hit"] - defense_penalty + batter_hit_mod)
         w_out = max(10, int((550 + my_buff["out"]) * zone_mod))
@@ -508,13 +510,13 @@ def play_turn(user_choice):
                 st.session_state.strike += 1
                 st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             else:
-                st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}2S 이후 벼락같은 커트 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
+                st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}2S 이후 끈질긴 커트 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
+            st.rerun()  # 🚨 파울 처리 후 즉시 턴 종료 (밑으로 흘러내려가기 방지!)
             return
 
-    # 🌟 2. 가볍게 밀어치기
+    # 🌟 2. 가볍게 밀어치기 (배트를 휘둘렀으므로 타격 결과만!)
     elif user_choice == 2:
         zone_mod = 1.3 if st.session_state.pitch_zone == 0 else 1.0
-        
         w_hit = max(10, 350 + (my_buff["hit"] * 1.2) - defense_penalty + (batter_hit_mod * 1.5))
         w_out = max(10, int((450 + my_buff["out"]) * zone_mod))
         w_foul = 200
@@ -531,37 +533,24 @@ def play_turn(user_choice):
                 st.session_state.strike += 1
                 st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}빗맞은 파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             else:
-                st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}끈질기게 파울 커트 연발! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
+                st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}2S 이후 끈질기게 파울 커트 연발! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
+            st.rerun()  # 🚨 즉시 턴 종료!
             return
 
-    # 👀 3. 공 끝까지 거르기 (🚨 오심 완치 핵심 구역!)
+    # 👀 3. 공 끝까지 거르기 (🚨 운빨 주사위 완전 삭제! 실제 공 위치로만 칼판정!)
     elif user_choice == 3:
-        # [확률 보정] 투수가 진짜로 0번(볼)을 던졌다면 볼을 골라낼 확률이 폭등합니다!
-        if st.session_state.pitch_zone == 0:
-            w_strike = 10  # 유인구를 참아낼 확률 압도적
-            w_ball = max(10, 800 + my_buff["ball_p"] + batter_ball_mod)
-        else:
-            # 스트라이크 존(1~9)으로 들어왔다면 지켜봤을 때 스트라이크 될 확률 폭등!
-            w_strike = max(10, 800 + my_buff["strike_p"] + enemy_buff["strike_p"])
-            w_ball = 10
-
-        result = random.choices(
-            ["STRIKE", "BALL"], 
-            weights=[w_strike, w_ball]
-        )[0]
-
-        # ⚖️ 실제 공 위치 판정과 주사위 결과를 결합하여 최종 판정
-        if result == "STRIKE" or (1 <= st.session_state.pitch_zone <= 9 and random.random() < 0.95):
-            # 투수가 1~9번(스트라이크)을 던졌고 지켜봤으므로 95% 이상 확률로 무조건 스트라이크 판정!
+        # 🎯 투수가 1~9번(스트라이크 존)에 던졌는데 참았다? -> 100% 루킹 스트라이크!
+        if 1 <= st.session_state.pitch_zone <= 9:
             st.session_state.strike += 1
-            log_msg = f"❌ 스트라이크를 지켜봅니다! ({st.session_state.pitch_zone}번 구역) (현재 {st.session_state.strike}S {st.session_state.ball}B)"
+            log_msg = f"❌ 스트라이크 존({st.session_state.pitch_zone}번)으로 들어오는 공을 지켜보았습니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
             if st.session_state.strike >= 3:
-                st.session_state.game_log.append(f"⚡ Ah... {batter_context_msg}{current_batter}번 타자 루킹 삼진 아웃!!")
+                st.session_state.game_log.append(f"⚡ Ah... {batter_context_msg}{current_batter}번 타자 스탠딩 루킹 삼진 아웃!!")
                 at_bat_result = "삼진"
-        else:
-            # 투수가 0번(볼)을 던졌고 참아냈으므로 볼 판정!
+                
+        # 🟢 투수가 0번(볼)에 던졌는데 참았다? -> 100% 볼넷 카운트 상승! (오심 완전 치료!)
+        elif st.session_state.pitch_zone == 0:
             st.session_state.ball += 1
-            log_msg = f"🟢 볼을 골라냅니다! (투수 유인구) (현재 {st.session_state.strike}S {st.session_state.ball}B)"
+            log_msg = f"🟢 볼! 존 바깥 유인구를 눈으로 정확히 골라냅니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
             if st.session_state.ball >= 4:
                 at_bat_result = "볼넷"
 
