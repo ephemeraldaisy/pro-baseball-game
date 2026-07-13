@@ -44,21 +44,17 @@ PITCH_SPECS = {
 # [NAVER / NC / RIOT INFRASTRUCTURE LAYER]
 # =====================================================================
 class HyperClovaX_AI:
-    """[네이버] 빅데이터 기반 초거대 AI 작전 추천 알고리즘"""
     @staticmethod
     def get_recommendation(pitch_history: List[str], base3: bool, inning: int, is_attack: bool) -> str:
         if not is_attack:
             return "💡 [HyperClovaX] 상대 타자의 헛스윙 비율이 높습니다. '유인구 배정'으로 헛스윙을 유도하십시오."
-        
         if base3 and inning >= 7:
             return "💡 [HyperClovaX] 득점 확률 88.4%! 3루 주자를 불러들이는 '기습 스퀴즈 번트'를 강력 추천합니다."
-        
         if len(pitch_history) > 1 and "직구" in pitch_history[-1]:
             return "💡 [HyperClovaX] 직전 패턴 분석 결과 오프스피드 피칭이 예상됩니다. '웨이팅(눈야구)'으로 볼넷을 노리세요."
         return "💡 [HyperClovaX] 투수의 체력이 감소하는 타이밍입니다. '팀 배팅'으로 투구수를 늘리십시오."
 
 class ChzzkStreaming:
-    """[네이버] 치지직 플랫폼 채팅 생태계 시뮬레이터"""
     CHAT_POOL = ["아니 감독 돌았냐 ㅋㅋㅋ", "대기업 급 연산력 ㄷㄷ", "지금 스퀴즈 각인데??", "투수 좀 바꿔라 제발!!", 
                  "이게 KBO지 ㅋㅋㅋㅋ", "방구석 과몰입 꿀잼", "네이버 폼 미쳤다", "NC식 과금 개에반데 ㅋㅋㅋ", "혈압 올라 죽겠네"]
     @staticmethod
@@ -87,7 +83,7 @@ class PitcherDomain:
         return 0.0
 
 # =====================================================================
-# [CORE ENGINE]
+# [CORE ENGINE] R H E B Tracking Engine
 # =====================================================================
 class PureKboEngine:
     def __init__(self, my_team: str, enemy_team: str) -> None:
@@ -97,8 +93,14 @@ class PureKboEngine:
         self.enemy_emoji = enemy_team[:2]
         self.is_home_team = random.choice([True, False])
         
+        # 스코어보드 기초 스탯
         self.our_score = 0
         self.enemy_score = 0
+        
+        # R H E B 트래커
+        self.away_stats = {"R": 0, "H": 0, "E": 0, "B": 0}
+        self.home_stats = {"R": 0, "H": 0, "E": 0, "B": 0}
+
         self.inning = 1
         self.phase = "초"
         
@@ -121,8 +123,7 @@ class PureKboEngine:
         self.pitch_history = ["- 투구 기록 없음"]
         self.chzzk_chats = [ChzzkStreaming.generate_chat()]
         
-        # [NCSoft] BM System 버프 상태
-        self.hit_buff = 0.0
+        self.hit_buff = 0.0 
         
         my_stats = TEAMS[my_team]
         enemy_stats = TEAMS[enemy_team]
@@ -142,6 +143,15 @@ class PureKboEngine:
         ]
         self.enemy_pitcher_idx = 0
         self.setup_half_inning()
+
+    # 스탯 처리 헬퍼 함수
+    def add_stat(self, stat: str, amt: int = 1):
+        if self.phase == "초":
+            if stat in ["H", "B"]: self.away_stats[stat] += amt
+            elif stat == "E": self.home_stats[stat] += amt
+        else:
+            if stat in ["H", "B"]: self.home_stats[stat] += amt
+            elif stat == "E": self.away_stats[stat] += amt
 
     def get_matchup_modifier(self, attack_team: str, defense_team: str) -> float:
         row = MATCHUP_MATRIX.get(attack_team)
@@ -165,8 +175,16 @@ class PureKboEngine:
             return True
         return False
 
-    def get_away_score(self) -> int: return self.enemy_score if self.is_home_team else self.our_score
-    def get_home_score(self) -> int: return self.our_score if self.is_home_team else self.enemy_score
+    def change_enemy_pitcher(self) -> bool:
+        if self.enemy_pitcher_idx < len(self.enemy_pitchers) - 1:
+            self.enemy_pitcher_idx += 1
+            p = self.get_current_enemy_pitcher()
+            self.game_log.append(f"🔄 [상대 투수 교체] 상대 불펜 가동: {p.role} '{p.name}' 등판")
+            return True
+        return False
+
+    def get_away_score(self) -> int: return self.away_stats["R"]
+    def get_home_score(self) -> int: return self.home_stats["R"]
 
     def setup_half_inning(self) -> None:
         if self.game_over: return
@@ -182,14 +200,12 @@ class PureKboEngine:
             return
 
         if self.inning > 9 and self.phase == "초":
-            prev_a = sum([int(x) for x in self.away_inning_scores[:self.inning-1] if str(x).isdigit()])
-            prev_h = sum([int(x) for x in self.home_inning_scores[:self.inning-1] if str(x).isdigit()])
-            if prev_a != prev_h: self.end_kbo_game(); return
+            if self.get_away_score() != self.get_home_score(): self.end_kbo_game(); return
             elif self.inning > 12: self.inning = 12; self.phase = "말"; self.end_kbo_game(); return
 
         self.strike = 0; self.ball = 0; self.out_count = 0
         self.base1 = self.base2 = self.base3 = False
-        self.hit_buff = 0.0 # 이닝 교대 시 과금 버프 초기화
+        self.hit_buff = 0.0
 
     def update_live_scoreboard(self, run: int) -> None:
         idx = self.inning - 1
@@ -197,9 +213,17 @@ class PureKboEngine:
         if self.phase == "초":
             base = 0 if self.away_inning_scores[idx] in ["", "X"] else int(self.away_inning_scores[idx])
             self.away_inning_scores[idx] = base + run
+            self.away_stats["R"] += run
         else:
             base = 0 if self.home_inning_scores[idx] in ["", "X"] else int(self.home_inning_scores[idx])
             self.home_inning_scores[idx] = base + run
+            self.home_stats["R"] += run
+            
+        # 레거시 변수 동기화
+        if (self.is_home_team and self.phase == "말") or (not self.is_home_team and self.phase == "초"):
+            self.our_score += run
+        else:
+            self.enemy_score += run
 
     def trigger_steal(self) -> None:
         if not (self.base1 or self.base2 or self.base3):
@@ -242,6 +266,15 @@ class PureKboEngine:
         a, h = self.get_away_score(), self.get_home_score()
         if a == h: self.game_result_msg = f"🤝 [무승부] 12회 {a}:{h} DRAW 종료."
         else: self.game_result_msg = f"🏆 [경기 종료] {self.our_score} 대 {self.enemy_score}로 우리 팀 {'승리!' if self.our_score > self.enemy_score else '패배.'}"
+
+    def process_error(self, log_prefix: str, bat: int) -> None:
+        self.add_stat("E")
+        self.game_log.append(log_prefix + f"🚨 수비 실책! 포구/송구 미스로 {bat}번 타자 출루.")
+        if self.base1 and self.base2 and self.base3:
+            self.update_live_scoreboard(1)
+        elif self.base1 and self.base2: self.base3 = True
+        elif self.base1: self.base2 = True
+        else: self.base1 = True
 
     def play_defense_one_pitch(self, defense_choice: int) -> None:
         if self.game_over: return
@@ -309,8 +342,6 @@ class PureKboEngine:
         
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
-
-        # [NCSoft] 가챠 버프 시스템 적용 (hit_buff)
         total_buff = matchup_mod + self.hit_buff 
 
         if user_choice == 1: 
@@ -333,7 +364,6 @@ class PureKboEngine:
             if random.random() < 0.60:
                 self.strike = 0; self.ball = 0
                 self.my_batter_number = 1 if self.my_batter_number == 9 else self.my_batter_number + 1
-                self.our_score += 1
                 self.update_live_scoreboard(1)
                 self.base3 = False
                 if self.base2: self.base3 = True; self.base2 = False
@@ -358,7 +388,7 @@ class PureKboEngine:
                 self.game_log.append(log_prefix + f"😱 작전 실패! 더블아웃!")
                 self.check_three_out_change()
 
-        if self.inning >= 9 and self.phase == "말" and self.is_home_team and self.our_score > self.enemy_score:
+        if self.inning >= 9 and self.phase == "말" and self.is_home_team and self.get_home_score() > self.get_away_score():
             self.game_log.append(f"🎉 🎉 끝내기 역전!")
             self.end_kbo_game()
 
@@ -374,33 +404,39 @@ class PureKboEngine:
             if self.strike < 2: self.strike += 1
             self.game_log.append(log_prefix + b_ctx + f"파울. ({self.strike}S {self.ball}B)")
         else:
+            bat = self.my_batter_number
             self.strike = 0; self.ball = 0
-            self.my_batter_number = 1 if self.my_batter_number == 9 else self.my_batter_number + 1
+            self.my_batter_number = 1 if bat == 9 else bat + 1
+            
             if res == "HR":
+                self.add_stat("H")
                 pts = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0) + 1
-                self.our_score += pts
                 self.base1 = self.base2 = self.base3 = False
                 self.update_live_scoreboard(pts)
                 self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 홈런!! (+{pts}점)")
             elif res == "HIT":
+                self.add_stat("H")
                 gained = 0
                 if self.base3: gained += 1
                 if self.base2: gained += 1
-                self.our_score += gained
                 self.base3 = self.base1; self.base2 = False; self.base1 = True
                 if gained > 0: self.update_live_scoreboard(gained)
                 self.game_log.append(log_prefix + match_msg + f"🌟 안타! (+{gained}점)")
             elif res == "OUT":
-                if self.base1 and self.out_count < 2 and random.random() < 0.25:
-                    self.out_count += 2; self.base1 = False
-                    self.game_log.append(log_prefix + "😱 병살타 아웃.")
-                elif self.base3 and self.out_count < 2 and random.random() < 0.45:
-                    self.out_count += 1; self.base3 = False; self.our_score += 1
-                    self.update_live_scoreboard(1)
-                    self.game_log.append(log_prefix + "🕊️ 희생플라이 타점.")
+                error_rate = max(0.01, 0.05 - (enemy_stats["defense"] * 0.0005))
+                if random.random() < error_rate:
+                    self.process_error(log_prefix, bat)
                 else:
-                    self.out_count += 1
-                    self.game_log.append(log_prefix + "⚾ 플라이 아웃.")
+                    if self.base1 and self.out_count < 2 and random.random() < 0.25:
+                        self.out_count += 2; self.base1 = False
+                        self.game_log.append(log_prefix + "😱 병살타 아웃.")
+                    elif self.base3 and self.out_count < 2 and random.random() < 0.45:
+                        self.out_count += 1; self.base3 = False
+                        self.update_live_scoreboard(1)
+                        self.game_log.append(log_prefix + "🕊️ 희생플라이 타점.")
+                    else:
+                        self.out_count += 1
+                        self.game_log.append(log_prefix + "⚾ 플라이 아웃.")
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
@@ -414,34 +450,39 @@ class PureKboEngine:
         self.strike = 0; self.ball = 0
 
         if roll < hr_prob:
+            self.add_stat("H")
             pts = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0) + 1
-            self.enemy_score += pts
             self.base1 = self.base2 = self.base3 = False
             self.update_live_scoreboard(pts)
             self.game_log.append(log_prefix + f"💥 실투 실점! {pts}점 홈런 허용.")
         elif roll < (hit_prob + hr_prob):
+            self.add_stat("H")
             gained = 0
             if self.base3: gained += 1
             if self.base2: gained += 1
-            self.enemy_score += gained
             self.base3 = self.base1; self.base2 = False; self.base1 = True
             if gained > 0: self.update_live_scoreboard(gained)
             self.game_log.append(log_prefix + f"🌟 피안타! (+{gained}점)")
         else:
-            if self.base1 and self.out_count < 2 and random.random() < 0.25:
-                self.out_count += 2; self.base1 = False
-                self.game_log.append(log_prefix + "😱 병살타 유도 성공!")
+            error_rate = max(0.01, 0.05 - (my_stats["defense"] * 0.0005))
+            if random.random() < error_rate:
+                self.process_error(log_prefix, bat)
             else:
-                self.out_count += 1
-                self.game_log.append(log_prefix + f"⚾ 범타 캐치.")
+                if self.base1 and self.out_count < 2 and random.random() < 0.25:
+                    self.out_count += 2; self.base1 = False
+                    self.game_log.append(log_prefix + "😱 병살타 유도 성공!")
+                else:
+                    self.out_count += 1
+                    self.game_log.append(log_prefix + f"⚾ 범타 캐치.")
             self.check_three_out_change()
 
-        if self.inning >= 9 and self.phase == "말" and not self.is_home_team and self.enemy_score > self.our_score:
+        if self.inning >= 9 and self.phase == "말" and not self.is_home_team and self.get_home_score() > self.get_away_score():
             self.game_log.append("❌ 이닝 끝내기 패배.")
             self.end_kbo_game()
 
     def process_walk(self, is_defense: bool) -> None:
         self.strike = 0; self.ball = 0
+        self.add_stat("B")
         if is_defense:
             bat = self.enemy_batter_number
             self.enemy_batter_number = 1 if bat == 9 else bat + 1
@@ -452,8 +493,6 @@ class PureKboEngine:
             self.game_log.append(f"🚶‍♂️ 볼넷 출루 성공.")
         
         if self.base1 and self.base2 and self.base3:
-            if is_defense: self.enemy_score += 1
-            else: self.our_score += 1
             self.update_live_scoreboard(1)
         elif self.base1 and self.base2: self.base3 = True
         elif self.base1: self.base2 = True
@@ -487,7 +526,6 @@ def main() -> None:
     st.set_page_config(layout="wide")
     st.markdown("<style>.stButton>button { width: 100%; font-size: 14px !important; font-weight: bold; }</style>", unsafe_allow_html=True)
     
-    # [Naver Infra / Riot Network / NC MMO] 최상단 대시보드
     cc1, cc2, cc3 = st.columns(3)
     cc1.success("🟢 Naver Cloud: 99.99% Uptime")
     cc2.info(f"⚡ Riot Direct Ping: {random.randint(1, 4)}ms")
@@ -498,7 +536,6 @@ def main() -> None:
     if "full_kbo_engine" not in st.session_state: st.session_state.full_kbo_engine = None
     if "nc_diamonds" not in st.session_state: st.session_state.nc_diamonds = 1000
 
-    # 사이드바: NC식 매운맛 BM 상점 & Riot 유니버스
     with st.sidebar:
         st.header("💎 [NC] 비밀 상점 (P2W)")
         st.write(f"보유 다이아: {st.session_state.nc_diamonds} 💎")
@@ -529,6 +566,19 @@ def main() -> None:
         if st.button("스토리 보기"):
             st.info(f"{team_lore}는 수백 년 전 룬테라 대륙에서 기원한 정통파 전투 야구 구단으로...")
 
+        st.divider()
+        st.header("💡 [Guide] 전술 매뉴얼")
+        if st.button("가이드 열람"):
+            if os.path.exists("assets/game_tips.txt"):
+                with open("assets/game_tips.txt", "r", encoding="utf-8") as f: st.text_area("공식 가이드", value=f.read(), height=200, disabled=True)
+            else: st.error("⚠️ assets/game_tips.txt 파일 누락.")
+
+        st.divider()
+        st.header("📊 [Matrix] 상성 매트릭스")
+        if st.button("상성 표 열람"):
+            df_matrix = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=MATRIX_COLUMNS)
+            st.dataframe(df_matrix, use_container_width=True)
+
     if st.session_state.full_kbo_engine is None:
         my_team = st.selectbox("우리 팀 선택:", list(TEAMS.keys()))
         if st.button("글로벌 서버 경기 개시", type="primary"):
@@ -555,7 +605,7 @@ def main() -> None:
             st.metric(label=f"상대 팀 {game.enemy_emoji}", value=f"{game.enemy_score} 점")
             st.caption(f"🥎 {p_en.name} | 체력: {p_en.stamina} | {game.enemy_total_pitches}구")
 
-        # 스코어보드
+        # [SCOREBOARD R H E B]
         away_name = game.enemy_team if game.is_home_team else game.my_team
         home_name = game.my_team if game.is_home_team else game.enemy_team
         
@@ -568,7 +618,10 @@ def main() -> None:
             "4": [display_away[3], display_home[3]], "5": [display_away[4], display_home[4]], "6": [display_away[5], display_home[5]],
             "7": [display_away[6], display_home[6]], "8": [display_away[7], display_home[7]], "9": [display_away[8], display_home[8]],
             "10": [display_away[9], display_home[9]], "11": [display_away[10], display_home[10]], "12": [display_away[11], display_home[11]],
-            "R": [game.get_away_score(), game.get_home_score()]
+            "R": [game.away_stats["R"], game.home_stats["R"]],
+            "H": [game.away_stats["H"], game.home_stats["H"]],
+            "E": [game.away_stats["E"], game.home_stats["E"]],
+            "B": [game.away_stats["B"], game.home_stats["B"]]
         }
         st.table(pd.DataFrame(sb).set_index("BOARD"))
 
@@ -586,7 +639,6 @@ def main() -> None:
                 with cz2:
                     st.code(f"   [{'🏃' if game.base2 else '◯'}] 2루\n[{'🏃' if game.base3 else '◯'}] 3루   [{'🏃' if game.base1 else '◯'}] 1루", language="text")
 
-                # [Naver] 하이퍼클로바X AI 코치
                 st.info(HyperClovaX_AI.get_recommendation(game.pitch_history, game.base3, game.inning, current_is_our_turn))
 
                 if current_is_our_turn:
@@ -617,7 +669,6 @@ def main() -> None:
                 for log in reversed(game.game_log[-5:]): st.write(log)
 
             with col_chat:
-                # [Naver] 치지직 채팅 생태계 연동
                 st.markdown("#### 📺 치지직 실시간 채팅")
                 st.container(height=300)
                 for chat in reversed(game.chzzk_chats[-7:]):
