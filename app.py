@@ -280,7 +280,7 @@ class PureKboEngine:
         matchup_mod = self.get_matchup_modifier(self.enemy_team, self.my_team)
 
         pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
-        speed = random.randint(PITCH_SPECS[pitch_type]["speed_min"], PITCH_SPECS[pitch_type]["speed_max"])
+        speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
         pitch_zone = random.randint(1, 9) if defense_choice != 2 else 0
 
         self.pitch_history.append(f"{pitch_type} ({speed}km/h) - 존: {pitch_zone if pitch_zone != 0 else '외곽'}")
