@@ -5,19 +5,19 @@ import streamlit as st
 from typing import Dict, Any, List
 
 # =====================================================================
-# [KBO OFFICIAL DATA LAYER] 1. KBO 10대 구단 프로 밸런스 스탯 (KBO 타고투저 튜닝)
+# [KBO OFFICIAL DATA LAYER] 1. KBO 10대 구단 프로 밸런스 스탯 (KBO 정규 표준화)
 # =====================================================================
 TEAMS: Dict[str, Dict[str, int]] = {
-    "🔴 레드 파이어스": {"homerun": 55, "hit": 75, "defense": 50, "stamina": 85, "steal_b": 30},
-    "🔵 블루 웨이브스": {"homerun": 65, "hit": 80, "defense": 55, "stamina": 90, "steal_b": 10},
-    "🟢 그린 몬스터즈": {"homerun": 95, "hit": 60, "defense": 40, "stamina": 80, "steal_b": 5},
-    "🟡 옐로우 타이거즈": {"homerun": 70, "hit": 70, "defense": 45, "stamina": 85, "steal_b": 20},
-    "🟣 퍼플 바이퍼스": {"homerun": 45, "hit": 72, "defense": 60, "stamina": 95, "steal_b": 25},
-    "🟠 오렌지 자이언츠": {"homerun": 65, "hit": 68, "defense": 45, "stamina": 83, "steal_b": 10},
-    "🟤 브라운 베어스": {"homerun": 58, "hit": 74, "defense": 55, "stamina": 87, "steal_b": 22},
-    "⚪ 화이트 이글스": {"homerun": 50, "hit": 78, "defense": 50, "stamina": 80, "steal_b": 25},
-    "⚫ 블랙 나이츠": {"homerun": 52, "hit": 68, "defense": 65, "stamina": 100, "steal_b": 15},
-    "💖 핑크 돌핀스": {"homerun": 72, "hit": 75, "defense": 42, "stamina": 75, "steal_b": 28}
+    "🔴 레드 파이어스": {"homerun": 35, "hit": 55, "defense": 75, "stamina": 90, "steal_b": 30},
+    "🔵 블루 웨이브스": {"homerun": 45, "hit": 60, "defense": 78, "stamina": 95, "steal_b": 10},
+    "🟢 그린 몬스터즈": {"homerun": 65, "hit": 45, "defense": 65, "stamina": 85, "steal_b": 5},
+    "🟡 옐로우 타이거즈": {"homerun": 50, "hit": 50, "defense": 70, "stamina": 90, "steal_b": 20},
+    "🟣 퍼플 바이퍼스": {"homerun": 25, "hit": 52, "defense": 82, "stamina": 100, "steal_b": 25},
+    "🟠 오렌지 자이언츠": {"homerun": 45, "hit": 48, "defense": 70, "stamina": 88, "steal_b": 10},
+    "🟤 브라운 베어스": {"homerun": 38, "hit": 54, "defense": 78, "stamina": 92, "steal_b": 22},
+    "⚪ 화이트 이글스": {"homerun": 30, "hit": 58, "defense": 75, "stamina": 85, "steal_b": 25},
+    "⚫ 블랙 나이츠": {"homerun": 32, "hit": 48, "defense": 85, "stamina": 105, "steal_b": 15},
+    "💖 핑크 돌핀스": {"homerun": 52, "hit": 55, "defense": 68, "stamina": 80, "steal_b": 28}
 }
 
 # 📊 구단 상성 매트릭스
@@ -31,7 +31,7 @@ MATCHUP_MATRIX: Dict[str, List[str]] = {
     "🟤 브라운 베어스":  ["열세", "우세", "우세", "열세", "백중", "열세", "X", "우세", "백중", "우세"],
     "⚪ 화이트 이글스":  ["백중", "열세", "백중", "우세", "우세", "열세", "열세", "X", "열세", "우세"],
     "⚫ 블랙 나이츠":  ["우세", "열세", "열세", "열세", "열세", "백중", "백중", "우세", "X", "우세"],
-    "💖 핑크 돌phin스":  ["백중", "백중", "우세", "우세", "우세", "열세", "열세", "열세", "열세", "X"]
+    "💖 핑크 돌핀스":  ["백중", "백중", "우세", "우세", "우세", "열세", "열세", "열세", "열세", "X"]
 }
 
 MATRIX_COLUMNS = ["🔴레드", "🔵블루", "🟢그린", "🟡옐로우", "🟣퍼플", "🟠오렌지", "🟤브라운", "⚪화이트", "⚫블랙", "💖핑크"]
@@ -59,8 +59,8 @@ class Pitcher:
         self.stamina = max(0, self.stamina - count)
 
     def get_fatigue_penalty(self) -> float:
-        if self.stamina <= 0: return 0.40  # KBO 스타일: 지치면 무자비하게 쳐맞음 (+40%)
-        elif self.stamina < (self.max_stamina * 0.3): return 0.20  
+        if self.stamina <= 0: return 0.25  # 과도한 폭주 제한, 정밀한 패널티 스케일 조정
+        elif self.stamina < (self.max_stamina * 0.3): return 0.10  
         return 0.0
 
 # =====================================================================
@@ -136,8 +136,8 @@ class PureKboEngine:
         try:
             def_idx = keys.index(defense_team)
             status = row[def_idx]
-            if status == "우세": return 0.05   
-            if status == "열세": return -0.05  
+            if status == "우세": return 0.03   # 프로 규격 상성 매트릭스 밸런싱
+            if status == "열세": return -0.03  
         except ValueError:
             pass
         return 0.0
@@ -226,8 +226,8 @@ class PureKboEngine:
 
         my_stats = TEAMS[self.my_team]
         enemy_stats = TEAMS[self.enemy_team]
-        success_rate = 0.60 + (my_stats["steal_b"] - enemy_stats["defense"] * 0.15) * 0.01
-        success_rate = max(0.15, min(0.85, success_rate))
+        success_rate = 0.62 + (my_stats["steal_b"] - enemy_stats["defense"] * 0.15) * 0.01
+        success_rate = max(0.20, min(0.80, success_rate))
 
         if self.base1 or self.base2:
             self.game_log.append("🏃‍♂️ [도루 시도] 주자가 다음 베이스로 스타트를 끊었습니다!")
@@ -298,32 +298,37 @@ class PureKboEngine:
         spec = PITCH_SPECS[self.pitch_type]
         self.pitch_speed = random.randint(spec["speed_min"], spec["speed_max"])
         self.pitch_desc = spec["desc"]
-        self.pitch_zone = random.randint(1, 9) if random.random() < 0.65 else 0 # KBO 타격 유도존 확장
+        self.pitch_zone = random.randint(1, 9) if random.random() < 0.70 else 0 
         
         batter_num = self.enemy_batter_number
         log_prefix = f"🥎 [{pitcher.name} {self.pitch_speed}km/h {self.pitch_type} 투구] -> "
 
         if self.pitch_zone == 0:  
-            if random.random() < 0.35:  # KBO 스타일: 나쁜 공에도 배트가 적극적으로 나감
+            if random.random() < 0.22:  
                 self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context=False)
             else:
                 self.ball += 1
                 self.game_log.append(log_prefix + f"볼! 존 바깥쪽으로 빠집니다. ({self.strike}S {self.ball}B)")
                 if self.ball >= 4: self.process_defense_walk(batter_num)
         else:  
-            if random.random() < 0.58:  # 안타 유도 확률 대폭 결합 상향
+            if random.random() < 0.44:  
                 self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context=True)
             else:
-                self.strike += 1
-                self.game_log.append(log_prefix + f"스트라이크! 타자가 배트를 내지 못했습니다. ({self.strike}S {self.ball}B)")
+                st_roll = random.random()
+                if st_roll < 0.35:
+                    self.strike += 1
+                    self.game_log.append(log_prefix + f"헛스윙 스트라이크! 타자의 배트가 허공을 가릅니다. ({self.strike}S {self.ball}B)")
+                else:
+                    self.strike += 1
+                    self.game_log.append(log_prefix + f"스트라이크! 타자가 배트를 내지 못했습니다. ({self.strike}S {self.ball}B)")
                 if self.strike >= 3: self.process_defense_strikeout(batter_num)
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool) -> None:
-        # 타고투저 밸런스 공식 커널 대입 (안타, 홈런 기본 다이스 대폭 확장)
-        hit_prob = 0.34 + (enemy_stats["hit"] - my_stats["defense"]) * 0.002 + penalty + matchup_mod
-        hr_prob = 0.06 + (enemy_stats["homerun"] * 0.001) + (matchup_mod * 0.2)
+        # 📊 [확률 대수술] 억지 스몰볼/대패 참사를 차단하는 정규 표준 확률 튜닝
+        hit_prob = 0.27 + (enemy_stats["hit"] - my_stats["defense"]) * 0.0015 + penalty + matchup_mod
+        hr_prob = 0.035 + (enemy_stats["homerun"] * 0.0008) + (matchup_mod * 0.01)
         if not is_strike_context: 
-            hit_prob *= 0.6; hr_prob *= 0.4  
+            hit_prob *= 0.5; hr_prob *= 0.25  
 
         roll = random.random()
         batter_num = self.enemy_batter_number
@@ -345,7 +350,7 @@ class PureKboEngine:
             if gained > 0: self.update_live_scoreboard(run=gained)
             self.game_log.append(log_prefix + f"🌟 안타! 정타가 터지며 루상 주자가 진루합니다. (+{gained}점)")
         else:
-            if self.base1 and self.out_count < 2 and random.random() < 0.20:
+            if self.base1 and self.out_count < 2 and random.random() < 0.25:
                 self.out_count += 2
                 self.base1 = False
                 self.game_log.append(log_prefix + "😱 내야 땅볼! 병살타로 아웃카운트 2개가 동시에 올라갑니다.")
@@ -390,7 +395,7 @@ class PureKboEngine:
         self.pitch_speed = random.randint(spec["speed_min"], spec["speed_max"])
         self.pitch_desc = spec["desc"]
         
-        self.pitch_zone = random.randint(1, 9) if random.random() < 0.65 else 0
+        self.pitch_zone = random.randint(1, 9) if random.random() < 0.72 else 0
         self.guess_zone = random.randint(1, 9)
         enemy_pitcher.record_pitch(1)
         self.enemy_total_pitches += 1
@@ -405,19 +410,20 @@ class PureKboEngine:
         log_prefix = f"🔮 [상대 투수 {self.pitch_speed}km/h {self.pitch_type}] -> "
         batter_context = f"[{current_batter}번 타자] "
 
+        # 🧠 [작전 영향력 상향 컴파일] 주사위 운빨 타파, 감독의 사인이 직접 스탯에 가중되도록 확률 분포 가변 배정
         if user_choice == 1:
             if self.pitch_zone == 0:  
-                res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[80, 400, 220, 300])[0]
+                res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[20, 480, 200, 300])[0]
             else:
-                weights = [250, 350, 200, 150, 50] if is_zone_matched else [70, 250, 350, 200, 130]
+                weights = [180, 320, 220, 180, 100] if is_zone_matched else [40, 200, 400, 220, 140]
                 res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=weights)[0]
             self.process_swing_result(res, log_prefix, batter_context, current_batter, my_stats, enemy_stats, penalty, is_zone_matched, matchup_mod)
 
         elif user_choice == 2:
             if self.pitch_zone == 0:
-                res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[120, 350, 250, 280])[0]
+                res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[40, 420, 240, 300])[0]
             else:
-                weights = [550, 200, 150, 100] if is_zone_matched else [350, 350, 180, 120]
+                weights = [600, 150, 150, 100] if is_zone_matched else [320, 380, 180, 120]
                 res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=weights)[0]
             self.process_swing_result(res, log_prefix, batter_context, current_batter, my_stats, enemy_stats, penalty, is_zone_matched, matchup_mod)
 
@@ -471,7 +477,7 @@ class PureKboEngine:
                     self.out_count += 2
                     self.base1 = False
                     self.game_log.append(log_prefix + f"😱 땅볼 정면 병살타 아웃.")
-                elif self.base3 and self.out_count < 2 and random.random() < 0.50:
+                elif self.base3 and self.out_count < 2 and random.random() < 0.45:
                     self.out_count += 1
                     self.base3 = False
                     self.our_score += 1
@@ -492,7 +498,7 @@ class PureKboEngine:
     def process_our_walk(self, current_batter: int) -> None:
         self.strike = 0; self.ball = 0
         self.my_batter_number = 1 if current_batter == 9 else current_batter + 1
-        self.game_log.append(f"🚶‍♂️ 볼넷 출루 성공.")
+        self.game_log.append(f"🚶‍♂️ 볼넷! {current_batter}번 타자가 정밀한 선구안으로 포어볼을 골라 출루합니다.")
         if self.base1 and self.base2 and self.base3:
             self.our_score += 1
             self.update_live_scoreboard(run=1)
@@ -668,7 +674,7 @@ def main() -> None:
                 b1_ico = "🏃" if game.base1 else "◯"
                 b2_ico = "🏃" if game.base2 else "◯"
                 b3_ico = "🏃" if game.base3 else "◯"
-                st.code(f"   [{b2_ico}] 2루\n[{b3_ico}] 3루   [{b1_ico}] 1루\n     [X] 타석", language="text")
+                st.code(f"   [{b2_ico}] 2루\n[{b3_ico}] 3루   [{b1_ico}] 1루\n     [X] 타석", graphical_mode=False)
 
             st.divider()
 
