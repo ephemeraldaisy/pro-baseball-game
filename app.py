@@ -20,7 +20,7 @@ TEAMS: Dict[str, Dict[str, int]] = {
     "💖 핑크 돌핀스": {"homerun": 42, "hit": 45, "defense": 72, "stamina": 80, "steal_b": 28}
 }
 
-# 📊 10x10 팀 간 상성 매트릭스
+# 📊 구단 상성 매트릭스
 MATCHUP_MATRIX: Dict[str, List[str]] = {
     "🔴 레드 파이어스":  ["X", "우세", "우세", "백중", "열세", "열세", "우세", "백중", "열세", "백중"],
     "🔵 블루 웨이브스":  ["열세", "X", "우세", "우세", "열세", "백중", "열세", "우세", "우세", "백중"],
@@ -282,7 +282,6 @@ class PureKboEngine:
 
         pitcher = self.get_current_my_pitcher()
         
-        # 🎯 [NameError 완치 및 리팩토링] 변수 p_role 오류 수정 및 강판 로직 통합
         if pitcher.stamina <= 0 and pitcher.role != "마무리":
             self.change_my_pitcher()
             pitcher = self.get_current_my_pitcher()
@@ -362,7 +361,8 @@ class PureKboEngine:
     def process_defense_walk(self, batter_num: int) -> None:
         self.strike = 0; self.ball = 0
         self.enemy_batter_number = 1 if batter_num == 9 else batter_num + 1
-        self.game_log.append(f"🚶‍♂️ 볼넷! 상대 {batter_num}번 타자가 출루합니다.")
+        # 🟢 [버그 수정] 수비 시 볼넷 명확히 표기
+        self.game_log.append(f"🚶‍♂️ 볼넷! 제구 난조로 상대 {batter_num}번 타자에게 포어볼 출루를 허용합니다.")
         if self.base1 and self.base2 and self.base3:
             self.enemy_score += 1
             self.update_live_scoreboard(run=1)
@@ -492,7 +492,8 @@ class PureKboEngine:
     def process_our_walk(self, current_batter: int) -> None:
         self.strike = 0; self.ball = 0
         self.my_batter_number = 1 if current_batter == 9 else current_batter + 1
-        self.game_log.append(f"🚶‍♂️ 볼넷 출루 성공.")
+        # 🟢 [버그 수정] 공격 시 볼넷 명확히 표기
+        self.game_log.append(f"🚶‍♂️ 볼넷! {current_batter}번 타자가 정밀한 선구안으로 포어볼을 골라 출루합니다.")
         if self.base1 and self.base2 and self.base3:
             self.our_score += 1
             self.update_live_scoreboard(run=1)
@@ -521,7 +522,6 @@ def main() -> None:
     
     st.title("⚾ 프로야구 시뮬레이터")
 
-    # 🤝 [패치 코어] 파일 스트림 연동 game_tips.txt 기능 추가
     if st.button("💡 게임 팁 및 전술 가이드 열람"):
         st.session_state.show_tips = True
 
