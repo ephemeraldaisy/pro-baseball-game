@@ -520,7 +520,7 @@ def main() -> None:
     with st.sidebar:
         st.header("💎 비밀 상점 (P2W)")
         st.write(f"보유 다이아: {st.session_state.nc_diamonds} 💎")
-        if st.button("💳 N Pay 충전 (11만원)"): st.session_state.nc_diamonds += 5000; st.rerun()
+        if st.button("💳 N Pay로 5000 다이아 충전 (11만원)"): st.session_state.nc_diamonds += 5000; st.rerun()
         
         if st.session_state.full_kbo_engine and not st.session_state.full_kbo_engine.game_over:
             game = st.session_state.full_kbo_engine
