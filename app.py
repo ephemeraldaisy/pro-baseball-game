@@ -20,7 +20,7 @@ TEAMS: Dict[str, Dict[str, int]] = {
     "💖 핑크 돌핀스": {"homerun": 42, "hit": 45, "defense": 72, "stamina": 80, "steal_b": 28}
 }
 
-# 📊 구단 상성 매트릭스
+# 📊 10x10 팀 간 상성 매트릭스
 MATCHUP_MATRIX: Dict[str, List[str]] = {
     "🔴 레드 파이어스":  ["X", "우세", "우세", "백중", "열세", "열세", "우세", "백중", "열세", "백중"],
     "🔵 블루 웨이브스":  ["열세", "X", "우세", "우세", "열세", "백중", "열세", "우세", "우세", "백중"],
@@ -195,7 +195,6 @@ class PureKboEngine:
                 self.end_kbo_game()
                 return
             elif self.inning > 12:
-                # 12회초 연장 제한 조건 정밀 연동 시 이닝 오버플로우 강제 차단
                 self.inning = 12
                 self.phase = "말"
                 self.end_kbo_game()
@@ -255,7 +254,6 @@ class PureKboEngine:
     def next_phase(self) -> None:
         if self.game_over: return
         
-        # 12회말 종료 시점 스토퍼 가동 (13회초 유령 출력 차단 커널)
         if self.inning == 12 and self.phase == "말":
             self.end_kbo_game()
             return
@@ -283,7 +281,9 @@ class PureKboEngine:
         if self.game_over: return
 
         pitcher = self.get_current_my_pitcher()
-        if pitcher.stamina <= 0 and p_role != "마무리":
+        
+        # 🎯 [NameError 완치 및 리팩토링] 변수 p_role 오류 수정 및 강판 로직 통합
+        if pitcher.stamina <= 0 and pitcher.role != "마무리":
             self.change_my_pitcher()
             pitcher = self.get_current_my_pitcher()
 
@@ -521,6 +521,24 @@ def main() -> None:
     
     st.title("⚾ 프로야구 시뮬레이터")
 
+    # 🤝 [패치 코어] 파일 스트림 연동 game_tips.txt 기능 추가
+    if st.button("💡 게임 팁 및 전술 가이드 열람"):
+        st.session_state.show_tips = True
+
+    if st.session_state.get("show_tips", False):
+        tips_path = "assets/game_tips.txt"
+        st.markdown("---")
+        st.subheader("💡 인게임 벤치 전략 가이드북")
+        if os.path.exists(tips_path):
+            with open(tips_path, "r", encoding="utf-8") as f:
+                st.text_area("공식 가이드 연동 데이터", value=f.read(), height=250, disabled=True)
+        else:
+            st.error("⚠️ assets/game_tips.txt 자산을 탐색하지 못했습니다. 파일 생성 상태를 확인해주십시오.")
+        if st.button("❌ 가이드 닫기"):
+            st.session_state.show_tips = False
+            st.rerun()
+        st.markdown("---")
+
     if st.button("📜 구단 설정집 열람"):
         st.session_state.show_stories = True
 
@@ -587,7 +605,6 @@ def main() -> None:
             if not game.game_over and p_my.role != "마무리":
                 if st.button("🔄 불펜 투수 교체"): game.change_my_pitcher(); st.rerun()
         with col2:
-            # 🚨 [버그 클린 완치] 게임 세트가 된 상태면 강제로 증가된 유령 카운트 표기를 무력화하고 경기 종료 시점 텍스트 표기 고정
             if game.game_over:
                 st.markdown(f"<h3 style='text-align: center; color: #9E9E9E;'>경기 종료</h3>", unsafe_allow_html=True)
                 st.markdown(f"<p style='text-align: center; font-size:12px; font-weight:bold; color:#757575;'>[GAME SET]</p>", unsafe_allow_html=True)
@@ -673,7 +690,7 @@ def main() -> None:
                     game.play_defense_one_pitch(); st.rerun()
 
         st.divider()
-        st.markdown("### 🎙️ 실시간 경기 중계 기록")
+        st.markdown("### 🛡️ 실시간 경기 중계 기록")
         for log in reversed(game.game_log[-6:]): st.write(log)
 
 if __name__ == "__main__":
