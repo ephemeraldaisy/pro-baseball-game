@@ -86,13 +86,12 @@ def start_new_game(my_team, enemy_team):
     
     setup_half_inning()
 
-# [대수술 1] 가변 수비 로그 연출 및 9회말 상대 끝내기 요건 고증
+# 가변 수비 로그 연출 및 9회말 상대 끝내기 요건 고증
 def setup_half_inning():
-    #연장전이 시작될 때 초라면, 말에서 승패가 갈렸는지 확인  
-    if st.session_state.inning > 9 and st.session_state.phase == "초":
-        if st.session_state.our_score != st.session_state.enemy_score:
-            end_game()
-            return 
+    # 13회 초 돌입 시 차단 (KBO 최대 12회)
+    if st.session_state.inning > 12 and st.session_state.phase == "초":
+        end_game()
+        return 
 
     #콜드게임 규정 
     score_gap = abs(st.session_state.our_score - st.session_state.enemy_score)
@@ -105,11 +104,13 @@ def setup_half_inning():
         end_game()
         return
 
-    # 우리가 홈팀(후공)인데 9회초 종료 시점 이기고 있으면 9회말 삭제 및 조기종료
-    if st.session_state.inning == 9 and st.session_state.phase == "말":
+    # 우리가 홈팀(후공)인데 9회(이상)초 종료 시점 이기고 있으면 해당 이닝 말 삭제 및 조기종료
+    if st.session_state.inning >= 9 and st.session_state.phase == "말":
         if st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
-            st.session_state.game_log.append("👍 9회초까지 이미 우리 팀이 이기고 있어 9회말 공격 없이 경기가 끝납니다! (9회말 X)")
-            st.session_state.home_inning_scores[8] = "X"
+            st.session_state.game_log.append(f"👍 {st.session_state.inning}회초까지 이미 우리 팀이 이기고 있어 {st.session_state.inning}회말 공격 없이 경기가 끝납니다! ({st.session_state.inning}회말 X)")
+            idx = st.session_state.inning - 1
+            if idx < 12:
+                st.session_state.home_inning_scores[idx] = "X"
             end_game()
             return
 
@@ -136,8 +137,7 @@ def setup_half_inning():
         # 기본 확률: [0점, 1점, 2점, 3점, 4점, 메가이닝]
         base_weights = [510, 240, 150, 70, 25, 5]
         
-        # 상대(공격)가 우리(수비)에게 강한 천적 구도일 때 (예: 레드가 그린을 만났을 때)
-        # 10x10 상성 대장부 서사를 기반으로 가변 조정
+        # 상대(공격)가 우리(수비)에게 강한 천적 구도일 때
         is_enemy_dominant = (
             (enemy_team == "🔴 레드 파이어스" and my_team == "🟢 그린 몬스터즈") or
             (enemy_team == "🔵 블루 웨이브스" and my_team == "⚫ 블랙 나이츠") or
@@ -199,7 +199,7 @@ def setup_half_inning():
                 else:
                     def_log = "🛡️ 루상에 주자가 나갔으나, 내야진의 환상적인 '더블플레이(병살타)'가 터지며 위기를 실점 없이 넘깁니다!"
 
-            # 형님의 피와 살이 담긴 실점 멘트 가변 연동
+            # 실점 멘트 가변 연동
             elif enemy_pts == 1:
                 def_log = random.choice([
                     "💥 아쉽게 상대 팀에게 솔로 홈런 한 방을 허용하며 1실점합니다.",
@@ -274,57 +274,73 @@ def setup_half_inning():
         inning_pitches = max(5, inning_pitches)
         st.session_state.our_total_pitches += inning_pitches
 
-        # 🔥 [끝내기 고증] 9회말 상대 끝내기 연출 요건
+        # 🔥 9회말 이상 상대(홈팀) 공격 및 연장전 연결 로직
         if st.session_state.inning >= 9 and st.session_state.phase == "말" and not st.session_state.is_home_team:
+            # 1. 상대가 점수를 뽑아 우리 점수를 역전했을 때 (상대의 끝내기 승리)
             if (st.session_state.enemy_score + enemy_pts) > st.session_state.our_score:
-                st.session_state.enemy_score = st.session_state.our_score + 1
-                st.session_state.game_log.append(f"❌ Ah... {st.session_state.inning}회말 상대 팀에게 짜릿한 '끝내기 안타'를 얻어맞고 패배했습니다. (최종 {st.session_state.our_total_pitches}구 역투)")
+                walk_off_pts = (st.session_state.our_score + 1) - st.session_state.enemy_score
+                st.session_state.enemy_score = st.session_state.our_score + 1 # 고증: 끝내기 1점차
                 
                 idx = st.session_state.inning - 1
                 if idx < 12:
-                    if st.session_state.is_home_team:
-                        st.session_state.away_inning_scores[idx] = st.session_state.enemy_score
-                    else:
-                        st.session_state.home_inning_scores[idx] = st.session_state.enemy_score
+                    st.session_state.home_inning_scores[idx] = walk_off_pts
+                    
+                st.session_state.game_log.append(f"🔮 {st.session_state.inning}회말 수비 결과: {def_log}")
+                st.session_state.game_log.append(f"❌ Ah... {st.session_state.inning}회말 상대 팀에게 짜릿한 '끝내기 안타'를 얻어맞고 패배했습니다. (최종 {st.session_state.our_total_pitches}구 역투)")
                 end_game()
                 return
+            
+            # 2. 상대가 점수를 못 냈거나, 냈어도 우리가 여전히 이기거나 동점일 때
             else:
                 st.session_state.enemy_score += enemy_pts
                 idx = st.session_state.inning - 1
                 if idx < 12:
-                    if st.session_state.is_home_team:
-                        st.session_state.away_inning_scores[idx] = enemy_pts
+                    st.session_state.home_inning_scores[idx] = enemy_pts
+                
+                st.session_state.game_log.append(
+                    f"🔮 {st.session_state.inning}회말 수비 결과: {def_log} (총 {st.session_state.our_total_pitches}구)"
+                )
+                
+                # 우리가 여전히 이기고 있으면 승리 확정
+                if st.session_state.our_score > st.session_state.enemy_score:
+                    st.session_state.game_log.append(f"🎉 {st.session_state.inning}회말 심장이 쫄깃한 마지막 반격을 무사히 막아내며 승리를 지켜냅니다!! 마무리 만세!!")
+                    end_game()
+                    return
+                # 동점일 경우 억지 종료를 막고 연장전으로 연결
+                elif st.session_state.our_score == st.session_state.enemy_score:
+                    if st.session_state.inning >= 12:
+                        st.session_state.game_log.append(f"💦 12회말 마지막 수비를 막아내며 대혈투가 무승부로 끝납니다!")
+                        end_game()
+                        return
                     else:
-                        st.session_state.home_inning_scores[idx] = enemy_pts
-                st.session_state.game_log.append(f"🎉 {def_log} ➔ {st.session_state.inning}회말 심장이 쫄깃한 마지막 반격을 무사히 막아내며 경기 세트!! 마무리 만세!!")
-                end_game()
-                return
+                        st.session_state.game_log.append(f"💦 수비를 막아냈지만 동점입니다. {st.session_state.inning + 1}회 연장전으로 돌입합니다!")
+                        next_phase()
+                        return
+                        
+        # 9회 미만이거나, 우리가 홈팀일 때 상대의 9회 이상 '초' 공격 처리
         else:
             st.session_state.enemy_score += enemy_pts
-
-
-        idx = st.session_state.inning - 1
-        if idx < 12:
-            if st.session_state.is_home_team: # 우리가 홈이면 상대는 원정(Away)
-                if st.session_state.away_inning_scores[idx] == "":
-                    st.session_state.away_inning_scores[idx] = enemy_pts
+            idx = st.session_state.inning - 1
+            if idx < 12:
+                if st.session_state.is_home_team: 
+                    if st.session_state.away_inning_scores[idx] == "":
+                        st.session_state.away_inning_scores[idx] = enemy_pts
+                    else:
+                        st.session_state.away_inning_scores[idx] += enemy_pts
                 else:
-                    st.session_state.away_inning_scores[idx] += enemy_pts
-            else:
-                if st.session_state.home_inning_scores[idx] == "":
-                    st.session_state.home_inning_scores[idx] = enemy_pts
-                else:
-                    st.session_state.home_inning_scores[idx] += enemy_pts
+                    if st.session_state.home_inning_scores[idx] == "":
+                        st.session_state.home_inning_scores[idx] = enemy_pts
+                    else:
+                        st.session_state.home_inning_scores[idx] += enemy_pts
 
-        # 완성된 수비 로그 전광판 중계 일지에 수급
-        st.session_state.game_log.append(
-            f"🔮 {st.session_state.inning}회{st.session_state.phase} 수비 결과: {def_log} "
-            f"(우리 투수 이닝 {inning_pitches}구 소모 / 총 {st.session_state.our_total_pitches}구)"
-        )
-        
-        next_phase()
+            st.session_state.game_log.append(
+                f"🔮 {st.session_state.inning}회{st.session_state.phase} 수비 결과: {def_log} "
+                f"(우리 투수 이닝 {inning_pitches}구 소모 / 총 {st.session_state.our_total_pitches}구)"
+            )
+            next_phase()
+            return
 
-# [대수술 2] 도루 상성(우리 주력 vs 상대 수비) 완벽 가변 반영
+# 도루 상성(우리 주력 vs 상대 수비) 완벽 가변 반영
 def trigger_steal():
     # 1. 아예 주자가 없으면 튕겨냅니다.
     if not st.session_state.base1 and not st.session_state.base2 and not st.session_state.base3:
@@ -415,13 +431,6 @@ def trigger_steal():
         return
 
 def next_phase():
-    if st.session_state.inning == 9 and st.session_state.phase == "초":
-        if st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
-            st.session_state.game_log.append("👍 9회초까지 이미 우리 팀이 이기고 있어 9회말 공격 없이 경기가 끝납니다! (9회말 X)")
-            st.session_state.home_inning_scores[8] = "X"
-            end_game()
-            return
-            
     idx = st.session_state.inning - 1
     if idx < 12:
         if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 0
@@ -437,17 +446,13 @@ def next_phase():
 def end_game():
     st.session_state.game_over = True
     
-    if st.session_state.inning >= 10:
-        if st.session_state.inning == 10 and st.session_state.phase == "초":
-            st.session_state.inning = 9
-            st.session_state.phase = "말"
-
     if st.session_state.our_score > st.session_state.enemy_score:
         st.session_state.game_result_msg = f"🎉 {st.session_state.my_team} 대승리!!! 오늘 경기 수당은 사모님 기라!!"
     elif st.session_state.our_score < st.session_state.enemy_score:
         st.session_state.game_result_msg = f"😭 패배... 상대 {st.session_state.enemy_team}의 마구에 당했습니다. 복수하러 가이소!"
     else:
-        st.session_state.game_result_msg = "🤝 12회 대혈투 끝에 무승부로 끝났습니다!"
+        # 하드코딩 제거: 실제 도달한 이닝 표기
+        st.session_state.game_result_msg = f"🤝 {st.session_state.inning}회 대혈투 끝에 무승부로 끝났습니다!"
 
 # ==========================================
 # 3. 타격 액션 및 진루 처리 (병살타 / 희생플라이 고증 대개조)
@@ -465,11 +470,10 @@ def play_turn(user_choice):
     else:
         st.session_state.pitch_zone = 0
     
-    # 3. (옵션) 타자의 예상 노림수 구역도 매번 랜덤하게 바뀌게 하거나, 
-    # 사모님이 버튼으로 직접 고르게 하려면 이 줄은 빼셔도 됩니다!
+    # 3. 타자의 예상 노림수 구역
     st.session_state.guess_zone = random.randint(1, 9)
     
-    # 중계 로그에 투수가 뭘 던졌는지 살짝 흘려주는 센스!
+    # 중계 로그에 투수가 뭘 던졌는지 표시
     st.session_state.game_log.append(f"🔮 투수가 {st.session_state.pitch_type}를 선택해 {st.session_state.pitch_zone}번 구역으로 던졌습니다!")
 
     enemy_pitch_count = 1
@@ -488,7 +492,7 @@ def play_turn(user_choice):
     defense_penalty = 15 if enemy_team in ["⚪ 화이트 이글스", "⚫ 블랙 나이츠"] else 0
 
     # ------------------------------------------------------------------
-    # ⚾ [트렌드 고증] 요즘 프로야구 1번~9번 타순별 가변 버프/패널티 및 서사 부여
+    # ⚾ [트렌드 고증] 1번~9번 타순별 가변 버프/패널티 및 서사 부여
     # ------------------------------------------------------------------
     batter_context_msg = ""
     batter_homerun_mod = 0
@@ -500,7 +504,6 @@ def play_turn(user_choice):
         batter_hit_mod = 20  # 안타 확률 업
         batter_ball_mod = 30 # 눈야구 보너스
     elif current_batter in [2, 3]:
-        # ★요즘 KBO 대세: 가장 잘 치는 타자를 2, 3번에 전진 배치!
         batter_context_msg = "🔥 [요즘 대세! 강한 2/3번 핵심 타자] "
         batter_homerun_mod = 25 # 홈런 대폭 증가
         batter_hit_mod = 35     # 안타 대폭 증가
@@ -515,7 +518,6 @@ def play_turn(user_choice):
         batter_context_msg = "🛡️ [7/8번 하위 타선 폭탄 돌리기] "
         batter_hit_mod = -20    # 백업/하위 타선 패널티 (안타 확률 감소)
     elif current_batter == 9:
-        # ★요즘 야구 9번: 단순 식물 타자가 아닌, 1번으로 연결하는 가교 타자!
         batter_context_msg = "🎯 [9번 가교 타자] "
         batter_hit_mod = 15     # 안타 확률 살짝 보정
         batter_ball_mod = 20    # 상위 타선 연결용 눈야구 보너스
@@ -524,7 +526,7 @@ def play_turn(user_choice):
     at_bat_result = "지속"
     log_msg = ""
     
-    # 💥 1. 풀스윙 강타 (배트를 휘둘렀으므로 스트라이크/볼 판정 없이 타격 결과만 냅니다!)
+    # 💥 1. 풀스윙 강타
     if user_choice == 1:
         zone_mod = 1.5 if st.session_state.pitch_zone == 0 else 1.0
         w_homerun = max(10, 80 + my_buff["homerun"] + batter_homerun_mod)
@@ -546,10 +548,10 @@ def play_turn(user_choice):
                 st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             else:
                 st.session_state.game_log.append(f"💥 작전[풀스윙]: {batter_context_msg}2S 이후 끈질긴 커트 파울! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
-            st.rerun()  # 🚨 파울 처리 후 즉시 턴 종료 (밑으로 흘러내려가기 방지!)
+            st.rerun()  
             return
 
-    # 🌟 2. 가볍게 밀어치기 (배트를 휘둘렀으므로 타격 결과만!)
+    # 🌟 2. 가볍게 밀어치기
     elif user_choice == 2:
         zone_mod = 1.3 if st.session_state.pitch_zone == 0 else 1.0
         w_hit = max(10, 350 + (my_buff["hit"] * 1.2) - defense_penalty + (batter_hit_mod * 1.5))
@@ -569,12 +571,11 @@ def play_turn(user_choice):
                 st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}빗맞은 파울! 스트라이크 추가. (현재 {st.session_state.strike}S {st.session_state.ball}B)")
             else:
                 st.session_state.game_log.append(f"💥 작전[밀어치기]: {batter_context_msg}2S 이후 끈질기게 파울 커트 연발! (현재 {st.session_state.strike}S {st.session_state.ball}B)")
-            st.rerun()  # 🚨 즉시 턴 종료!
+            st.rerun()
             return
 
-    # 👀 3. 공 끝까지 거르기 (🚨 운빨 주사위 완전 삭제! 실제 공 위치로만 칼판정!)
+    # 👀 3. 공 끝까지 거르기 (운빨 삭제, 칼판정)
     elif user_choice == 3:
-        # 🎯 투수가 1~9번(스트라이크 존)에 던졌는데 참았다? -> 100% 루킹 스트라이크!
         if 1 <= st.session_state.pitch_zone <= 9:
             st.session_state.strike += 1
             log_msg = f"❌ 스트라이크 존({st.session_state.pitch_zone}번)으로 들어오는 공을 지켜보았습니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
@@ -582,7 +583,6 @@ def play_turn(user_choice):
                 st.session_state.game_log.append(f"⚡ Ah... {batter_context_msg}{current_batter}번 타자 스탠딩 루킹 삼진 아웃!!")
                 at_bat_result = "삼진"
                 
-        # 🟢 투수가 0번(볼)에 던졌는데 참았다? -> 100% 볼넷 카운트 상승! (오심 완전 치료!)
         elif st.session_state.pitch_zone == 0:
             st.session_state.ball += 1
             log_msg = f"🟢 볼! 존 바깥 유인구를 눈으로 정확히 골라냅니다! (현재 {st.session_state.strike}S {st.session_state.ball}B)"
@@ -593,7 +593,7 @@ def play_turn(user_choice):
             st.session_state.game_log.append(f"👀 작전[거르기]: {batter_context_msg}{log_msg}")
             
     # =======================================================
-    # 🏃‍♂️ [진루 및 타자 교체 엔진 연동] - 오리지널 로직 100% 동일
+    # 🏃‍♂️ [진루 및 타자 교체 엔진 연동] 
     # =======================================================
     if at_bat_result != "지속":
         st.session_state.strike = 0
@@ -606,7 +606,6 @@ def play_turn(user_choice):
             st.session_state.game_log.append(f"🔥 🎉 깡!!!!! {batter_context_msg}{current_batter}번 타자 대형 {pts}점짜리 홈런 대폭발!!!!!!!!")
             st.session_state.base1 = st.session_state.base2 = st.session_state.base3 = False
             
-            # 📊 [전광판 강제 연동 추가] 점수 실시간 주입
             idx = st.session_state.inning - 1
             if idx < 12:
                 if st.session_state.is_home_team:
@@ -622,13 +621,11 @@ def play_turn(user_choice):
             if st.session_state.base2: gained_run += 1
             st.session_state.our_score += gained_run
             
-            # 🚨 [버그 픽스] 진루 로직 수정 - 주자가 순서대로 밀려나야 함
             st.session_state.base3 = st.session_state.base1
             st.session_state.base2 = False
             st.session_state.base1 = True
             st.session_state.game_log.append(f"🌟 딱! {batter_context_msg}{current_batter}번 타자의 안타! 주자 나갑니다!")
             
-            # 📊 [전광판 강제 연동 추가] 안타로 인한 득점 주입
             if gained_run > 0:
                 idx = st.session_state.inning - 1
                 if idx < 12:
@@ -641,18 +638,16 @@ def play_turn(user_choice):
 
         elif at_bat_result == "아웃":
             if st.session_state.base1 and st.session_state.out_count < 2 and random.random() < 0.40:
-                # 🚨 [병살타 고증 완치] 타자 아웃(+1) + 1루 주자도 아웃(+1) = 총 투아웃 추가!
                 st.session_state.out_count += 2
-                st.session_state.base1 = False  # 🔥 1루 주자 완벽 삭제! 유령 주자 차단!
+                st.session_state.base1 = False  
                 st.session_state.game_log.append(f"😱 아앗! {batter_context_msg}{current_batter}번 타자 내야 땅볼! 유격수-2루수-1루수 '병살타(투아웃)'!")
             
             elif st.session_state.base3 and st.session_state.out_count < 2 and random.random() < 0.50:
                 st.session_state.out_count += 1
-                st.session_state.base3 = False  # 🔥 3루 주자는 홈인했으니 3루 비우기!
+                st.session_state.base3 = False  
                 st.session_state.our_score += 1
                 st.session_state.game_log.append(f"🕊️ [희생 플라이] {batter_context_msg}{current_batter}번 타자의 큰 타구! 3루 주자 태그업 홈인!")
                 
-                # 📊 전광판 실시간 1점 주입
                 idx = st.session_state.inning - 1
                 if idx < 12:
                     if st.session_state.is_home_team:
@@ -662,17 +657,14 @@ def play_turn(user_choice):
                         if st.session_state.away_inning_scores[idx] == "": st.session_state.away_inning_scores[idx] = 1
                         else: st.session_state.away_inning_scores[idx] += 1
             else:
-                # ⚾ 일반 범타 아웃 (주자는 그대로 유지, 타자만 아웃)
                 st.session_state.out_count += 1
                 st.session_state.game_log.append(f" Ah... {batter_context_msg}{current_batter}번 타자 범타 아웃입니다.")
             
-            # 쓰리아웃 체인지 확인 및 화면 즉시 새로고침
             check_three_out_change()
             st.rerun()
 
         elif at_bat_result == "삼진":
             st.session_state.out_count += 1
-            # ⚡ 삼진 당했으니 화면 전광판 카운트 바로 비워주기
             check_three_out_change()
             st.rerun()
 
@@ -687,7 +679,6 @@ def play_turn(user_choice):
             elif st.session_state.base1: st.session_state.base2 = True
             else: st.session_state.base1 = True
             
-            # 📊 [전광판 강제 연동 추가] 밀어내기 출루 1점 주입
             if gained_bb_run > 0:
                 idx = st.session_state.inning - 1
                 if idx < 12:
@@ -700,11 +691,8 @@ def play_turn(user_choice):
 
     idx = st.session_state.inning - 1
     if idx < 12:
-        
         if st.session_state.is_home_team:
-            # 1. 기록 전 현재 전광판의 총점(R)을 기억
             prev_score = sum([x for x in st.session_state.home_inning_scores if type(x) in [int, float]])
-            # 2. 이번 타석 직후 실제 올라간 순수 득점(런) 계산
             actual_gained_run = st.session_state.our_score - prev_score
             
             if actual_gained_run > 0:
@@ -723,30 +711,54 @@ def play_turn(user_choice):
                     st.session_state.away_inning_scores[idx] += actual_gained_run
                     
 
-    # ------------------------------------------------------------------
-    # 🚨 [버그 박살] 실제 경기 진행 중에만 끝내기가 작동하도록 조건 정밀화
-    # ------------------------------------------------------------------
+    # 🚨 실제 경기 진행 중에만 끝내기가 작동하도록 조건 정밀화
     if (st.session_state.inning >= 9 and 
         st.session_state.phase == "말" and 
         st.session_state.is_home_team and 
         st.session_state.our_score > st.session_state.enemy_score and 
-        not st.session_state.game_over):  # 이미 게임이 끝난 상태면 무시!
+        not st.session_state.game_over):  
         
         st.session_state.game_log.append(f"🎉 {st.session_state.inning}회말!!! 우리 팀 타석에서 짜릿한 '끝내기 득점'이 터지며 경기를 그대로 끝냅니다!!")
         end_game()
 
+# 무승부 및 이닝 종료 판단 기준 명확화 (억지 게임 오버 방지 및 12회 연장 고증)
 def check_three_out_change():
     if st.session_state.out_count >= 3:
         st.session_state.game_log.append(f"📢 쓰리아웃 체인지! 공수 교대합니다.")
         
         if st.session_state.inning >= 9:
-            if st.session_state.phase == "초" and st.session_state.our_score < st.session_state.enemy_score:
-                end_game()
-                return
-            elif st.session_state.phase == "말" and st.session_state.our_score < st.session_state.enemy_score:
-                end_game()
-                return
+            # 1. 초 공격(원정)이 끝났을 때
+            if st.session_state.phase == "초":
+                # 우리가 원정(초)인데 졌으면 홈팀 승리이므로 게임 종료 (9회말 필요없음)
+                if not st.session_state.is_home_team and st.session_state.our_score < st.session_state.enemy_score:
+                    st.session_state.game_log.append(f"👍 {st.session_state.inning}회초 종료. 상대 홈팀이 이미 리드하고 있어 경기가 종료됩니다.")
+                    end_game() 
+                    return
+                # 우리가 홈팀(수비)인데 이기고 있다면 9회말 진행 없이 게임 종료
+                elif st.session_state.is_home_team and st.session_state.our_score > st.session_state.enemy_score:
+                    st.session_state.game_log.append(f"👍 {st.session_state.inning}회초 종료. 우리 팀이 리드하고 있어 {st.session_state.inning}회말 공격 없이 경기를 끝냅니다!")
+                    idx = st.session_state.inning - 1
+                    if idx < 12:
+                        st.session_state.home_inning_scores[idx] = "X"
+                    end_game()
+                    return
+            
+            # 2. 말 공격(홈)이 끝났을 때
+            elif st.session_state.phase == "말":
+                # 점수 차이가 나면 승부가 결정되었으므로 게임 종료
+                if st.session_state.our_score != st.session_state.enemy_score:
+                    end_game() 
+                    return
+                # 동점일 경우
+                else:
+                    # 12회말까지 끝났는데 동점이면 무승부 종료
+                    if st.session_state.inning >= 12:
+                        st.session_state.game_log.append("💦 12회 연장 대혈투 끝에 승부를 가리지 못했습니다. (무승부)")
+                        end_game() 
+                        return
+                    # 12회 미만이면 다음 이닝(연장전)으로 정상 진행됨
         
+        # 아직 12회 이전 동점이거나, 이기고 있는데 더 공격해야 하면 다음 이닝 진행
         next_phase()
 
 # ==========================================
@@ -787,7 +799,7 @@ if st.session_state.show_matrix:
     st.subheader("📊 10대 구단 가변 상성 판독표 (세로: 공격 / 가로: 수비)")
     st.caption("💡 팁: 초록(극상성 우세) / 연두(우세) / 노랑(백중세) / 오렌지(열세) / 빨강(천적 극열세)")
 
-    # 엑셀 데이터 파이썬 가변 맵 (setup_half_inning 내부의 상성 판정과 100% 일치)
+    # 엑셀 데이터 파이썬 가변 맵 
     matrix_data = {
         "🔴레드":   ["노랑", "연두", "초록", "노랑", "연두", "오렌지", "연두", "빨강", "오렌지", "노랑"],
         "🔵블루":   ["오렌지", "노랑", "연두", "오렌지", "빨강", "노랑", "오렌지", "연두", "초록", "연두"],
@@ -842,7 +854,7 @@ else:
         st.markdown(f"🔋 **우리 투수 총 투구수:** `{st.session_state.our_total_pitches}구`")
     with col2:
         st.markdown(f"<h3 style='text-align: center; color: red;'>{st.session_state.inning}회{st.session_state.phase}</h3>", unsafe_allow_html=True)
-        # [UI 개조] 현재 타석 진영 정보를 더 가변적이고 직관적으로 표현
+        # 현재 타석 진영 정보를 더 가변적이고 직관적으로 표현
         current_is_our_turn = (not st.session_state.is_home_team and st.session_state.phase == "초") or (st.session_state.is_home_team and st.session_state.phase == "말")
         st.markdown(f"<p style='text-align: center; font-size:12px; font-weight:bold; color:#1E90FF;'>🔥 {'[우리 공격 턴]' if current_is_our_turn else '[상대 공격 턴]'}</p>", unsafe_allow_html=True)
     with col3:
@@ -914,7 +926,7 @@ else:
         if st.session_state.our_score > st.session_state.enemy_score:
             st.balloons()
             st.success(st.session_state.game_result_msg)
-            # 형님이 말씀하신 이스터 에그(폭죽 애니메이션) 완벽 복원
+            # 폭죽 애니메이션 복원
             st.markdown(
                 """
                 <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;">
@@ -935,9 +947,9 @@ else:
                 unsafe_allow_html=True
             )
             st.markdown("<h3 style='text-align: center; color: #8B4513;'>🎉 승리의 축포를 날리자아아앗!!! 🎉</h3>", unsafe_allow_html=True)
-        else:
+        elif st.session_state.our_score < st.session_state.enemy_score:
             st.error(st.session_state.game_result_msg)
-            # 패배 시 똥 애니메이션도 무조건 복원
+            # 똥 애니메이션 복원
             st.markdown(
                 """
                 <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden;">
@@ -958,6 +970,10 @@ else:
                 unsafe_allow_html=True
             )
             st.markdown("<h3 style='text-align: center; color: #8B4513;'>💩 패배의 똥세례를 받아라아아앗!!! 💩</h3>", unsafe_allow_html=True)
+        else:
+            # 무승부 상태 처리
+            st.info(st.session_state.game_result_msg)
+            st.markdown("<h3 style='text-align: center; color: #4B0082;'>🤝 치열한 승부였습니다! 다음을 기약합시다 🤝</h3>", unsafe_allow_html=True)
 
         st.divider()
         if st.button("다른 구단 선택하러 가기 🔄", type="primary"):
