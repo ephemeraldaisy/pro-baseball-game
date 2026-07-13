@@ -33,6 +33,8 @@ MATCHUP_MATRIX: Dict[str, List[str]] = {
     "💖 핑크 돌핀스":  ["백중", "백중", "우세", "우세", "우세", "열세", "열세", "열세", "열세", "X"]
 }
 
+MATRIX_COLUMNS = ["🔴레드", "🔵블루", "🟢그린", "🟡옐로우", "🟣퍼플", "🟠오렌지", "🟤브라운", "⚪화이트", "⚫블랙", "💖핑크"]
+
 PITCH_SPECS = {
     "직구": {"speed_min": 142, "speed_max": 155},
     "슬라이더": {"speed_min": 130, "speed_max": 142},
@@ -41,26 +43,18 @@ PITCH_SPECS = {
 }
 
 # =====================================================================
-# [NAVER / NC / RIOT INFRASTRUCTURE LAYER]
+# [NAVER INFRASTRUCTURE LAYER]
 # =====================================================================
 class HyperClovaX_AI:
     @staticmethod
     def get_recommendation(pitch_history: List[str], base3: bool, inning: int, is_attack: bool) -> str:
         if not is_attack:
-            return "💡 [HyperClovaX] 상대 타자의 헛스윙 비율이 높습니다. '유인구 배정'으로 헛스윙을 유도하십시오."
+            return "💡 상대 타자의 헛스윙 비율이 높습니다. '유인구 배정'으로 헛스윙을 유도하십시오."
         if base3 and inning >= 7:
-            return "💡 [HyperClovaX] 득점 확률 88.4%! 3루 주자를 불러들이는 '기습 스퀴즈 번트'를 강력 추천합니다."
+            return "💡 득점 확률 88.4%! 3루 주자를 불러들이는 '기습 스퀴즈 번트'를 강력 추천합니다."
         if len(pitch_history) > 1 and "직구" in pitch_history[-1]:
-            return "💡 [HyperClovaX] 직전 패턴 분석 결과 오프스피드 피칭이 예상됩니다. '웨이팅(눈야구)'으로 볼넷을 노리세요."
-        return "💡 [HyperClovaX] 투수의 체력이 감소하는 타이밍입니다. '팀 배팅'으로 투구수를 늘리십시오."
-
-class ChzzkStreaming:
-    CHAT_POOL = ["아니 감독 돌았냐 ㅋㅋㅋ", "대기업 급 연산력 ㄷㄷ", "지금 스퀴즈 각인데??", "투수 좀 바꿔라 제발!!", 
-                 "이게 KBO지 ㅋㅋㅋㅋ", "방구석 과몰입 꿀잼", "네이버 폼 미쳤다", "NC식 과금 개에반데 ㅋㅋㅋ", "혈압 올라 죽겠네"]
-    @staticmethod
-    def generate_chat() -> str:
-        users = ["야구천재", "방구석펩", "침착한스트리머", "로켓단", "다이아수저"]
-        return f"💬 **{random.choice(users)}**: {random.choice(ChzzkStreaming.CHAT_POOL)}"
+            return "💡 직전 패턴 분석 결과 오프스피드 피칭이 예상됩니다. '웨이팅(눈야구)'으로 볼넷을 노리세요."
+        return "💡 투수의 체력이 감소하는 타이밍입니다. '팀 배팅'으로 투구수를 늘리십시오."
 
 # =====================================================================
 # [DOMAIN LAYER] 
@@ -93,11 +87,9 @@ class PureKboEngine:
         self.enemy_emoji = enemy_team[:2]
         self.is_home_team = random.choice([True, False])
         
-        # 스코어보드 기초 스탯
         self.our_score = 0
         self.enemy_score = 0
         
-        # R H E B 트래커
         self.away_stats = {"R": 0, "H": 0, "E": 0, "B": 0}
         self.home_stats = {"R": 0, "H": 0, "E": 0, "B": 0}
 
@@ -119,9 +111,8 @@ class PureKboEngine:
         
         self.game_over = False
         self.game_result_msg = ""
-        self.game_log = [f"🏟️ Riot Direct 초저지연망 연결 성공. 우리 팀은 {'후공(홈팀)' if self.is_home_team else '선공(원정팀)'}."]
+        self.game_log = [f"🏟️ 경기 개시. 우리 팀은 {'후공(홈팀)' if self.is_home_team else '선공(원정팀)'}."]
         self.pitch_history = ["- 투구 기록 없음"]
-        self.chzzk_chats = [ChzzkStreaming.generate_chat()]
         
         self.hit_buff = 0.0 
         
@@ -144,7 +135,6 @@ class PureKboEngine:
         self.enemy_pitcher_idx = 0
         self.setup_half_inning()
 
-    # 스탯 처리 헬퍼 함수
     def add_stat(self, stat: str, amt: int = 1):
         if self.phase == "초":
             if stat in ["H", "B"]: self.away_stats[stat] += amt
@@ -219,7 +209,6 @@ class PureKboEngine:
             self.home_inning_scores[idx] = base + run
             self.home_stats["R"] += run
             
-        # 레거시 변수 동기화
         if (self.is_home_team and self.phase == "말") or (not self.is_home_team and self.phase == "초"):
             self.our_score += run
         else:
@@ -232,7 +221,6 @@ class PureKboEngine:
         p_en = self.get_current_enemy_pitcher()
         p_en.consume(1)
         self.enemy_total_pitches += 1
-        self.chzzk_chats.append(ChzzkStreaming.generate_chat())
 
         my_stats = TEAMS[self.my_team]
         enemy_stats = TEAMS[self.enemy_team]
@@ -285,14 +273,13 @@ class PureKboEngine:
 
         p_my.consume(1)
         self.our_total_pitches += 1
-        self.chzzk_chats.append(ChzzkStreaming.generate_chat())
         
         enemy_stats = TEAMS[self.enemy_team]
         my_stats = TEAMS[self.my_team]
         penalty = p_my.get_penalty()
         matchup_mod = self.get_matchup_modifier(self.enemy_team, self.my_team)
 
-        pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브"])
+        pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
         speed = random.randint(PITCH_SPECS[pitch_type]["speed_min"], PITCH_SPECS[pitch_type]["speed_max"])
         pitch_zone = random.randint(1, 9) if defense_choice != 2 else 0
 
@@ -329,7 +316,6 @@ class PureKboEngine:
         self.guess_zone = random.randint(1, 9)
         p_en.consume(1)
         self.enemy_total_pitches += 1
-        self.chzzk_chats.append(ChzzkStreaming.generate_chat())
 
         self.pitch_history.append(f"{pitch_type} ({speed}km/h) - 존: {pitch_zone if pitch_zone != 0 else '외곽'}")
         if len(self.pitch_history) > 3: self.pitch_history.pop(0)
@@ -501,13 +487,13 @@ class PureKboEngine:
     def process_strikeout(self, is_defense: bool) -> None:
         self.strike = 0; self.ball = 0
         if is_defense:
+            self.game_log.append(f"⚡ 탈삼진 성공!")
             bat = self.enemy_batter_number
             self.enemy_batter_number = 1 if bat == 9 else bat + 1
-            self.game_log.append(f"⚡ 탈삼진 성공!")
         else:
+            self.game_log.append(f"⚡ 헛스윙 삼진 아웃.")
             bat = self.my_batter_number
             self.my_batter_number = 1 if bat == 9 else bat + 1
-            self.game_log.append(f"⚡ 헛스윙 삼진 아웃.")
         self.out_count += 1
         self.check_three_out_change()
 
@@ -526,18 +512,13 @@ def main() -> None:
     st.set_page_config(layout="wide")
     st.markdown("<style>.stButton>button { width: 100%; font-size: 14px !important; font-weight: bold; }</style>", unsafe_allow_html=True)
     
-    cc1, cc2, cc3 = st.columns(3)
-    cc1.success("🟢 Naver Cloud: 99.99% Uptime")
-    cc2.info(f"⚡ Riot Direct Ping: {random.randint(1, 4)}ms")
-    cc3.warning(f"🌐 NC Seamless World CCU: {random.randint(15400, 18900):,}명 접속중")
-    
-    st.title("⚾ 초거대 엔터프라이즈 KBO 시뮬레이터")
+    st.title("⚾ 순수한 야구 시뮬레이터")
 
     if "full_kbo_engine" not in st.session_state: st.session_state.full_kbo_engine = None
     if "nc_diamonds" not in st.session_state: st.session_state.nc_diamonds = 1000
 
     with st.sidebar:
-        st.header("💎 [NC] 비밀 상점 (P2W)")
+        st.header("💎 비밀 상점 (P2W)")
         st.write(f"보유 다이아: {st.session_state.nc_diamonds} 💎")
         if st.button("💳 N Pay 충전 (11만원)"): st.session_state.nc_diamonds += 5000; st.rerun()
         
@@ -561,20 +542,25 @@ def main() -> None:
                     else: st.error("다이아가 부족합니다.")
         
         st.divider()
-        st.header("📖 [Riot] 구단 유니버스")
+        st.header("📖 구단 유니버스")
         team_lore = st.selectbox("세계관 열람:", list(TEAMS.keys()))
         if st.button("스토리 보기"):
-            st.info(f"{team_lore}는 수백 년 전 룬테라 대륙에서 기원한 정통파 전투 야구 구단으로...")
+            if os.path.exists("assets/team_stories.txt"):
+                with open("assets/team_stories.txt", "r", encoding="utf-8") as f:
+                    st.text_area(f"{team_lore} 설정", value=f.read(), height=200, disabled=True)
+            else:
+                st.error("⚠️ assets/team_stories.txt 파일 누락.")
 
         st.divider()
         st.header("💡 [Guide] 전술 매뉴얼")
         if st.button("가이드 열람"):
             if os.path.exists("assets/game_tips.txt"):
-                with open("assets/game_tips.txt", "r", encoding="utf-8") as f: st.text_area("공식 가이드", value=f.read(), height=200, disabled=True)
+                with open("assets/game_tips.txt", "r", encoding="utf-8") as f:
+                    st.text_area("공식 가이드", value=f.read(), height=200, disabled=True)
             else: st.error("⚠️ assets/game_tips.txt 파일 누락.")
 
         st.divider()
-        st.header("📊 [Matrix] 상성 매트릭스")
+        st.header("📊 상성 매트릭스")
         if st.button("상성 표 열람"):
             df_matrix = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=MATRIX_COLUMNS)
             st.dataframe(df_matrix, use_container_width=True)
@@ -592,7 +578,7 @@ def main() -> None:
         c1, c2, c3 = st.columns([2, 1, 2])
         with c1:
             st.metric(label=f"우리 팀 {game.my_emoji}", value=f"{game.our_score} 점")
-            st.caption(f"🔋 {p_my.name} | 체력: {p_my.stamina} | {game.our_total_pitches}구")
+            st.caption(f"🔋 {p_my.name} | 체력: [{p_my.stamina}/{p_my.max_stamina}] | {game.our_total_pitches}구")
             if not game.game_over and p_my.role != "마무리" and st.button("🔄 불펜 교체"): game.change_my_pitcher(); st.rerun()
         with c2:
             if game.game_over:
@@ -603,9 +589,8 @@ def main() -> None:
                 st.markdown(f"<p style='text-align: center; font-size:12px;'>{'[공격 턴]' if current_is_our_turn else '[수비 턴]'}</p>", unsafe_allow_html=True)
         with c3:
             st.metric(label=f"상대 팀 {game.enemy_emoji}", value=f"{game.enemy_score} 점")
-            st.caption(f"🥎 {p_en.name} | 체력: {p_en.stamina} | {game.enemy_total_pitches}구")
+            st.caption(f"🥎 {p_en.name} | 체력: [{p_en.stamina}/{p_en.max_stamina}] | {game.enemy_total_pitches}구")
 
-        # [SCOREBOARD R H E B]
         away_name = game.enemy_team if game.is_home_team else game.my_team
         home_name = game.my_team if game.is_home_team else game.enemy_team
         
@@ -669,10 +654,11 @@ def main() -> None:
                 for log in reversed(game.game_log[-5:]): st.write(log)
 
             with col_chat:
-                st.markdown("#### 📺 치지직 실시간 채팅")
-                st.container(height=300)
-                for chat in reversed(game.chzzk_chats[-7:]):
-                    st.caption(chat)
+                st.markdown("#### 📺 실시간 채팅")
+                try:
+                    st.image("Screenshot 2026-07-14 at 7.47.01 AM.png", use_container_width=True)
+                except:
+                    st.info("지정된 채팅 이미지 파일을 찾을 수 없습니다.")
 
 if __name__ == "__main__":
     main()
