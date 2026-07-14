@@ -456,11 +456,15 @@ class PureKboEngine:
     def process_swing_result(self, res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff) -> None:
         match_msg = "🎯 [노림수 적중] " if is_zone_matched else ""
         
-        if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.10: 
+        #상성 열세 
+        if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.07: 
             res = "OUT"
-
+        #상성 우세 
         elif res == "OUT" and total_buff > 0:
-            if random.random() < (total_buff * 1.5):
+            p_en = self.get_current_enemy_pitcher()
+            pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0
+            
+            if random.random() < (total_buff * 0.45 * pitcher_stamina_factor): 
                 res = "HIT"
         
         if res == "MISS":
