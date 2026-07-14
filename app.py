@@ -332,7 +332,7 @@ class PureKboEngine:
 
         pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
         speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
-        pitch_zone = random.randint(1, 9) if random.random() < 0.72 else 0
+        pitch_zone = random.randint(1, 9) if random.random() < 0.62 else 0
         self.guess_zone = random.randint(1, 9)
         p_en.consume(1)
         self.enemy_total_pitches += 1
@@ -348,8 +348,8 @@ class PureKboEngine:
         
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
-        total_buff = matchup_mod + self.hit_buff 
-        total_buff += 0.035 
+        
+        total_buff = matchup_mod + self.hit_buff + 0.075
 
         if user_choice == 1: 
             res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[120, 280, 260, 200, 140] if is_zone_matched else [25, 180, 420, 220, 155])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[20, 480, 200, 300])[0]
@@ -366,7 +366,7 @@ class PureKboEngine:
                 self.ball += 1
                 self.game_log.append(log_prefix + b_ctx + f"볼 골라냄. ({self.strike}S {self.ball}B)")
                 if self.ball >= 4: self.process_walk(is_defense=False)
-                    
+     #----------               
         elif user_choice == 4: # 📉 기습 스퀴즈 번트 (3루 주자 강제 홈인 작전)
             if not self.base3:
                 st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
