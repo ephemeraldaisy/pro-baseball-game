@@ -352,10 +352,10 @@ class PureKboEngine:
         total_buff = matchup_mod + self.hit_buff + 0.075
 
         if user_choice == 1: 
-            res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[120, 280, 260, 200, 140] if is_zone_matched else [25, 180, 420, 220, 155])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[20, 480, 200, 300])[0]
+            res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[180, 350, 180, 180, 110] if is_zone_matched else [45, 240, 360, 200, 155])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[20, 480, 200, 300])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
         elif user_choice == 2: 
-            res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[480, 200, 200, 120] if is_zone_matched else [260, 390, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[30, 450, 220, 300])[0]
+            res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[550, 150, 200, 100] if is_zone_matched else [320, 330, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[30, 450, 220, 300])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
         elif user_choice == 3: 
             if pitch_zone != 0:
