@@ -247,13 +247,26 @@ class PureKboEngine:
 
     def next_phase(self) -> None:
         if self.game_over: return
-        if self.inning == 12 and self.phase == "말": self.end_kbo_game(); return
+
+        # 9회말 정규 이닝 종료 조건 검사 및 12회 연장 마감 검사
+        if self.inning == 9 and self.phase == "말":
+            self.end_kbo_game()
+            return
+            
+        if self.inning == 12 and self.phase == "말": 
+            self.end_kbo_game()
+            return
         if self.phase == "초": 
             self.phase = "말"
         else: 
-            if not self.game_over:
-                self.phase = "초"
-                self.inning += 1
+            # 경기 종료 선언이 되지 않은 상태여도 9회말이 끝났다면 강제 마감 연동
+            if self.inning >= 9 and self.get_away_score() != self.get_home_score():
+                self.end_kbo_game()
+                return
+            
+            self.phase = "초"
+            self.inning += 1
+            
         self.setup_half_inning()
 
     def end_kbo_game(self) -> None:
