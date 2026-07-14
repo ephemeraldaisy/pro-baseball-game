@@ -378,7 +378,8 @@ class PureKboEngine:
                 self.ball += 1
                 self.game_log.append(log_prefix + b_ctx + f"볼 골라냄. ({self.strike}S {self.ball}B)")
                 if self.ball >= 4: self.process_walk(is_defense=False)
-     #----------               
+     #----------    
+        
         elif user_choice == 4: # 📉 기습 스퀴즈 번트 (3루 주자 강제 홈인 작전)
             if not self.base3:
                 st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
@@ -418,7 +419,7 @@ class PureKboEngine:
             if pitch_zone != 0:
                 # 스트라이크 존인 경우: 주자가 미리 기동했으므로 안타 시 추가 진루(R/H 대폭 유리) 및 병살 방지
                 # 컨택 가중치 부여하여 연산
-                res = random.choices(["HIT", "OUT", "FOUL"], weights=[550, 350, 100])[0]
+                res = random.choices(["HIT", "OUT", "FOUL"], weights=[600, 300, 100])[0]
                 self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
             else:
                 # 볼 존인 경우: 타자가 나쁜 공에 강제로 배트를 대야 하므로 삼진(헛스윙) 확률 폭등 및 도루자(더블아웃) 유도
@@ -427,6 +428,7 @@ class PureKboEngine:
                     self.strike = 0; self.ball = 0
                     bat = self.my_batter_number
                     self.my_batter_number = 1 if bat == 9 else bat + 1
+                    
                     self.base1 = self.base2 = self.base3 = False
                     self.game_log.append(log_prefix + f"😱 작전 대실패!! 볼 존 유인구에 타자가 헛스윙 삼진을 당한 사이, 스타트를 끊은 주자까지 포수 송구에 걸려 더블아웃(2아웃) 처리됩니다!")
                     self.check_three_out_change()
