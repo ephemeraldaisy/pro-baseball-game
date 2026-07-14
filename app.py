@@ -631,6 +631,19 @@ def main() -> None:
 
         display_away = []
         display_home = []
+
+        # 실제 진행된 마지막 이닝의 인덱스를 계산 (말 공격까지 끝났다면 해당 이닝까지, 초에서 끝났다면 초까지)
+        max_visible_idx = game.inning - 1
+        if game.game_over and game.phase == "말" and game.home_inning_scores[max_visible_idx] != "":
+            # 이미 말 이닝 연산이 완료되어 게임이 끝난 경우, 현재 이닝까지 표기 대상에 포함
+            pass
+        elif game.game_over and game.phase == "초":
+            # 초 공격 중 경기가 마감되었다면 (예: 9회초 종료 조기종료 등) 말 인덱스는 미진행 처리되므로 보정 필요
+            if game.home_inning_scores[max_visible_idx] == "X":
+                pass
+            else:
+                max_visible_idx = game.inning - 2
+
         for i in range(12):
             if game.game_over:
                 # 9회말 없이 조기 종료 시 9회말 자리에 X를 명시적으로 표기
