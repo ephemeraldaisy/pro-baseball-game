@@ -349,6 +349,7 @@ class PureKboEngine:
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
         total_buff = matchup_mod + self.hit_buff 
+        total_buff += 0.035 
 
         if user_choice == 1: 
             res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[120, 280, 260, 200, 140] if is_zone_matched else [25, 180, 420, 220, 155])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[20, 480, 200, 300])[0]
@@ -645,17 +646,11 @@ def main() -> None:
         display_away = []
         display_home = []
 
-        # 실제 진행된 마지막 이닝의 인덱스를 계산 (말 공격까지 끝났다면 해당 이닝까지, 초에서 끝났다면 초까지)
-        max_visible_idx = game.inning - 1
-        if game.game_over and game.phase == "말" and game.home_inning_scores[max_visible_idx] != "":
-            # 이미 말 이닝 연산이 완료되어 게임이 끝난 경우, 현재 이닝까지 표기 대상에 포함
-            pass
-        elif game.game_over and game.phase == "초":
-            # 초 공격 중 경기가 마감되었다면 (예: 9회초 종료 조기종료 등) 말 인덱스는 미진행 처리되므로 보정 필요
-            if game.home_inning_scores[max_visible_idx] == "X":
-                pass
-            else:
-                max_visible_idx = game.inning - 2
+        # 경기 종료 시 실제 기록이 표기되어야 하는 정식 한계 이닝 계산
+        final_inning = game.inning
+        if game.game_over and game.phase == "초" and game.home_inning_scores[game.inning - 1] == "":
+            # 초 공격 도중 끝났고 말 공격 기록이 없다면 이전 이닝까지만 표기 범위 한정
+            final_inning = max(1, game.inning - 1)
 
         for i in range(12):
             if game.game_over:
