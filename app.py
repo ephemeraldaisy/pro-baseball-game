@@ -348,34 +348,62 @@ class PureKboEngine:
                 self.ball += 1
                 self.game_log.append(log_prefix + b_ctx + f"볼 골라냄. ({self.strike}S {self.ball}B)")
                 if self.ball >= 4: self.process_walk(is_defense=False)
-        elif user_choice == 4: 
-            if not self.base3: return
-            if random.random() < 0.60:
-                self.strike = 0; self.ball = 0
-                self.my_batter_number = 1 if self.my_batter_number == 9 else self.my_batter_number + 1
+                    
+        elif user_choice == 4: # 📉 기습 스퀴즈 번트 (3루 주자 강제 홈인 작전)
+            if not self.base3:
+                st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
+                return
+            
+            # 번트 컨택 성공률 연산 (수비 팀의 defense 스탯에 영향)
+            bunt_success_rate = max(0.40, min(0.85, 0.65 - (enemy_stats["defense"] - my_stats["hit"]) * 0.002))
+            
+            self.strike = 0; self.ball = 0
+            bat = self.my_batter_number
+            self.my_batter_number = 1 if bat == 9 else bat + 1
+            
+            if random.random() < bunt_success_rate:
+                # 작전 성공: 3루 주자 홈인, 타자는 희생아웃 처리
                 self.update_live_scoreboard(1)
                 self.base3 = False
+                
+                # 루상 주자 한 칸씩 진루 처리
                 if self.base2: self.base3 = True; self.base2 = False
                 if self.base1: self.base2 = True; self.base1 = False
+                
                 self.out_count += 1
-                self.game_log.append(log_prefix + b_ctx + "📉 스퀴즈 번트 성공! (+1점)")
+                self.game_log.append(log_prefix + b_ctx + "📉 기습 스퀴즈 번트 성공!!! 3루 주자가 홈을 밟았습니다! 타자는 1루에서 아웃. (+1점)")
                 self.check_three_out_change()
             else:
-                self.strike += 1
-                self.game_log.append(log_prefix + b_ctx + f"번트 파울. ({self.strike}S {self.ball}B)")
-                if self.strike >= 3: self.process_strikeout(is_defense=False)
-        elif user_choice == 5: 
-            if not (self.base1 or self.base2): return
+                # 작전 실패: 번트 플라이 미스 포구 또는 삼중살 위기 유도 아웃
+                self.out_count += 1
+                self.game_log.append(log_prefix + b_ctx + "❌ 스퀴즈 실패! 번트 타구가 포수 정면 플라이로 잡혔습니다. 주자 이동 불가.")
+                self.check_three_out_change()
+
+        elif user_choice == 5: # 🔥 런앤히트 (주자 강제 기동 및 타자 무조건 타격 작전)
+            if not (self.base1 or self.base2 or self.base3):
+                st.warning("루상에 진루한 주자가 없어 런앤히트 작전이 불가능합니다.")
+                return
+            
+            # 런앤히트 특성: 볼배합과 상관없이 주자는 무조건 뛰고 타자는 스트라이크/볼 모두 타격 유도
             if pitch_zone != 0:
-                res = random.choices(["HIT", "OUT", "FOUL"], weights=[400, 450, 150])[0]
+                # 스트라이크 존인 경우: 주자가 미리 기동했으므로 안타 시 추가 진루(R/H 대폭 유리) 및 병살 방지
+                # 컨택 가중치 부여하여 연산
+                res = random.choices(["HIT", "OUT", "FOUL"], weights=[550, 350, 100])[0]
                 self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
             else:
-                self.out_count += 2
-                self.strike = 0; self.ball = 0
-                self.my_batter_number = 1 if self.my_batter_number == 9 else self.my_batter_number + 1
-                self.base1 = self.base2 = self.base3 = False
-                self.game_log.append(log_prefix + f"😱 작전 실패! 더블아웃!")
-                self.check_three_out_change()
+                # 볼 존인 경우: 타자가 나쁜 공에 강제로 배트를 대야 하므로 삼진(헛스윙) 확률 폭등 및 도루자(더블아웃) 유도
+                if random.random() < 0.65:
+                    self.out_count += 2  # 타자 삼진 + 주자 도루자 연동 (더블 아웃)
+                    self.strike = 0; self.ball = 0
+                    bat = self.my_batter_number
+                    self.my_batter_number = 1 if bat == 9 else bat + 1
+                    self.base1 = self.base2 = self.base3 = False
+                    self.game_log.append(log_prefix + f"😱 작전 대실패!! 볼 존 유인구에 타자가 헛스윙 삼진을 당한 사이, 스타트를 끊은 주자까지 포수 송구에 걸려 더블아웃(2아웃) 처리됩니다!")
+                    self.check_three_out_change()
+                else:
+                    # 가까스로 커트하여 파울 처리
+                    if self.strike < 2: self.strike += 1
+                    self.game_log.append(log_prefix + b_ctx + "⚠️ 작전 미스! 빠지는 공을 타자가 간신히 걷어내며 파울을 만들었습니다.")
 
         if self.inning >= 9 and self.phase == "말" and self.is_home_team and self.get_home_score() > self.get_away_score():
             self.game_log.append(f"🎉 🎉 끝내기 역전!")
