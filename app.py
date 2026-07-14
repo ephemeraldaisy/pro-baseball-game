@@ -244,6 +244,18 @@ class PureKboEngine:
                     else: self.base2 = False
                 else: self.base1 = self.base2 = False
                 self.check_three_out_change()
+        elif self.base3:
+            # 3루 주자 단독 홈스틸 시도 시: 홈스틸은 극악의 확률(15%)로만 성공하며 실패 시 아웃(저지)
+            self.game_log.append("🚨 3루 주자 홈스틸 감행!!!")
+            if random.random() < 0.15:
+                self.update_live_scoreboard(1)
+                self.base3 = False
+                self.game_log.append("✅ 충격적인 홈스틸 성공!!! 포수 태그 피하며 득점합니다!")
+            else:
+                self.out_count += 1
+                self.base3 = False
+                self.game_log.append("❌ 홈스틸 저지 완료! 포수가 홈 플레이트 앞에서 주자를 완벽하게 블로킹하고 태그아웃 처리합니다!")
+                self.check_three_out_change()
 
     def next_phase(self) -> None:
         if self.game_over: return
@@ -443,7 +455,13 @@ class PureKboEngine:
 
     def process_swing_result(self, res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff) -> None:
         match_msg = "🎯 [노림수 적중] " if is_zone_matched else ""
-        if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.15: res = "OUT"
+        
+        if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.10: 
+            res = "OUT"
+
+        elif res == "OUT" and total_buff > 0:
+            if random.random() < (total_buff * 1.5):
+                res = "HIT"
         
         if res == "MISS":
             self.strike += 1
