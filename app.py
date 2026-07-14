@@ -114,6 +114,9 @@ class PureKboEngine:
         self.game_log = [f"🏟️ 경기 개시. 우리 팀은 {'후공(홈팀)' if self.is_home_team else '선공(원정팀)'}."]
         self.pitch_history = ["- 투구 기록 없음"]
         
+        # 💬 [안정성 패치] 오류 방지를 위해 도메인 내부에 안전하게 초기 리스트 생성
+        self.chzzk_chats = ["💬 **치지직 가이드**: 경기가 시작되었습니다. 전술 사인을 지켜보세요!"]
+        
         self.hit_buff = 0.0 
         
         my_stats = TEAMS[my_team]
@@ -631,7 +634,7 @@ def main() -> None:
                     st.markdown("### 📢 공격 작전")
                     b1, b2, b3 = st.columns(3)
                     with b1:
-                        if st.button("💥 강타 (풀스윙)"): game.play_turn(1); st.rerun()
+                        if st.button("💥 강공 (풀스윙)"): game.play_turn(1); st.rerun()
                         if st.button("🏃‍♂️ 스퀴즈 번트"): game.play_turn(4); st.rerun()
                     with b2:
                         if st.button("🌟 밀어치기"): game.play_turn(2); st.rerun()
@@ -655,10 +658,9 @@ def main() -> None:
 
             with col_chat:
                 st.markdown("#### 📺 실시간 채팅")
-
-                # 클릭(투구/작전) 때마다 새로운 멘트를 백엔드 큐에 한 줄씩 추가
+                
+                # 💬 [핵심 버그 수정] 게임 플레이(클릭) 중일 때만 안전하게 코멘트를 누적 생성
                 if not game.game_over:
-                    # ChzzkStreaming.generate_chat()이 반환하는 포맷의 멘트를 실시간 생성하여 추가
                     users = ["야구천재", "방구석펩", "침착한스트리머", "로켓단", "다이아수저"]
                     chat_pool = [
                         "아니 감독 돌았냐 ㅋㅋㅋ", "대기업 급 연산력 ㄷㄷ", "지금 스퀴즈 각인데??", 
@@ -668,11 +670,10 @@ def main() -> None:
                     new_chat = f"💬 **{random.choice(users)}**: {random.choice(chat_pool)}"
                     game.chzzk_chats.append(new_chat)
                     
-                    # 메모리 오버플로우 방지를 위해 최근 10개만 유지
                     if len(game.chzzk_chats) > 10:
                         game.chzzk_chats.pop(0)
 
-                # 고정된 높이의 컨테이너 박스 안에 코멘트를 최신순(역순)으로 렌더링
+                # 고정된 스크롤 박스 내부에 누적 코멘트 최신순 표출
                 chat_box = st.container(height=350)
                 with chat_box:
                     for chat in reversed(game.chzzk_chats):
