@@ -248,8 +248,12 @@ class PureKboEngine:
     def next_phase(self) -> None:
         if self.game_over: return
         if self.inning == 12 and self.phase == "말": self.end_kbo_game(); return
-        if self.phase == "초": self.phase = "말"
-        else: self.phase = "초"; self.inning += 1
+        if self.phase == "초": 
+            self.phase = "말"
+        else: 
+            if not self.game_over:
+                self.phase = "초"
+                self.inning += 1
         self.setup_half_inning()
 
     def end_kbo_game(self) -> None:
@@ -624,10 +628,27 @@ def main() -> None:
 
         away_name = game.enemy_team if game.is_home_team else game.my_team
         home_name = game.my_team if game.is_home_team else game.enemy_team
-        
-        display_away = [("" if game.game_over and i >= game.inning else game.away_inning_scores[i]) for i in range(12)]
-        display_home = [("" if game.game_over and i >= game.inning else game.home_inning_scores[i]) for i in range(12)]
 
+        display_away = []
+        display_home = []
+        for i in range(12):
+            if game.game_over:
+                # 9회말 없이 조기 종료 시 9회말 자리에 X를 명시적으로 표기
+                if i == 8 and game.home_inning_scores[i] == "X":
+                    display_away.append(game.away_inning_scores[i])
+                    display_home.append("X")
+                # 종료된 시점 이후의 모든 유령 이닝 슬롯은 공백 처리하여 전광판 마감
+                elif i >= game.inning:
+                    display_away.append("")
+                    display_home.append("")
+                else:
+                    display_away.append(game.away_inning_scores[i])
+                    display_home.append(game.home_inning_scores[i])
+            else:
+                # 진행 중인 게임일 경우 기존 로직 유지
+                display_away.append("" if i >= game.inning else game.away_inning_scores[i])
+                display_home.append("" if i >= game.inning else game.home_inning_scores[i])
+        
         sb = {
             "BOARD": [f"🚌 {away_name}", f"🏟️ {home_name}"],
             "1": [display_away[0], display_home[0]], "2": [display_away[1], display_home[1]], "3": [display_away[2], display_home[2]],
