@@ -631,7 +631,7 @@ def main() -> None:
                     st.markdown("### 📢 공격 작전")
                     b1, b2, b3 = st.columns(3)
                     with b1:
-                        if st.button("💥 강공 (풀스윙)"): game.play_turn(1); st.rerun()
+                        if st.button("💥 강타 (풀스윙)"): game.play_turn(1); st.rerun()
                         if st.button("🏃‍♂️ 스퀴즈 번트"): game.play_turn(4); st.rerun()
                     with b2:
                         if st.button("🌟 밀어치기"): game.play_turn(2); st.rerun()
@@ -655,10 +655,28 @@ def main() -> None:
 
             with col_chat:
                 st.markdown("#### 📺 실시간 채팅")
-                try:
-                    st.image("Screenshot 2026-07-14 at 7.47.01 AM.png", use_container_width=True)
-                except:
-                    st.info("지정된 채팅 이미지 파일을 찾을 수 없습니다.")
+
+                # 클릭(투구/작전) 때마다 새로운 멘트를 백엔드 큐에 한 줄씩 추가
+                if not game.game_over:
+                    # ChzzkStreaming.generate_chat()이 반환하는 포맷의 멘트를 실시간 생성하여 추가
+                    users = ["야구천재", "방구석펩", "침착한스트리머", "로켓단", "다이아수저"]
+                    chat_pool = [
+                        "아니 감독 돌았냐 ㅋㅋㅋ", "대기업 급 연산력 ㄷㄷ", "지금 스퀴즈 각인데??", 
+                        "투수 좀 바꿔라 제발!!", "이게 KBO지 ㅋㅋㅋㅋ", "방구석 과몰입 꿀잼", 
+                        "네이버 폼 미쳤다", "NC식 과금 개에반데 ㅋㅋㅋ", "혈압 올라 죽겠네"
+                    ]
+                    new_chat = f"💬 **{random.choice(users)}**: {random.choice(chat_pool)}"
+                    game.chzzk_chats.append(new_chat)
+                    
+                    # 메모리 오버플로우 방지를 위해 최근 10개만 유지
+                    if len(game.chzzk_chats) > 10:
+                        game.chzzk_chats.pop(0)
+
+                # 고정된 높이의 컨테이너 박스 안에 코멘트를 최신순(역순)으로 렌더링
+                chat_box = st.container(height=350)
+                with chat_box:
+                    for chat in reversed(game.chzzk_chats):
+                        st.markdown(f"<div style='font-size: 14px; margin-bottom: 5px;'>{chat}</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
