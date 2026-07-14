@@ -475,9 +475,12 @@ class PureKboEngine:
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
-        hit_prob = 0.25 + (enemy_stats["hit"] - my_stats["defense"]) * 0.0015 + penalty + matchup_mod
-        hr_prob = 0.03 + (enemy_stats["homerun"] * 0.0008) + (matchup_mod * 0.01)
-        if not is_strike_context: hit_prob *= 0.5; hr_prob *= 0.25
+        hit_prob = 0.23 + (enemy_stats["hit"] - my_stats["defense"]) * 0.0015 + penalty + matchup_mod
+        hr_prob = 0.02 + (enemy_stats["homerun"] * 0.0006) + (matchup_mod * 0.01)
+        
+        if not is_strike_context: 
+            hit_prob *= 0.4
+            hr_prob *= 0.10
         
         roll = random.random()
         bat = self.enemy_batter_number
@@ -490,6 +493,7 @@ class PureKboEngine:
             self.base1 = self.base2 = self.base3 = False
             self.update_live_scoreboard(pts)
             self.game_log.append(log_prefix + f"💥 실투 실점! {pts}점 홈런 허용.")
+            
         elif roll < (hit_prob + hr_prob):
             self.add_stat("H")
             gained = 0
