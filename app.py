@@ -517,13 +517,35 @@ class PureKboEngine:
                 self.update_live_scoreboard(pts)
                 self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 홈런!! (+{pts}점)")
             elif res == "HIT":
+                
                 self.add_stat("H")
                 gained = 0
-                if self.base3: gained += 1
-                if self.base2: gained += 1
-                self.base3 = self.base1; self.base2 = False; self.base1 = True
-                if gained > 0: self.update_live_scoreboard(gained)
-                self.game_log.append(log_prefix + match_msg + f"🌟 안타! (+{gained}점)")
+
+                hit_roll = random.random()
+                batter_speed_factor = 0.05 + (my_stats["hit"] * 0.0005)
+                
+                if hit_roll < 0.03 + (batter_speed_factor * 0.2): # 🏃‍♂️ 3루타 (초대형 삼루타)
+                    if self.base3: gained += 1
+                    if self.base2: gained += 1
+                    if self.base1: gained += 1
+                    self.base3 = True; self.base2 = False; self.base1 = False
+                    self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 우중간을 완전히 가르는 3루타!!! 주자들을 싹쓸이합니다! (+{gained}점)")
+                elif hit_roll < 0.18 + batter_speed_factor: # 🏃‍♂️ 2루타 (좌우선상 2루타)
+                    if self.base3: gained += 1
+                    if self.base2: gained += 1
+                    if self.base1: self.base3 = True; self.base1 = False
+                    else: self.base3 = False
+                    self.base2 = True; self.base1 = False
+                    self.game_log.append(log_prefix + match_msg + f"🌟 좌익수 키를 넘기는 2루타!! 득점권 주자 홈인! (+{gained}점)")
+                else: # 🚶‍♂️ 1루타 (단타)
+                    if self.base3: gained += 1
+                    if self.base2: gained += 1
+                    self.base3 = self.base1; self.base2 = False; self.base1 = True
+                    self.game_log.append(log_prefix + match_msg + f"⚾ 깨끗한 우전 안타! 주자 한 칸씩 진루합니다. (+{gained}점)")
+                
+                if gained > 0: 
+                    self.update_live_scoreboard(gained)
+                    
             elif res == "OUT":
                 error_rate = max(0.01, 0.05 - (enemy_stats["defense"] * 0.0005))
                 if random.random() < error_rate:
@@ -619,6 +641,7 @@ class PureKboEngine:
 
     def check_three_out_change(self) -> None:
         if self.out_count >= 3:
+            
             self.game_log.append("📢 쓰리아웃 체인지!")
             if self.inning >= 9 and self.phase == "초" and self.get_away_score() < self.get_home_score():
                 self.end_kbo_game()
