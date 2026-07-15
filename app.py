@@ -486,6 +486,11 @@ class PureKboEngine:
 
     def process_swing_result(self, res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff) -> None:
         match_msg = "🎯 [노림수 적중] " if is_zone_matched else ""
+
+        # 🧠 [타자별 동적 플레이 스타일 엔진 빌드]
+        # 타자의 고유 스탯 분석 (홈런 스탯 40 기준 거포형 판정, 히트 스탯 70 이상 또는 특정 타순 용규형 판정)
+        is_power_hitter = my_stats.get("homerun", 30) >= 40
+        is_contact_pest = (my_stats.get("hit", 65) >= 70 and not is_power_hitter) or (self.my_batter_number in [2, 9])
         
         #상성 열세 
         if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.07: 
@@ -503,15 +508,43 @@ class PureKboEngine:
             if self.strike >= 3: self.process_strikeout(is_defense=False)
                 
         elif res == "FOUL":
-            if self.strike < 2: 
+            foul_decision = True
+            # 거포형 타자는 삼진 아니면 홈런이므로 파울 커트를 덜 하고 헛스윙/삼진으로 전환될 확률이 높음
+            if is_power_hitter and self.strike == 2 and random.random() < 0.45:
+                res = "MISS"
+                foul_decision = False
+            
+            # 용규형 타자는 2스트라이크 이후에 극악의 생명력으로 파울을 더 끈질기게 깎아냄
+            elif is_contact_pest and self.strike == 2:
+                # 85%의 아주 높은 확률로 파울 커트 유지 (용규놀이 본색 발동)
+                pass 
+                
+            if foul_decision:
+                if self.strike < 2: 
+                    self.strike += 1
+                
+                # 로그 메시지도 타자의 성향에 따라 다르게 출력하여 개성을 강조!
+                if is_contact_pest:
+                    self.game_log.append(log_prefix + b_ctx + f"⚡ 용규놀이 발동! 커트하고 또 커트하며 투수를 지치게 만듭니다! ({self.strike}S {self.ball}B)")
+                elif is_power_hitter:
+                    self.game_log.append(log_prefix + b_ctx + f"💥 거구의 스윙! 먹힌 타구가 라인 밖 파울이 됩니다. ({self.strike}S {self.ball}B)")
+                else:
+                    self.game_log.append(log_prefix + b_ctx + f"파울. ({self.strike}S {self.ball}B)")
+                return
+            else:
+                # 파울 실패하고 삼진 처리 분기점 재집입
                 self.strike += 1
-            self.game_log.append(log_prefix + b_ctx + f"파울. ({self.strike}S {self.ball}B)")
-            return
+                self.game_log.append(log_prefix + b_ctx + f"헛스윙! 힘껏 돌렸으나 삼진 아웃! ({self.strike}S {self.ball}B)")
+                self.process_strikeout(is_defense=False)
             
         else:
             bat = self.my_batter_number
             self.strike = 0; self.ball = 0
             self.my_batter_number = 1 if bat == 9 else bat + 1
+
+            # 거포형 타자가 인플레이 타구를 쳤을 때 홈런 확률에 시원하게 버프 가산
+            if res == "HIT" and is_power_hitter and random.random() < 0.20:
+                res = "HR"
             
             if res == "HR":
                 self.add_stat("H")
@@ -524,6 +557,8 @@ class PureKboEngine:
                 gained = 0
                 hit_roll = random.random()
                 batter_speed_factor = 0.05 + (my_stats["hit"] * 0.0005)
+                if is_contact_pest:
+                    batter_speed_factor += 0.05
                 
                 if hit_roll < 0.03 + (batter_speed_factor * 0.2): # 🏃‍♂️ 3루타 (초대형 삼루타)
                     if self.base3: gained += 1
@@ -564,7 +599,9 @@ class PureKboEngine:
                         self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 희생플라이 타점.")
                     else:
                         self.out_count += 1
-                        if out_roll < 0.40:
+                        if is_contact_pest:
+                            self.game_log.append(log_prefix + "⚾ 빗맞은 내야 땅볼 아웃.")
+                        elif out_roll < 0.40:
                             self.game_log.append(log_prefix + "⚾ 유격수 방면 정면 땅볼 아웃.")
                         elif out_roll < 0.75:
                             self.game_log.append(log_prefix + "⚾ 큼지막한 외야 뜬공(플라이) 아웃.")
