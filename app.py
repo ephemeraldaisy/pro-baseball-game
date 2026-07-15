@@ -72,8 +72,10 @@ class PitcherDomain:
         self.stamina = max(0, self.stamina - amt)
 
     def get_penalty(self) -> float:
-        if self.stamina <= 0: return 0.20
-        elif self.stamina < (self.max_stamina * 0.3): return 0.08
+        ratio = self.stamina / self.max_stamina
+        if self.stamina <= 0: return 0.16
+        elif ratio < 0.3: return 0.09
+        elif ratio < 0.6: return 0.04
         return 0.0
 
 # =====================================================================
@@ -260,21 +262,19 @@ class PureKboEngine:
     def next_phase(self) -> None:
         if self.game_over: return
 
-        if self.phase == "말":
-            away_score = self.get_away_score()
-            home_score = self.get_home_score()
+        current_away = self.get_away_score()
+        current_home = self.get_home_score()
 
-        # 9회말 정규 이닝 종료 조건 검사 및 12회 연장 마감 검사
-        if self.inning >= 9 and away_score != home_score:
-            self.end_kbo_game()
-            return
-            
-        if self.inning == 12 and self.phase == "말": 
-            self.end_kbo_game()
-            return
+        if self.phase == "말":
+            if self.inning >= 9 and current_away != current_home:
+                self.end_kbo_game()
+                return
+            if self.inning == 12:
+                self.end_kbo_game()
+                return
             
         if self.phase == "초" and self.inning == 9: 
-            if self.get_home_score() > self.get_away_score():
+            if current_home > current_away:
                 self.home_inning_scores[8] = "X"
                 self.end_kbo_game()
                 return
@@ -282,12 +282,7 @@ class PureKboEngine:
         if self.phase == "초":
             self.phase = "말"
             
-        else: 
-            # 경기 종료 선언이 되지 않은 상태여도 9회말이 끝났다면 강제 마감 연동
-            '''if self.inning >= 9 and self.get_away_score() != self.get_home_score():
-                self.end_kbo_game()
-                return'''
-            
+        else:          
             self.phase = "초"
             self.inning += 1
             
@@ -311,7 +306,22 @@ class PureKboEngine:
     def play_defense_one_pitch(self, defense_choice: int) -> None:
         if self.game_over: return
         p_my = self.get_current_my_pitcher()
-        if p_my.stamina <= 0 and p_my.role != "마무리":
+
+        need_change = False
+        
+        if p_my.stamina <= (p_my.max_stamina * 0.20):
+            need_change = True
+
+        if self.inning >= 7 and p_my.role in ["선발", "추격조"]:
+            # 1~2점 차 팽팽한 리드/접전 상황이면 바로 필승조(셋업맨/마무리) 준비
+            score_diff = abs(self.get_away_score() - self.get_home_score())
+            if score_diff <= 2:
+                need_change = True
+
+        if need_change and self.my_pitcher_idx < len(self.my_pitchers) - 1:
+            # 8회말/9회말 접전 상황이면 셋업맨을 건너뛰고 마무리(클로저) 바로 투입 가능하게 점프
+            if self.inning >= 8 and self.my_pitcher_idx < 2:
+                self.my_pitcher_idx = 2  # 셋업맨(필승조) 단계로 강제 전진
             self.change_my_pitcher()
             p_my = self.get_current_my_pitcher()
 
