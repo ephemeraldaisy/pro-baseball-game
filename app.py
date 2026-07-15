@@ -407,10 +407,10 @@ class PureKboEngine:
         total_buff = matchup_mod + self.hit_buff + 0.085 + mental_penalty 
 
         if user_choice == 1: # 💥 강공 (풀스윙) - 노림수가 비껴가도 시원한 장타가 뚫고 나갈 확률 상향
-            res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[200, 360, 160, 180, 100] if is_zone_matched else [60, 290, 310, 200, 140])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[90, 410, 150, 350])[0]
+            res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[220, 380, 120, 180, 100] if is_zone_matched else [60, 320, 270, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[100, 350, 150, 400])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
         elif user_choice == 2: # 🌟 팀 배팅 (밀어치기) - 범타 아웃 확률을 줄이고 스프레이 히팅(단타) 유도
-            res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[580, 120, 200, 100] if is_zone_matched else [360, 290, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[100, 360, 200, 340])[0]
+            res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[620, 80, 200, 100] if is_zone_matched else [400, 250, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[120, 310, 200, 370])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
         elif user_choice == 3: 
             if pitch_zone != 0:
