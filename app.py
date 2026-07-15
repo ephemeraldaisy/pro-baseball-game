@@ -366,6 +366,27 @@ class PureKboEngine:
 
         pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
         speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
+        
+        runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
+
+        strike_probability = 0.62
+        mental_penalty = 0.0
+
+        if self.base2 or self.base3:
+            if runners_count >= 2:
+                # 득점권 만루/참사 위기: 멘탈이 심하게 요동쳐 볼을 마구 던지거나(볼넷 급증) 한가운데 실투 폭등
+                strike_probability -= 0.16
+                mental_penalty = 0.08
+                p_en.stamina = max(0, p_en.stamina - 1)  # 스트레스로 체력 1 추가 소모
+            else:
+                # 득점권 주자 1명: 긴장감 상승
+                strike_probability -= 0.08
+                mental_penalty = 0.03
+
+        if p_en.stamina < (p_en.max_stamina * 0.4):
+            strike_probability -= 0.10  # 제구 난조로 볼넷 허용 증가
+            mental_penalty += 0.05
+
         pitch_zone = random.randint(1, 9) if random.random() < 0.62 else 0
         self.guess_zone = random.randint(1, 9)
         p_en.consume(1)
@@ -383,7 +404,7 @@ class PureKboEngine:
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
         
-        total_buff = matchup_mod + self.hit_buff + 0.085
+        total_buff = matchup_mod + self.hit_buff + 0.085 + mental_penalty 
 
         if user_choice == 1: # 💥 강공 (풀스윙) - 노림수가 비껴가도 시원한 장타가 뚫고 나갈 확률 상향
             res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[200, 360, 160, 180, 100] if is_zone_matched else [60, 290, 310, 200, 140])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[90, 410, 150, 350])[0]
