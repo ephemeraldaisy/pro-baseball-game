@@ -292,7 +292,7 @@ class PureKboEngine:
         self.game_over = True
         a, h = self.get_away_score(), self.get_home_score()
         if a == h: self.game_result_msg = f"🤝 [무승부] 12회 {a}:{h} DRAW 종료."
-        else: self.game_result_msg = f"🏆 [경기 종료] {self.our_score} 대 {self.enemy_score}로 우리 팀 {'승리!' if self.our_score > self.enemy_score else '패배.'}"
+        else: self.game_result_msg = f"🏆 [경기 종료] {self.our_score} 대 {self.enemy_score}(으)로 우리 팀 {'승리!' if self.our_score > self.enemy_score else '패배.'}"
 
     def process_error(self, log_prefix: str, bat: int) -> None:
         self.add_stat("E")
@@ -565,14 +565,14 @@ class PureKboEngine:
                     if self.base2: gained += 1
                     if self.base1: gained += 1
                     self.base3 = True; self.base2 = False; self.base1 = False
-                    self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 우중간을 완전히 가르는 3루타!!! 주자들을 싹쓸이합니다! (+{gained}점)")
+                    self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 우중간을 완전히 가르는 3루타!!! (+{gained}점)")
                 elif hit_roll < 0.18 + batter_speed_factor: # 🏃‍♂️ 2루타 (좌우선상 2루타)
                     if self.base3: gained += 1
                     if self.base2: gained += 1
                     if self.base1: self.base3 = True; self.base1 = False
                     else: self.base3 = False
                     self.base2 = True; self.base1 = False
-                    self.game_log.append(log_prefix + match_msg + f"🌟 좌익수 키를 넘기는 2루타!! 득점권 주자 홈인! (+{gained}점)")
+                    self.game_log.append(log_prefix + match_msg + f"🌟 좌익수 키를 넘기는 2루타!! (+{gained}점)")
                 else: # 🚶‍♂️ 1루타 (단타)
                     if self.base3: gained += 1
                     if self.base2: gained += 1
