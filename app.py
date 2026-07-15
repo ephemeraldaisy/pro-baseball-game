@@ -369,25 +369,25 @@ class PureKboEngine:
         
         runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
 
-        strike_probability = 0.62
+        strike_probability = 0.70
         mental_penalty = 0.0
 
         if self.base2 or self.base3:
             if runners_count >= 2:
                 # 득점권 만루/참사 위기: 멘탈이 심하게 요동쳐 볼을 마구 던지거나(볼넷 급증) 한가운데 실투 폭등
-                strike_probability -= 0.16
-                mental_penalty = 0.08
+                strike_probability -= 0.12
+                mental_penalty = 0.05
                 p_en.stamina = max(0, p_en.stamina - 1)  # 스트레스로 체력 1 추가 소모
             else:
                 # 득점권 주자 1명: 긴장감 상승
-                strike_probability -= 0.08
-                mental_penalty = 0.03
+                strike_probability -= 0.06
+                mental_penalty = 0.02
 
         if p_en.stamina < (p_en.max_stamina * 0.4):
             strike_probability -= 0.10  # 제구 난조로 볼넷 허용 증가
-            mental_penalty += 0.05
+            mental_penalty += 0.04
 
-        pitch_zone = random.randint(1, 9) if random.random() < 0.62 else 0
+        pitch_zone = random.randint(1, 9) if random.random() < max(0.40, strike_probability) else 0
         self.guess_zone = random.randint(1, 9)
         p_en.consume(1)
         self.enemy_total_pitches += 1
@@ -493,8 +493,7 @@ class PureKboEngine:
         #상성 우세 
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
-            pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0
-            
+            pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
             if random.random() < (total_buff * 0.45 * pitcher_stamina_factor): 
                 res = "HIT"
         
@@ -502,9 +501,13 @@ class PureKboEngine:
             self.strike += 1
             self.game_log.append(log_prefix + b_ctx + f"헛스윙! ({self.strike}S {self.ball}B)")
             if self.strike >= 3: self.process_strikeout(is_defense=False)
+                
         elif res == "FOUL":
-            if self.strike < 2: self.strike += 1
+            if self.strike < 2: 
+                self.strike += 1
             self.game_log.append(log_prefix + b_ctx + f"파울. ({self.strike}S {self.ball}B)")
+            return
+            
         else:
             bat = self.my_batter_number
             self.strike = 0; self.ball = 0
@@ -516,11 +519,9 @@ class PureKboEngine:
                 self.base1 = self.base2 = self.base3 = False
                 self.update_live_scoreboard(pts)
                 self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 홈런!! (+{pts}점)")
-            elif res == "HIT":
-                
+            elif res == "HIT":             
                 self.add_stat("H")
                 gained = 0
-
                 hit_roll = random.random()
                 batter_speed_factor = 0.05 + (my_stats["hit"] * 0.0005)
                 
@@ -551,16 +552,24 @@ class PureKboEngine:
                 if random.random() < error_rate:
                     self.process_error(log_prefix, bat)
                 else:
+                    out_roll = random.random()
+                    
                     if self.base1 and self.out_count < 2 and random.random() < 0.25:
                         self.out_count += 2; self.base1 = False
-                        self.game_log.append(log_prefix + "😱 병살타 아웃.")
+                        self.game_log.append(log_prefix + "😱 2루수-1루수 이어지는 병살타 아웃.")
+                        
                     elif self.base3 and self.out_count < 2 and random.random() < 0.45:
                         self.out_count += 1; self.base3 = False
                         self.update_live_scoreboard(1)
-                        self.game_log.append(log_prefix + "🕊️ 희생플라이 타점.")
+                        self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 희생플라이 타점.")
                     else:
                         self.out_count += 1
-                        self.game_log.append(log_prefix + "⚾ 플라이 아웃.")
+                        if out_roll < 0.40:
+                            self.game_log.append(log_prefix + "⚾ 유격수 방면 정면 땅볼 아웃.")
+                        elif out_roll < 0.75:
+                            self.game_log.append(log_prefix + "⚾ 큼지막한 외야 뜬공(플라이) 아웃.")
+                        else:
+                            self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
@@ -592,16 +601,28 @@ class PureKboEngine:
             if gained > 0: self.update_live_scoreboard(gained)
             self.game_log.append(log_prefix + f"🌟 피안타! (+{gained}점)")
         else:
-            error_rate = max(0.01, 0.05 - (my_stats["defense"] * 0.0005))
-            if random.random() < error_rate:
-                self.process_error(log_prefix, bat)
+            # ⚾ [수비 시에도 다양한 아웃과 파울 커트 이식]
+            # 1. 상대 타자가 파울을 친 경우: 타석을 유지하고 투구수만 올린 채 다음 피칭 대기
+            if roll > (hit_prob + hr_prob) and random.random() < 0.25:
+                if self.strike < 2: self.strike += 1
+                self.game_log.append(log_prefix + f"파울! 타자가 날카롭게 커트해 냅니다. ({self.strike}S {self.ball}B)")
+                return
+                
+            # 2. 인플레이 아웃 시 다양한 아웃 루트 분기
+            self.strike = 0; self.ball = 0
+            if self.base1 and self.out_count < 2 and random.random() < 0.25:
+                self.out_count += 2
+                self.base1 = False
+                self.game_log.append(log_prefix + "😱 우리 수비진의 환상적인 병살타 유도 성공!")
             else:
-                if self.base1 and self.out_count < 2 and random.random() < 0.25:
-                    self.out_count += 2; self.base1 = False
-                    self.game_log.append(log_prefix + "😱 병살타 유도 성공!")
+                self.out_count += 1
+                out_style = random.random()
+                if out_style < 0.40:
+                    self.game_log.append(log_prefix + "⚾ 내야 땅볼 유도! 1루에서 아웃 처리합니다.")
+                elif out_style < 0.75:
+                    self.game_log.append(log_prefix + "⚾ 큰 타구였으나 외야수가 침착하게 플라이 아웃으로 잡아냅니다.")
                 else:
-                    self.out_count += 1
-                    self.game_log.append(log_prefix + f"⚾ 범타 캐치.")
+                    self.game_log.append(log_prefix + "⚾ 투수 앞 빗맞은 땅볼! 가볍게 아웃.")
             self.check_three_out_change()
 
         if self.inning >= 9 and self.phase == "말" and not self.is_home_team and self.get_home_score() > self.get_away_score():
