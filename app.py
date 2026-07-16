@@ -57,6 +57,11 @@ def color_matchup_cells(val):
     
     return base_style
 
+with st.expander("📊 KBO 전 구단 실시간 상성 매트릭스 보기 (클릭하여 열기)", expanded=False):
+    st.write("세로축(행)이 **아군 팀**, 가로축(열)이 **상대 팀** 기준 상성표입니다핑! 😉")
+    st.dataframe(styled_df, use_container_width=True)
+    
+
 # 4. Streamlit 화면에 스타일이 적용된 데이터프레임 렌더링
 st.subheader("📊 KBO 전 구단 실시간 상성 매트릭스")
 st.write("세로축(행)이 **아군 팀**, 가로축(열)이 **상대 팀** 기준 상성표입니다핑! 😉")
@@ -476,6 +481,32 @@ class PureKboEngine:
         if runners_count >= 2:
             hbp_probability += 0.02  # 위기 상황 시 제구 난조로 +2%
 
+        if pitch_zone == 0 and random.random () < hbp_probability:
+            # 사구 중 10%의 확률로 헤드샷 발생!
+            if random.random() < 0.10:
+                self.game_log.append(f"🚨 [헤드샷 퇴장] 콰쾅! 상대 투수의 {speed}km/h 속구가 우리 타자의 뚝배기(헬멧)를 직격했습니다!!! 😱")
+                self.game_log.append(f"👨‍⚖️ 주심 주먹을 치켜들며 즉시 퇴장 명령! 상대 투수가 마운드에서 쫓겨납니다!")
+                self.process_walk(is_defense=False)
+                # 상대 투수 강제 교체 연산
+                if self.enemy_pitcher_idx < len(self.enemy_pitchers) - 1:
+                    self.enemy_pitcher_idx += 1
+                    next_p = self.get_current_enemy_pitcher()
+                    self.game_log.append(f"🔄 급하게 상대 불펜에서 {next_p.name}(이)가 마운드를 구원하러 올라옵니다.")
+                else:
+                    # 상대 팀도 투수가 없으면 야수 등판 야근 행차
+                    p_en.name = "⚠️ 야수(상대패전처리)"
+                    p_en.role = "야수등판"
+                    p_en.max_stamina = 15
+                    p_en.stamina = 15
+                    self.game_log.append("🚨 [상대팀 비상] 상대 불펜 전원 방전! 상대 팀도 어쩔 수 없이 야수를 마운드에 올립니다!!")
+            else:
+                self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 강타합니다! 몸에 맞는 공으로 출루!")
+                self.process_walk(is_defense=False)
+            return  # 타석 종료 후 즉시 리턴
+                
+                
+            
+
         # 데드볼 주사위 굴리기 (지정된 확률 충족 시 즉시 사구 출루 처리)
         if pitch_zone == 0 and random.random() < hbp_probability:
             self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 정면으로 강타합니다! 몸에 맞는 공(사구)으로 출루!")
@@ -696,9 +727,29 @@ class PureKboEngine:
             hbp_probability += 0.02
             
         if not is_strike_context and random.random() < hbp_probability:
-            self.game_log.append(log_prefix + "💥 아웃사이드 실투! 투수가 던진 빠른 공이 상대 타자의 몸에 맞았습니다. 사구 허용.")
-            self.process_walk(is_defense=True)
-            return  # 이닝 연산 방지하고 즉시 종료
+            # 사구 중 10%의 확률로 헤드샷 발생!
+            if random.random() < 0.10:
+                self.game_log.append(f"🚨 [헤드샷 퇴장] 퍽! 우리 투수의 실투가 상대 타자의 머리를 강타했습니다!!! 😱")
+                self.game_log.append(f"👨‍⚖️ [경고] KBO 헤드샷 즉시 퇴장 룰 적용! {p_my.name} 투수가 강제 퇴장당합니다!")
+                self.process_walk(is_defense=True)
+                # 아군 투수 자동 교체 연산
+                if self.my_pitcher_idx < len(self.my_pitchers) - 1:
+                    # 다음 투수로 즉시 교체 처리
+                    self.my_pitcher_idx += 1
+                    next_p = self.get_current_my_pitcher()
+                    self.game_log.append(f"🔄 벤치가 발칵 뒤집혔습니다! 급하게 불펜에서 {next_p.name}(이)가 구원 등판합니다!")
+                else:
+                    # 우리 팀 불펜이 전멸했다면 야수 등판 강제 활성화!
+                    p_my.name = "⚠️ 야수(패전처리)"
+                    p_my.role = "야수등판"
+                    p_my.max_stamina = 15
+                    p_my.stamina = 15
+                    self.game_log.append("🚨 [비상사태] 남은 불펜 투수가 없습니다!!! 어쩔 수 없이 야수를 급하게 마운드에 올립니다!!")
+            else: 
+                self.game_log.append(log_prefix + "💥 아웃사이드 실투! 투수가 던진 빠른 공이 상대 타자의 몸에 맞았습니다. 사구 허용.")
+                self.process_walk(is_defense=True)
+            return  # 즉시 리턴하여 후속 플레이 방지
+                
 
         
         hit_prob = 0.23 + (enemy_stats["hit"] - my_stats["defense"]) * 0.0015 + penalty + matchup_mod
