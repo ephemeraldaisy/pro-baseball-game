@@ -892,27 +892,94 @@ def main() -> None:
 
     with st.sidebar:
         st.header("💎 비밀 상점 (P2W)")
-        st.write(f"보유 다이아: {st.session_state.nc_diamonds} 💎")
-        if st.button("💳 N Pay로 5000 다이아 충전 (11만원)"): st.session_state.nc_diamonds += 5000; st.rerun()
+    
+    # 세션 내 보유 다이아 초기값 설정 (기존 nc_diamonds 유지)
+    if "nc_diamonds" not in st.session_state:
+        st.session_state.nc_diamonds = 1000
         
-        if st.session_state.full_kbo_engine and not st.session_state.full_kbo_engine.game_over:
-            game = st.session_state.full_kbo_engine
-            current_is_our_turn = (not game.is_home_team and game.phase == "초") or (game.is_home_team and game.phase == "말")
-            if current_is_our_turn:
-                if st.button("🔥 타격 확률 극대화 버프 (100💎)"):
+    st.write(f"보유 다이아: {st.session_state.nc_diamonds} 💎")
+    
+    # 💳 1. 자본 치료 충전 버튼
+    if st.button("💳 N Pay로 5000 다이아 충전 (11만원)"):
+        st.session_state.nc_diamonds += 5000
+        st.toast("💸 지갑 전사 발동! 5000 다이아가 충전되었습니다핑!", icon="💎")
+        st.rerun()
+        
+    st.markdown("---")
+    
+    # 🛒 2. 상황별 동적 아이템 목록 다양화
+    if st.session_state.full_kbo_engine and not st.session_state.full_kbo_engine.game_over:
+        game = st.session_state.full_kbo_engine
+        current_is_our_turn = (not game.is_home_team and game.phase == "초") or (game.is_home_team and game.phase == "말")
+        
+        # ⚔️ [공격 턴 아이템 상점]
+        if current_is_our_turn:
+            st.markdown("#### 🌸 [공격 턴 전용 아이템]")
+            
+            # 아이템 1. 타격 확률 극대화 버프 (기존 버프 유지 및 개선)
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown("🔥 **타격 확률 극대화**  \n`안타 확률 +8.5%` (100💎)")
+            with col2:
+                if st.button("구매", key="buy_buff_hit"):
                     if st.session_state.nc_diamonds >= 100:
                         st.session_state.nc_diamonds -= 100
-                        game.hit_buff += 0.05
-                        st.success("이번 이닝 타격 버프 +5% 적용 완료!")
-                    else: st.error("다이아가 부족합니다.")
-            else:
-                if st.button("💉 투수 체력 10 회복 (200💎)"):
-                    if st.session_state.nc_diamonds >= 200:
-                        st.session_state.nc_diamonds -= 200
+                        game.hit_buff += 0.085
+                        st.toast("🔥 타자들에게 각성제를 먹였습니다! 안타 확률 가산!", icon="💪")
+                        st.rerun()
+                    else:
+                        st.error("다이아 부족!")
+
+            # 아이템 2. 멘탈 교란 찌라시 (적 투수 디버프)
+            col1_d, col2_d = st.columns([3, 1])
+            with col1_d:
+                st.markdown("🤫 **멘탈 교란 찌라시**  \n`적 투수 체력 -20` (150💎)")
+            with col2_d:
+                if st.button("구매", key="buy_debuff_scandal"):
+                    if st.session_state.nc_diamonds >= 150:
+                        st.session_state.nc_diamonds -= 150
+                        p_en = game.get_current_enemy_pitcher()
+                        p_en.stamina = max(5, p_en.stamina - 20)
+                        st.toast("🚨 적 투수 라커룸에 악성 루머 찌라시를 뿌렸습니다! 제구력 붕괴!", icon="🤫")
+                        st.rerun()
+                    else:
+                        st.error("다이아 부족!")
+
+        # 🛡️ [수비 턴 아이템 상점]
+        else:
+            st.markdown("#### 🔋 [수비 턴 전용 아이템]")
+            
+            # 아이템 1. 투수 링거 투입 (기존 stamina 회복 다양화)
+            col3, col4 = st.columns([3, 1])
+            with col3:
+                st.markdown("💉 **특수 링거 수액**  \n`현재 투수 체력 +25` (150💎)")
+            with col4:
+                if st.button("구매", key="buy_buff_stamina_1"):
+                    if st.session_state.nc_diamonds >= 150:
+                        st.session_state.nc_diamonds -= 150
                         p = game.get_current_my_pitcher()
-                        p.stamina += 10
-                        st.success("투수 체력 회복 완료!")
-                    else: st.error("다이아가 부족합니다.")
+                        p.stamina = min(p.max_stamina, p.stamina + 25)
+                        st.toast("🔋 투수의 팔꿈치에 링거 주입 완료! 체력이 회복됩니다.", icon="💪")
+                        st.rerun()
+                    else:
+                        st.error("다이아 부족!")
+
+            # 아이템 2. 홈팬 매수 야유 (적 타자 디버프)
+            col3_d, col4_d = st.columns([3, 1])
+            with col3_d:
+                st.markdown("🔊 **관중 매수 야유**  \n`적 안타 확률 -5%` (120💎)")
+            with col4_d:
+                if st.button("구매", key="buy_debuff_crowd"):
+                    if st.session_state.nc_diamonds >= 120:
+                        st.session_state.nc_diamonds -= 120
+                        # 상대 타격 버프 억제를 위해 음수 가산
+                        game.hit_buff -= 0.05
+                        st.toast("📢 관중들이 적 타자에게 메가폰 야유를 퍼붓습니다! 집중력 하락!", icon="👿")
+                        st.rerun()
+                    else:
+                        st.error("다이아 부족!")
+
+    st.markdown("---")
         
         st.divider()
         st.header("📖 구단 유니버스")
