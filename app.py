@@ -572,7 +572,7 @@ class PureKboEngine:
                 return
             else:
                 # 파울 실패하고 삼진 처리 분기점 재집입
-                self.strike += 1
+                self.strike = 3
                 self.game_log.append(log_prefix + b_ctx + f"헛스윙! 힘껏 돌렸으나 삼진 아웃! ({self.strike}S {self.ball}B)")
                 self.process_strikeout(is_defense=False)
             
@@ -722,9 +722,19 @@ class PureKboEngine:
         # ⚾ [KBO 야구 기록 규정 준수]
         # 볼넷은 안타(H) 개수를 늘리지 않고, 전광판의 볼넷(B) 개수만 1 증가시킵니다.
         if is_defense:
-            self.our_bb += 1  # 아군 수비 시 상대 팀의 볼넷(B) 누적
+            if hasattr(self, 'our_bb'):
+                self.our_bb += 1  # 아군 수비 시 상대 팀의 볼넷(B) 누적
+            elif hasattr(self, 'our_walk'):
+                self.our_walk += 1
+            else:
+                self.our_bb = 1
         else:
-            self.enemy_bb += 1  # 아군 공격 시 우리 팀의 볼넷(B) 누적
+            if hasattr(self, 'enemy_bb'):
+                self.enemy_bb += 1  # 아군 공격 시 우리 팀의 볼넷(B) 누적
+            elif hasattr(self, 'enemy_walk'):
+                self.enemy_walk += 1
+            else:
+                self.enemy_bb = 1
             
         self.strike = 0
         self.ball = 0
