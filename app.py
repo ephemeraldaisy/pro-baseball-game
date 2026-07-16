@@ -728,6 +728,7 @@ class PureKboEngine:
             self.end_kbo_game()
 
     def process_walk(self, is_defense: bool) -> None:
+        self.add_stat("B", 1)
         if is_defense:
             if hasattr(self, 'our_bb'):
                 self.our_bb += 1
