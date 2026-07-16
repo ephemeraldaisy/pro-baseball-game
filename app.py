@@ -346,12 +346,14 @@ class PureKboEngine:
                     self.my_pitcher_idx = 2  # 셋업맨 단계 점프
                 self.change_my_pitcher()
                 p_my = self.get_current_my_pitcher()
+                
             elif p_my.role == "마무리" and p_my.stamina <= 0 and p_my.name != "⚠️ 야수(패전처리)":
                 p_my.name = "⚠️ 야수(패전처리)"
                 p_my.role = "야수등판"
                 p_my.max_stamina = 15
                 p_my.stamina = 15
                 self.game_log.append("🚨 [비상사태] 불펜 투수가 전원 방전되었습니다! 감독님이 어쩔 수 없이 야수를 마운드에 올립니다!! 야수 등판!!! 😱")
+                p_my = self.get_current_my_pitcher()
 
         if p_my.role == "야수등판":
             speed = random.randint(110, 125)
