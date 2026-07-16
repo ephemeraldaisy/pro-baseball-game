@@ -965,8 +965,13 @@ def main() -> None:
         st.markdown(f"#### 📊 {st.session_state.my_team}의 구단별 상성표 요약")
         if st.session_state.my_team in df_matchup.index:
             my_status = df_matchup.loc[[st.session_state.my_team]]
-            st.dataframe(my_status.style.applymap(color_matchup_cells), use_container_width=True)
-            
+            try:
+                styled_status = my_status.style.map(color_matchup_cells)
+            except AttributeError:
+                styled_status = my_status.style.applymap(color_matchup_cells)
+                
+            st.dataframe(styled_status, use_container_width=True)
+      
         if st.button("글로벌 서버 경기 개시", type="primary"):
             st.session_state.full_kbo_engine = PureKboEngine(st.session_state.my_team, random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team]))
             st.rerun()
@@ -982,7 +987,13 @@ def main() -> None:
         st.markdown(f"##### 📊 실시간 상성 파트너: {game.my_team} vs {game.enemy_team}")
         if game.my_team in df_matchup.index:
             my_status = df_matchup.loc[[game.my_team]]
-            st.dataframe(my_status.style.applymap(color_matchup_cells), use_container_width=True)
+            try:
+                styled_status = my_status.style.map(color_matchup_cells)
+            except AttributeError:
+                styled_status = my_status.style.applymap(color_matchup_cells)
+                
+            st.dataframe(styled_status, use_container_width=True)
+
 
         c1, c2, c3 = st.columns([2, 1, 2])
         with c1:
