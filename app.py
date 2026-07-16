@@ -33,13 +33,52 @@ MATCHUP_MATRIX: Dict[str, List[str]] = {
     "💖 핑크 돌핀스":  ["백중", "백중", "우세", "우세", "우세", "열세", "열세", "열세", "열세", "X"]
 }
 
+# 2. 딕셔너리를 Pandas DataFrame으로 변환 (행/열 이름 정렬)
+teams_keys = list(MATCHUP_MATRIX.keys())
+df_matchup = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=teams_keys)
+
+# 3. 🎨 셀 값에 따라 스타일(CSS)을 리턴하는 컬러 매퍼 함수 정의
+def color_matchup_cells(val):
+    # 기본 스타일
+    base_style = "font-weight: bold; text-align: center;"
+    
+    if val == "우세":
+        # 🟢 우세: 연한 초록 배경에 짙은 초록 글씨 (또는 핑크 돌핀스풍 연파랑)
+        return f"{base_style} background-color: #e2f0d9; color: #385723;"
+    elif val == "열세":
+        # 🔴 열세: 연한 빨간(분홍) 배경에 짙은 빨간 글씨
+        return f"{base_style} background-color: #fce4d6; color: #c65911;"
+    elif val == "백중":
+        # 🟡 백중: 연한 노란 배경에 회갈색 글씨
+        return f"{base_style} background-color: #fff2cc; color: #7f6000;"
+    elif val == "X":
+        # 자기 자신과의 매치업: 회색 배경에 흰 글씨 처리
+        return f"{base_style} background-color: #f2f2f2; color: #bfbfbf; font-style: italic;"
+    
+    return base_style
+
+# 4. Streamlit 화면에 스타일이 적용된 데이터프레임 렌더링
+st.subheader("📊 KBO 전 구단 실시간 상성 매트릭스")
+st.write("세로축(행)이 **아군 팀**, 가로축(열)이 **상대 팀** 기준 상성표입니다핑! 😉")
+
+# Pandas Styler 적용 (.map은 pandas 최신 버전 기준이며, 구버전 환경이라면 .applymap 사용)
+try:
+    styled_df = df_matchup.style.map(color_matchup_cells)
+except AttributeError:
+    styled_df = df_matchup.style.applymap(color_matchup_cells)
+
+# 화면에 가득 차게 띄우기
+st.dataframe(styled_df, use_container_width=True)
+
 MATRIX_COLUMNS = ["🔴레드", "🔵블루", "🟢그린", "🟡옐로우", "🟣퍼플", "🟠오렌지", "🟤브라운", "⚪화이트", "⚫블랙", "💖핑크"]
 
 PITCH_SPECS = {
     "직구": {"speed_min": 142, "speed_max": 155},
     "슬라이더": {"speed_min": 130, "speed_max": 142},
     "체인지업": {"speed_min": 125, "speed_max": 136},
-    "커브": {"speed_min": 115, "speed_max": 126}
+    "커브": {"speed_min": 115, "speed_max": 126},
+    "포크볼": {"speed_min": 125, "speed_max": 138},
+    "싱커": {"speed_min": 133, "speed_max": 144}
 }
 
 # =====================================================================
