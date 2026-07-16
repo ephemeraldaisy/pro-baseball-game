@@ -72,6 +72,9 @@ class PitcherDomain:
         self.stamina = max(0, self.stamina - amt)
 
     def get_penalty(self) -> float:
+        if self.role == "야수등판":
+            return 0.25
+            
         ratio = self.stamina / self.max_stamina
         if self.stamina <= 0: return 0.16
         elif ratio < 0.3: return 0.09
@@ -318,14 +321,30 @@ class PureKboEngine:
             if score_diff <= 2:
                 need_change = True
 
-        if need_change and self.my_pitcher_idx < len(self.my_pitchers) - 1:
-            # 8회말/9회말 접전 상황이면 셋업맨을 건너뛰고 마무리(클로저) 바로 투입 가능하게 점프
-            if self.inning >= 8 and self.my_pitcher_idx < 2:
-                self.my_pitcher_idx = 2  # 셋업맨(필승조) 단계로 강제 전진
-            self.change_my_pitcher()
-            p_my = self.get_current_my_pitcher()
+        if need_change:
+            # 아직 불펜에 투수가 남아있다면 다음 투수로 정상 교체
+            if self.my_pitcher_idx < len(self.my_pitchers) - 1:
+                if self.inning >= 8 and self.my_pitcher_idx < 2:
+                    self.my_pitcher_idx = 2  # 셋업맨 단계 점프
+                self.change_my_pitcher()
+                p_my = self.get_current_my_pitcher()
+            # 🚨 [막장 고증] 마지막 마무리 투수인데 체력이 0 이하로 방전되었다면? 야수 등판 발동!
+            elif p_my.role == "마무리" and p_my.stamina <= 0 and p_my.name != "⚠️ 야수(패전처리)":
+                p_my.name = "⚠️ 야수(패전처리)"
+                p_my.role = "야수등판"
+                p_my.max_stamina = 15
+                p_my.stamina = 15  # 야수의 똥볼 체력 부여
+                self.game_log.append("🚨 [비상사태] 불펜 투수가 전원 방전되었습니다! 감독님이 어쩔 수 없이 야수를 마운드에 올립니다!! 야수 등판!!! 😱")
 
-        p_my.consume(1)
+        # 야수가 던지면 110~125km/h 수준의 아리랑 똥볼 고정
+        if p_my.role == "야수등판":
+            speed = random.randint(110, 125)
+            pitch_type = random.choice(["아리랑볼", "직구인척하는볼"])
+            p_my.consume(1)
+        else:
+            p_my.consume(1)
+            # (기존 구속/구종 결정 변수가 아래에 선언되어 있다면 이 구역에서 speed와 pitch_type을 오버라이딩 하도록 연동)
+            
         self.our_total_pitches += 1
         
         enemy_stats = TEAMS[self.enemy_team]
@@ -387,10 +406,16 @@ class PureKboEngine:
             strike_probability -= 0.10  # 제구 난조로 볼넷 허용 증가
             mental_penalty += 0.04
 
+        added_pitches = 1
+        if random.random() > 0.15:
+            added_pitches = random.choices([2, 3, 4], weights=[500, 400, 100])[0]
+
+        # 실제 투수 체력 소모 및 전광판 투구수 반영
+        p_en.consume(added_pitches)
+        self.enemy_total_pitches += added_pitches
+        
         pitch_zone = random.randint(1, 9) if random.random() < max(0.40, strike_probability) else 0
         self.guess_zone = random.randint(1, 9)
-        p_en.consume(1)
-        self.enemy_total_pitches += 1
 
         self.pitch_history.append(f"{pitch_type} ({speed}km/h) - 존: {pitch_zone if pitch_zone != 0 else '외곽'}")
         if len(self.pitch_history) > 3: self.pitch_history.pop(0)
@@ -405,6 +430,20 @@ class PureKboEngine:
         b_ctx = f"[{self.my_batter_number}번 타자] "
         
         total_buff = matchup_mod + self.hit_buff + 0.085 + mental_penalty 
+
+        hbp_probability = 0.01
+        if p_en.stamina < (p_en.max_stamina * 0.4):
+            hbp_probability += 0.02  # 체력 저하 시 +2%
+        if runners_count >= 2:
+            hbp_probability += 0.02  # 위기 상황 시 제구 난조로 +2%
+
+        # 데드볼 주사위 굴리기 (지정된 확률 충족 시 즉시 사구 출루 처리)
+        if pitch_zone == 0 and random.random() < hbp_probability:
+            self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 정면으로 강타합니다! 몸에 맞는 공(사구)으로 출루!")
+            self.process_walk(is_defense=False)
+            return  # 타석 종료 후 즉시 리턴하여 후속 타격 연산 방지
+
+        
 
         if user_choice == 1: # 💥 강공 (풀스윙) - 노림수가 비껴가도 시원한 장타가 뚫고 나갈 확률 상향
             res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[220, 380, 120, 180, 100] if is_zone_matched else [60, 320, 270, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[100, 350, 150, 400])[0]
@@ -610,6 +649,19 @@ class PureKboEngine:
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
+        p_my = self.get_current_my_pitcher()
+
+        # ⚾ 우리 투수의 체력 및 제구 상태에 따른 사구(HBP) 확률 계산
+        hbp_probability = 0.01
+        if p_my.stamina < (p_my.max_stamina * 0.4):
+            hbp_probability += 0.02
+            
+        if not is_strike_context and random.random() < hbp_probability:
+            self.game_log.append(log_prefix + "💥 아웃사이드 실투! 투수가 던진 빠른 공이 상대 타자의 몸에 맞았습니다. 사구 허용.")
+            self.process_walk(is_defense=True)
+            return  # 이닝 연산 방지하고 즉시 종료
+
+        
         hit_prob = 0.23 + (enemy_stats["hit"] - my_stats["defense"]) * 0.0015 + penalty + matchup_mod
         hr_prob = 0.02 + (enemy_stats["homerun"] * 0.0006) + (matchup_mod * 0.01)
         
@@ -667,22 +719,42 @@ class PureKboEngine:
             self.end_kbo_game()
 
     def process_walk(self, is_defense: bool) -> None:
-        self.strike = 0; self.ball = 0
-        self.add_stat("B")
+        # ⚾ [KBO 야구 기록 규정 준수]
+        # 볼넷은 안타(H) 개수를 늘리지 않고, 전광판의 볼넷(B) 개수만 1 증가시킵니다.
         if is_defense:
-            bat = self.enemy_batter_number
-            self.enemy_batter_number = 1 if bat == 9 else bat + 1
-            self.game_log.append(f"🚶‍♂️ 볼넷 출루 허용.")
+            self.our_bb += 1  # 아군 수비 시 상대 팀의 볼넷(B) 누적
         else:
+            self.enemy_bb += 1  # 아군 공격 시 우리 팀의 볼넷(B) 누적
+            
+        self.strike = 0
+        self.ball = 0
+        
+        # 주자 밀어내기 및 진루 연산 (안타 카운트인 self.add_stat("H")는 철저히 배제)
+        gained = 0
+        if self.base1 and self.base2 and self.base3:
+            gained = 1
+        elif self.base1 and self.base2:
+            self.base3 = True
+        elif self.base1:
+            self.base2 = True
+        else:
+            self.base1 = True
+            
+        if gained > 0:
+            self.update_live_scoreboard(gained)
+            self.game_log.append("🚶‍♂️ 볼넷 밀어내기 득점! 주자 전원 진루합니다. (+1점)")
+        else:
+            self.game_log.append("🚶‍♂️ 볼넷 출루! 주자가 한 베이스씩 밀려 나갑니다.")
+            
+        # 타석 종료 후 타순 변경
+        if not is_defense:
             bat = self.my_batter_number
             self.my_batter_number = 1 if bat == 9 else bat + 1
-            self.game_log.append(f"🚶‍♂️ 볼넷 출루 성공.")
-        
-        if self.base1 and self.base2 and self.base3:
-            self.update_live_scoreboard(1)
-        elif self.base1 and self.base2: self.base3 = True
-        elif self.base1: self.base2 = True
-        else: self.base1 = True
+        else:
+            bat = self.enemy_batter_number
+            self.enemy_batter_number = 1 if bat == 9 else bat + 1
+            
+        self.check_three_out_change()
 
     def process_strikeout(self, is_defense: bool) -> None:
         self.strike = 0; self.ball = 0
