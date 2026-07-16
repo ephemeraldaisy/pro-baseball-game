@@ -981,7 +981,7 @@ def main() -> None:
 
     st.markdown("---")
         
-        st.divider()
+    st.divider()
         st.header("📖 구단 유니버스")
         team_lore = st.selectbox("세계관 열람:", list(TEAMS.keys()))
         if st.button("스토리 보기"):
