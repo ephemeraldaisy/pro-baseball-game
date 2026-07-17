@@ -379,19 +379,22 @@ class PureKboEngine:
         log_prefix = f"🥎 [{p_my.name} {speed}km/h {pitch_type}] -> "
 
         if pitch_zone == 0:
-            if random.random() < (0.12 if defense_choice == 2 else 0.22):
+            roll_zone0 = random.random()
+            
+            if roll_zone0 < 0.25: #유인구 타격 유도
                 self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, False, True)
-            else:
-                self.ball += 1
-                self.game_log.append(log_prefix + f"볼! ({self.strike}S {self.ball}B)")
-                if self.ball >= 4: self.process_walk(is_defense=True)
-        else:
-            if random.random() < (0.35 if defense_choice == 1 else 0.42):
-                self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, True, True)
-            else:
+            
+            elif roll_zone0 < 0.50: #유인구 헛스윙 유도
                 self.strike += 1
-                self.game_log.append(log_prefix + f"스트라이크! ({self.strike}S {self.ball}B)")
-                if self.strike >= 3: self.process_strikeout(is_defense=True)
+                self.game_log.append(log_prefix + f"헛스윙! 타자가 유인구에 완전히 속아 배트를 크게 돌립니다! 😱 ({self.strike}S {self.ball}B)")
+                if self.strike >= 3:
+                    self.process_strikeout(is_defense=True)
+
+            else: #유인구 지켜보고 골라냄 
+                self.ball += 1
+                self.game_log.append(log_prefix + f"볼! 타자가 침착하게 유인구를 골라냅니다. ({self.strike}S {self.ball}B)")
+                if self.ball >= 4: 
+                    self.process_walk(is_defense=True)
 
     def play_turn(self, user_choice: int) -> None:
         if self.game_over: return
