@@ -588,9 +588,11 @@ class PureKboEngine:
                 
         elif res == "FOUL":
             foul_decision = True
+            
             if is_power_hitter and self.strike == 2 and random.random() < 0.45:
                 res = "MISS"
                 foul_decision = False
+                
             elif is_contact_pest and self.strike == 2:
                 pass 
                 
@@ -737,11 +739,15 @@ class PureKboEngine:
             self.game_log.append(log_prefix + f"🌟 피안타! (+{gained}점)")
         else:
             if roll > (hit_prob + hr_prob) and random.random() < 0.25:
-                if self.strike < 2: self.strike += 1
-                self.game_log.append(log_prefix + f"파울! 타자가 날카롭게 커트해 냅니다. ({self.strike}S {self.ball}B)")
+                if self.strike < 2: 
+                    self.strike += 1
+                    self.game_log.append(log_prefix + f"파울! 타자가 날카롭게 커트해 냅니다. ({self.strike}S {self.ball}B)")
+                else:
+                    self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
                 
             self.strike = 0; self.ball = 0
+            
             if self.base1 and self.out_count < 2 and random.random() < 0.25:
                 self.out_count += 2
                 self.base1 = False
