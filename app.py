@@ -331,6 +331,7 @@ class PureKboEngine:
         if self.game_over: return
         p_my = self.get_current_my_pitcher()
 
+        #투수 체력
         need_change = False
         if p_my.stamina <= (p_my.max_stamina * 0.20):
             need_change = True
@@ -354,13 +355,18 @@ class PureKboEngine:
                 p_my.stamina = 15
                 self.game_log.append("🚨 [비상사태] 불펜 투수가 전원 방전되었습니다! 감독님이 어쩔 수 없이 야수를 마운드에 올립니다!! 야수 등판!!! 😱")
                 p_my = self.get_current_my_pitcher()
-
+        
+        #1클릭 1구
         if p_my.role == "야수등판":
             speed = random.randint(110, 125)
             pitch_type = random.choice(["아리랑볼", "직구인척하는볼"])
             p_my.consume(1)
         else:
-            p_my.consume(1)
+            if defense_choice == 3 and random.random() < 0.50:
+                p_my.pitches_thrown += 1
+            else:
+                p_my.consume(1)
+                
             pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
             speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
             
@@ -370,11 +376,15 @@ class PureKboEngine:
         my_stats = TEAMS[self.my_team]
         penalty = p_my.get_penalty()
         matchup_mod = self.get_matchup_modifier(self.enemy_team, self.my_team)
-        
+
+        #볼배합 피칭존
         pitch_zone = random.randint(1, 9) if defense_choice != 2 else 0
 
         self.pitch_history.append(f"{pitch_type} ({speed}km/h) - 존: {pitch_zone if pitch_zone != 0 else '외곽'}")
         if len(self.pitch_history) > 3: self.pitch_history.pop(0)
+
+        if defense_choice == 3:
+            matchup_mod -= 0.05
 
         log_prefix = f"🥎 [{p_my.name} {speed}km/h {pitch_type}] -> "
 
@@ -395,6 +405,28 @@ class PureKboEngine:
                 self.game_log.append(log_prefix + f"볼! 타자가 침착하게 유인구를 골라냅니다. ({self.strike}S {self.ball}B)")
                 if self.ball >= 4: 
                     self.process_walk(is_defense=True)
+        else:
+            # ⚾ [정면 승부 선택 시 버프 1] 타자가 적극적으로 받아치게 유도 (타격 룰 증가)
+            swing_prob = 0.55 if defense_choice == 1 else 0.35
+            
+            if random.random() < swing_prob:
+                # ⚾ [정면 승부 선택 시 버프 2] 정면승부 룰 적용을 판단하기 위해 임시 변수 플래그 세우기
+                # (정면승부 시 맞춰 잡는 쾌감을 위해 안타성 타구를 7% 확률로 범타/아웃 처리 우회)
+                if defense_choice == 1 and random.random() < 0.07:
+                    # 강제로 범타 아웃 유도하는 분기 생성
+                    self.strike = 0; self.ball = 0
+                    self.enemy_batter_number = 1 if self.enemy_batter_number == 9 else self.enemy_batter_number + 1
+                    self.out_count += 1
+                    self.game_log.append(log_prefix + "⚾ [정면승부 적중] 타자가 힘껏 받아쳤으나 수비수 정면 땅볼! 가볍게 아웃 처리합니다.")
+                    self.check_three_out_change()
+                else:
+                    self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, True, True)
+            else:
+                self.strike += 1
+                self.game_log.append(log_prefix + f"스트라이크! 루킹 스트라이크를 잡아냅니다. ({self.strike}S {self.ball}B)")
+                if self.strike >= 3: 
+                    self.process_strikeout(is_defense=True)
+        
 
     def play_turn(self, user_choice: int) -> None:
         if self.game_over: return
