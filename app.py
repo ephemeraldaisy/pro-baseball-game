@@ -440,21 +440,21 @@ class PureKboEngine:
         
         runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
 
-        strike_probability = 0.72
+        strike_probability = 0.75
         mental_penalty = 0.0
 
         if self.base2 or self.base3:
             if runners_count >= 2:
-                strike_probability -= 0.05
-                mental_penalty = 0.03
+                strike_probability += 0.05
+                mental_penalty = =0.05
                 p_en.stamina = max(0, p_en.stamina - 1)
             else:
-                strike_probability -= 0.02
-                mental_penalty = -0.01
+                strike_probability += 0.02
+                mental_penalty = -0.02
 
         if p_en.stamina < (p_en.max_stamina * 0.4):
-            strike_probability -= 0.04
-            mental_penalty += 0.02
+            strike_probability -= 0.03
+            mental_penalty += 0.01
 
         added_pitches = 1
         p_en.consume(added_pitches)
@@ -475,13 +475,13 @@ class PureKboEngine:
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
         
-        total_buff = matchup_mod + self.hit_buff + 0.03 + mental_penalty 
+        total_buff = matchup_mod + self.hit_buff + 0.02 + mental_penalty 
 
-        hbp_probability = 0.01
+        hbp_probability = 0.005
         if p_en.stamina < (p_en.max_stamina * 0.4):
             hbp_probability += 0.01
         if runners_count >= 2:
-            hbp_probability += 0.005
+            hbp_probability -= 0.003
 
         if pitch_zone == 0 and random.random() < hbp_probability:
             if random.random() < 0.10:
@@ -509,10 +509,10 @@ class PureKboEngine:
             return
 
         if user_choice == 1:
-            res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[220, 380, 120, 180, 100] if is_zone_matched else [60, 320, 270, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[100, 350, 150, 400])[0]
+            res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[180, 320, 200, 200, 100] if is_zone_matched else [40, 260, 350, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[70, 380, 150, 400])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
         elif user_choice == 2:
-            res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[620, 80, 200, 100] if is_zone_matched else [400, 250, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[120, 310, 200, 370])[0]
+            res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[520, 180, 200, 100] if is_zone_matched else [320, 330, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[80, 350, 200, 370])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
         elif user_choice == 3: 
             if pitch_zone != 0:
@@ -527,7 +527,7 @@ class PureKboEngine:
             if not self.base3:
                 st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
                 return
-            bunt_success_rate = max(0.35, min(0.80, 0.60 - (enemy_stats["defense"] - my_stats["hit"]) * 0.002))
+            bunt_success_rate = max(0.30, min(0.75, 0.55 - (enemy_stats["defense"] - my_stats["hit"]) * 0.002))
             self.strike = 0; self.ball = 0
             bat = self.my_batter_number
             self.my_batter_number = 1 if bat == 9 else bat + 1
@@ -747,7 +747,8 @@ class PureKboEngine:
                     self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
                 
-            self.strike = 0; self.ball = 0
+            self.strike = 0
+            self.ball = 0
             
             if self.base1 and self.out_count < 2 and random.random() < 0.25:
                 self.out_count += 2
