@@ -440,21 +440,21 @@ class PureKboEngine:
         
         runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
 
-        strike_probability = 0.70
+        strike_probability = 0.72
         mental_penalty = 0.0
 
         if self.base2 or self.base3:
             if runners_count >= 2:
                 strike_probability -= 0.05
-                mental_penalty = 0.05
+                mental_penalty = 0.03
                 p_en.stamina = max(0, p_en.stamina - 1)
             else:
-                strike_probability -= 0.06
-                mental_penalty = 0.02
+                strike_probability -= 0.02
+                mental_penalty = -0.01
 
         if p_en.stamina < (p_en.max_stamina * 0.4):
             strike_probability -= 0.04
-            mental_penalty += 0.04
+            mental_penalty += 0.02
 
         added_pitches = 1
         p_en.consume(added_pitches)
@@ -479,9 +479,9 @@ class PureKboEngine:
 
         hbp_probability = 0.01
         if p_en.stamina < (p_en.max_stamina * 0.4):
-            hbp_probability += 0.02
+            hbp_probability += 0.01
         if runners_count >= 2:
-            hbp_probability += 0.02
+            hbp_probability += 0.005
 
         if pitch_zone == 0 and random.random() < hbp_probability:
             if random.random() < 0.10:
@@ -527,7 +527,7 @@ class PureKboEngine:
             if not self.base3:
                 st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
                 return
-            bunt_success_rate = max(0.40, min(0.85, 0.65 - (enemy_stats["defense"] - my_stats["hit"]) * 0.002))
+            bunt_success_rate = max(0.35, min(0.80, 0.60 - (enemy_stats["defense"] - my_stats["hit"]) * 0.002))
             self.strike = 0; self.ball = 0
             bat = self.my_batter_number
             self.my_batter_number = 1 if bat == 9 else bat + 1
@@ -599,18 +599,19 @@ class PureKboEngine:
             if foul_decision:
                 if self.strike < 2: 
                     self.strike += 1
-                
-                if is_contact_pest:
-                    self.game_log.append(log_prefix + b_ctx + f"⚡ 용규놀이 발동! 커트하고 또 커트하며 투수를 지치게 만듭니다! ({self.strike}S {self.ball}B)")
-                elif is_power_hitter:
-                    self.game_log.append(log_prefix + b_ctx + f"💥 거구의 스윙! 먹힌 타구가 라인 밖 파울이 됩니다. ({self.strike}S {self.ball}B)")
-                else:
                     self.game_log.append(log_prefix + b_ctx + f"파울. ({self.strike}S {self.ball}B)")
+                else:
+                    if is_contact_pest:
+                        self.game_log.append(log_prefix + b_ctx + f"⚡ 용규놀이 발동! 2스트라이크 이후 끈질기게 커트하며 기존 카운트를 유지합니다! ({self.strike}S {self.ball}B)")
+                    else:
+                        self.game_log.append(log_prefix + b_ctx + f"파울볼! 2스트라이크 이후 파울로 기존 볼 카운트가 정교하게 유지됩니다. ({self.strike}S {self.ball}B)")
                 return
+                
             else:
                 self.strike = 3
                 self.game_log.append(log_prefix + b_ctx + f"헛스윙! 힘껏 돌렸으나 삼진 아웃! ({self.strike}S {self.ball}B)")
                 self.process_strikeout(is_defense=False)
+                return 
             
         else:
             bat = self.my_batter_number
