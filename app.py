@@ -445,7 +445,7 @@ class PureKboEngine:
 
         if self.base2 or self.base3:
             if runners_count >= 2:
-                strike_probability -= 0.12
+                strike_probability -= 0.05
                 mental_penalty = 0.05
                 p_en.stamina = max(0, p_en.stamina - 1)
             else:
@@ -453,7 +453,7 @@ class PureKboEngine:
                 mental_penalty = 0.02
 
         if p_en.stamina < (p_en.max_stamina * 0.4):
-            strike_probability -= 0.10
+            strike_probability -= 0.04
             mental_penalty += 0.04
 
         added_pitches = 1
@@ -475,7 +475,7 @@ class PureKboEngine:
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
         
-        total_buff = matchup_mod + self.hit_buff + 0.085 + mental_penalty 
+        total_buff = matchup_mod + self.hit_buff + 0.03 + mental_penalty 
 
         hbp_probability = 0.01
         if p_en.stamina < (p_en.max_stamina * 0.4):
@@ -578,7 +578,7 @@ class PureKboEngine:
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
             pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
-            if random.random() < (total_buff * 0.45 * pitcher_stamina_factor): 
+            if random.random() < (total_buff * 0.20 * pitcher_stamina_factor): 
                 res = "HIT"
         
         if res == "MISS":
