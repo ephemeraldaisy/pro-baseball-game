@@ -446,7 +446,7 @@ class PureKboEngine:
         if self.base2 or self.base3:
             if runners_count >= 2:
                 strike_probability += 0.05
-                mental_penalty = =0.05
+                mental_penalty = 0.05
                 p_en.stamina = max(0, p_en.stamina - 1)
             else:
                 strike_probability += 0.02
