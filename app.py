@@ -211,20 +211,64 @@ class PureKboEngine:
     def get_current_enemy_pitcher(self) -> PitcherDomain: return self.enemy_pitchers[self.enemy_pitcher_idx]
 
     def change_my_pitcher(self) -> bool:
-        if self.my_pitcher_idx < len(self.my_pitchers) - 1:
-            self.my_pitcher_idx += 1
+        target_idx = self.evaluate_pitcher_scenario(is_defense=True)
+        
+        if target_idx == -99:
             p = self.get_current_my_pitcher()
-            self.game_log.append(f"🔄 [투수 교체] {p.role} '{p.name}' 등판")
+            if p.role != "야수등판":
+                p.name = "⚠️ 야수(패전처리)"
+                p.role = "야수등판"
+                p.max_stamina = 15
+                p.stamina = 15
+                self.game_log.append("🚨 [투수 교체] 8점 차 이상 대참사! 전술적으로 야수를 마운드에 올립니다.")
+                return True
+            return False
+            
+        if target_idx != self.my_pitcher_idx:
+            self.my_pitcher_idx = target_idx
+            self.my_used_pitchers.add(target_idx)
+            p = self.get_current_my_pitcher()
+            self.game_log.append(f"🔄 [투수 교체] 시나리오 적용: {p.role} '{p.name}' 등판")
             return True
+        else:
+            # 만약 시나리오상 다음 투수가 현재 투수와 같다면 차선책으로 강제 한 칸 이동
+            if self.my_pitcher_idx < len(self.my_pitchers) - 1:
+                self.my_pitcher_idx += 1
+                self.my_used_pitchers.add(self.my_pitcher_idx)
+                p = self.get_current_my_pitcher()
+                self.game_log.append(f"🔄 [투수 교체] 수동 조절: {p.role} '{p.name}' 등판")
+                return True
         return False
 
     def change_enemy_pitcher(self) -> bool:
-        if self.enemy_pitcher_idx < len(self.enemy_pitchers) - 1:
-            self.enemy_pitcher_idx += 1
+        target_en_idx = self.evaluate_pitcher_scenario(is_defense=False)
+        
+        if target_en_idx == -99:
             p = self.get_current_enemy_pitcher()
-            self.game_log.append(f"🔄 [상대 투수 교체] 상대 불펜 가동: {p.role} '{p.name}' 등판")
+            if p.role != "야수등판":
+                p.name = "⚠️ 야수(상대패전처리)"
+                p.role = "야수등판"
+                p.max_stamina = 15
+                p.stamina = 15
+                self.game_log.append("🚨 [상대 투수 교체] 대파 상황! 상대 감독이 포기하고 야수를 올립니다.")
+                return True
+            return False
+
+        if target_en_idx != self.enemy_pitcher_idx:
+            self.enemy_pitcher_idx = target_en_idx
+            self.enemy_used_pitchers.add(target_en_idx)
+            p = self.get_current_enemy_pitcher()
+            self.game_log.append(f"🔄 [상대 투수 교체] 시나리오 적용: 상대 불펜 가동: {p.role} '{p.name}' 등판")
             return True
+        else:
+            if self.enemy_pitcher_idx < len(self.enemy_pitchers) - 1:
+                self.enemy_pitcher_idx += 1
+                self.enemy_used_pitchers.add(self.enemy_pitcher_idx)
+                p = self.get_current_enemy_pitcher()
+                self.game_log.append(f"🔄 [상대 투수 교체] 수동 조절: {p.role} '{p.name}' 등판")
+                return True
         return False
+        
 
     def get_away_score(self) -> int: return self.away_stats["R"]
     def get_home_score(self) -> int: return self.home_stats["R"]
@@ -370,10 +414,14 @@ class PureKboEngine:
             score_diff = self.our_score - self.enemy_score
             current_idx = self.my_pitcher_idx
             used_set = self.my_used_pitchers
+            # 수비할 때 우리가 홈팀인지 여부 (phase == '말'이면 홈팀 수비)
+            is_home_defense = (self.phase == "말" and self.is_home_team) or (self.phase == "초" and not self.is_home_team)
         else:
             score_diff = self.enemy_score - self.our_score
             current_idx = self.enemy_pitcher_idx
             used_set = self.enemy_used_pitchers
+            # 상대가 수비할 때 상대가 홈팀인지 여부
+            is_home_defense = (self.phase == "말" and not self.is_home_team) or (self.phase == "초" and self.is_home_team)
 
         next_idx = current_idx
         
@@ -390,10 +438,11 @@ class PureKboEngine:
                 
         # 2️⃣ 비기고 있는 경우 (동점)
         elif score_diff == 0:
-            if 6 <= self.inning <= 8:
-                next_idx = 1 # CASE 2-A: 추격조 1번
-            elif self.inning >= 9:
-                next_idx = 4 # CASE 2-B: 마무리 조기 투입
+            # CASE 2-B: 9회 말 홈팀 수비 상황(1점 주면 끝내기 패배 위기)이거나 10회 이후 연장전일 때
+            if (self.inning == 9 and self.phase == "말" and is_home_defense) or self.inning > 9:
+                next_idx = 4 # 마무리(클로저) 등판 (조기 투입)
+            elif 6 <= self.inning <= 8:
+                next_idx = 1 # CASE 2-A: 추격조 1번 방어
                 
         # 3️⃣ 지고 있는 경우
         else:
