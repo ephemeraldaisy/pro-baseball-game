@@ -869,11 +869,11 @@ class PureKboEngine:
             hr_prob *= 0.10
         
         roll = random.random()
-        bat = self.enemy_batter_number
-        self.enemy_batter_number = 1 if bat == 9 else bat + 1
-        self.strike = 0; self.ball = 0
 
         if roll < hr_prob:
+            self.add_stat("H")
+            self.enemy_batter_number = 1 if bat == 9 else bat + 1
+            self.strike = 0; self.ball = 0  # 인플레이 타격 종료 시에만 초기화!
             self.add_stat("H")
             pts = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0) + 1
             self.base1 = self.base2 = self.base3 = False
@@ -881,6 +881,9 @@ class PureKboEngine:
             self.game_log.append(log_prefix + f"💥 실투 실점! {pts}점 홈런 허용.")
             
         elif roll < (hit_prob + hr_prob):
+            bat = self.enemy_batter_number
+            self.enemy_batter_number = 1 if bat == 9 else bat + 1
+            self.strike = 0; self.ball = 0  # 인플레이 안타 종료 시에만 초기화!
             self.add_stat("H")
             gained = 0
             if self.base3: gained += 1
@@ -896,7 +899,9 @@ class PureKboEngine:
                 else:
                     self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
-                
+
+            bat = self.enemy_batter_number
+            self.enemy_batter_number = 1 if bat == 9 else bat + 1 
             self.strike = 0
             self.ball = 0
             
