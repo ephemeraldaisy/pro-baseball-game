@@ -1313,9 +1313,9 @@ def main() -> None:
                     # 🎯 [신규 기능] 현재 공수 상태에 따른 타석의 타자 번호 판별
                     current_is_our_turn = (not game.is_home_team and game.phase == "초") or (game.is_home_team and game.phase == "말")
                     if current_is_our_turn:
-                        active_batter = f"👉 우리 팀 {game.my_batter_number}번 타자"
+                        active_batter = f"👉 OUR BATTER: {game.my_batter_number}"
                     else:
-                        active_batter = f"🔥 상대 {game.enemy_batter_number}번 타자"
+                        active_batter = f"🔥 ENEMY BATTER {game.enemy_batter_number}"
 
                     # 전광판 최하단 홈 플레이트 아래(y=-0.4)에 타자 정보 텍스트 박스 출력
                     ax.text(0, -0.4, active_batter, color='#51cf66', fontsize=11, ha='center', va='center', 
