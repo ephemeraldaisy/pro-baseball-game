@@ -150,20 +150,42 @@ class PureKboEngine:
         my_stats = TEAMS[my_team]
         enemy_stats = TEAMS[enemy_team]
         
+        # 아군 5선발 로테이션 및 불펜 구축
+        my_sp_pool = [
+            PitcherDomain("1선발(에이스)", "선발", my_stats["stamina"]),
+            PitcherDomain("2선발", "선발", int(my_stats["stamina"] * 0.95)),
+            PitcherDomain("3선발", "선발", int(my_stats["stamina"] * 0.90)),
+            PitcherDomain("4선발", "선발", int(my_stats["stamina"] * 0.85)),
+            PitcherDomain("5선발", "선발", int(my_stats["stamina"] * 0.80)),
+        ]
         self.my_pitchers = [
-            PitcherDomain("제1선발", "선발", my_stats["stamina"]),
-            PitcherDomain("롱릴리프", "추격조", 40),
+            random.choice(my_sp_pool), # 🎲 5인 중 랜덤 결정
+            PitcherDomain("추격조 1번", "추격조1", 40),
+            PitcherDomain("추격조 2번", "추격조2", 35),
             PitcherDomain("셋업맨", "필승조", 30),
-            PitcherDomain("클로저", "마무리", 20)
+            PitcherDomain("클로저(마무리)", "마무리", 20)
         ]
         self.my_pitcher_idx = 0
-        self.enemy_pitchers = [
+        self.my_used_pitchers = {0} # 이미 등판한 투수 인덱스 기록 (중복 부활 방지)
+
+        # 적군 5선발 로테이션 및 불펜 구축
+        enemy_sp_pool = [
             PitcherDomain("상대 에이스", "선발", enemy_stats["stamina"]),
-            PitcherDomain("상대 불펜", "추격조", 40),
+            PitcherDomain("상대 2선발", "선발", int(enemy_stats["stamina"] * 0.95)),
+            PitcherDomain("상대 3선발", "선발", int(enemy_stats["stamina"] * 0.90)),
+            PitcherDomain("상대 4선발", "선발", int(enemy_stats["stamina"] * 0.85)),
+            PitcherDomain("상대 5선발", "선발", int(enemy_stats["stamina"] * 0.80)),
+        ]
+        self.enemy_pitchers = [
+            random.choice(enemy_sp_pool), # 🎲 5인 중 랜덤 결정
+            PitcherDomain("상대 추격조 1번", "추격조1", 40),
+            PitcherDomain("상대 추격조 2번", "추격조2", 35),
             PitcherDomain("상대 셋업맨", "필승조", 30),
             PitcherDomain("상대 클로저", "마무리", 20)
         ]
         self.enemy_pitcher_idx = 0
+        self.enemy_used_pitchers = {0}
+        
         self.setup_half_inning()
 
     def add_stat(self, stat: str, amt: int = 1):
@@ -326,6 +348,62 @@ class PureKboEngine:
         elif self.base1 and self.base2: self.base3 = True
         elif self.base1: self.base2 = True
         else: self.base1 = True
+
+    def evaluate_pitcher_scenario(self, is_defense: bool) -> int:
+        """현재 이닝, 점수차를 계산하여 시나리오 트리에 맞는 투수 인덱스를 반환합니다."""
+        if is_defense:
+            score_diff = self.our_score - self.enemy_score
+            current_idx = self.my_pitcher_idx
+            used_set = self.my_used_pitchers
+        else:
+            score_diff = self.enemy_score - self.our_score
+            current_idx = self.enemy_pitcher_idx
+            used_set = self.enemy_used_pitchers
+
+        next_idx = current_idx
+        
+        # 1️⃣ 이기고 있는 경우
+        if score_diff > 0:
+            if 6 <= self.inning <= 7:
+                next_idx = 1 # CASE 1-A: 추격조 1번
+            elif self.inning == 8 and 1 <= score_diff <= 3:
+                next_idx = 3 # CASE 1-B: 셋업맨
+            elif self.inning >= 9 and 1 <= score_diff <= 3:
+                next_idx = 4 # CASE 1-C: 마무리
+            elif self.inning >= 8 and score_diff >= 4:
+                next_idx = 2 # CASE 1-D: 추격조 2번
+                
+        # 2️⃣ 비기고 있는 경우 (동점)
+        elif score_diff == 0:
+            if 6 <= self.inning <= 8:
+                next_idx = 1 # CASE 2-A: 추격조 1번
+            elif self.inning >= 9:
+                next_idx = 4 # CASE 2-B: 마무리 조기 투입
+                
+        # 3️⃣ 지고 있는 경우
+        else:
+            abs_diff = abs(score_diff)
+            if self.inning >= 7 and abs_diff >= 8:
+                return -99 # CASE 3-C: 히든 야수 등판 신호
+            elif 1 <= abs_diff <= 3:
+                next_idx = 1 # CASE 3-A: 추격조 1번
+            elif 4 <= abs_diff <= 7:
+                next_idx = 2 # CASE 3-B: 추격조 2번
+
+        # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
+        # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
+        if next_idx != current_idx and next_idx in used_set:
+            # 대안 탐색
+            fallback_found = False
+            for alt_idx in range(1, 5):
+                if alt_idx not in used_set:
+                    next_idx = alt_idx
+                    fallback_found = True
+                    break
+            if not fallback_found:
+                return -99 # 불펜 전멸 시 야수 등판 신호
+
+        return next_idx
 
     def play_defense_one_pitch(self, defense_choice: int) -> None:
         if self.game_over: return
