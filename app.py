@@ -162,10 +162,12 @@ class PureKboEngine:
         ]
         self.my_pitchers = [
             random.choice(my_sp_pool), # 🎲 5인 중 랜덤 결정
-            PitcherDomain("추격조 1번", "추격조1", 40),
-            PitcherDomain("추격조 2번", "추격조2", 35),
-            PitcherDomain("셋업맨", "필승조", 30),
-            PitcherDomain("클로저(마무리)", "마무리", 20)
+            PitcherDomain("추격조(롱릴리프)", "추격조", 45), # 1: 추격조 1 (롱릴리프)
+            PitcherDomain("추격조 2번(패전)", "추격조", 40), # 2: 추격조 2 (순수 패전처리)
+            PitcherDomain("추격조 3번(좌완)", "추격조", 35), # 3: 추격조 3 (원포인트/중간계투)
+            PitcherDomain("필승조 1번(안방마님)", "필승조", 35), # 4: 셋업맨 앞을 책임질 필승조
+            PitcherDomain("셋업맨", "필승조", 30),          # 5: 셋업맨 (인덱스 3 -> 5로 이동)
+            PitcherDomain("클로저(마무리)", "마무리", 20)     # 6: 마무리 (인덱스 4 -> 6으로 이동)
         ]
         self.my_pitcher_idx = 0
         self.my_used_pitchers = {0} # 이미 등판한 투수 인덱스 기록 (중복 부활 방지)
@@ -179,9 +181,11 @@ class PureKboEngine:
             PitcherDomain("상대 5선발", "선발", int(enemy_stats["stamina"] * 0.80)),
         ]
         self.enemy_pitchers = [
-            random.choice(enemy_sp_pool), # 🎲 5인 중 랜덤 결정
-            PitcherDomain("상대 추격조 1번", "추격조1", 40),
-            PitcherDomain("상대 추격조 2번", "추격조2", 35),
+            random.choice(enemy_sp_pool),
+            PitcherDomain("상대 추격조 1번", "추격조", 45),
+            PitcherDomain("상대 패전처리", "추격조", 40),
+            PitcherDomain("상대 중간계투", "추격조", 35),
+            PitcherDomain("상대 필승조 1번", "필승조", 35),
             PitcherDomain("상대 셋업맨", "필승조", 30),
             PitcherDomain("상대 클로저", "마무리", 20)
         ]
@@ -430,38 +434,38 @@ class PureKboEngine:
         # 1️⃣ 이기고 있는 경우
         if score_diff > 0:
             if 6 <= self.inning <= 7:
-                next_idx = 1 # CASE 1-A: 추격조 1번
+                next_idx = 4 if score_diff <= 3 else 1 #박빙이면 필승조 1번, 크게 이기면 롱릴리프 
             elif self.inning == 8 and 1 <= score_diff <= 3:
-                next_idx = 3 # CASE 1-B: 셋업맨
+                next_idx = 5 # 셋업맨
             elif self.inning >= 9 and 1 <= score_diff <= 3:
-                next_idx = 4 # CASE 1-C: 마무리
+                next_idx = 6 # 마무리
             elif self.inning >= 8 and score_diff >= 4:
-                next_idx = 2 # CASE 1-D: 추격조 2번
+                next_idx = 3 # 중간계투 
                 
         # 2️⃣ 비기고 있는 경우 (동점)
         elif score_diff == 0:
             # CASE 2-B: 9회 말 홈팀 수비 상황(1점 주면 끝내기 패배 위기)이거나 10회 이후 연장전일 때
             if (self.inning == 9 and self.phase == "말" and is_home_defense) or self.inning > 9:
-                next_idx = 4 # 마무리(클로저) 등판 (조기 투입)
+                next_idx = 6 # 마무리 조기 투입
             elif 6 <= self.inning <= 8:
-                next_idx = 1 # CASE 2-A: 추격조 1번 방어
+                next_idx = 4 # 필승조 1번 투입
                 
         # 3️⃣ 지고 있는 경우
         else:
             abs_diff = abs(score_diff)
             if self.inning >= 7 and abs_diff >= 8:
-                return -99 # CASE 3-C: 히든 야수 등판 신호
+                return -99 # 야구등판
             elif 1 <= abs_diff <= 3:
-                next_idx = 1 # CASE 3-A: 추격조 1번
+                next_idx = 1 # 추격조 1번
             elif 4 <= abs_diff <= 7:
-                next_idx = 2 # CASE 3-B: 추격조 2번
+                next_idx = 2 # 추격조 2번
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
         # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
         if next_idx != current_idx and next_idx in used_set:
             # 대안 탐색
             fallback_found = False
-            for alt_idx in range(1, 5):
+            for alt_idx in range(1, 7):
                 if alt_idx not in used_set:
                     next_idx = alt_idx
                     fallback_found = True
