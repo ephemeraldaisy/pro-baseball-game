@@ -1282,7 +1282,7 @@ def main() -> None:
                     for b_name, (x, y) in base_coords.items():
                         if b_name == "home":
                             # 홈 플레이트는 오각형 기믹이지만 간결하게 작은 사각형으로 마킹
-                            rect = patches.Rectangle((x-0.1, y-0.1), 0.2, 0.2, rotation=45, edgecolor='#aaaaaa', facecolor='#ffffff', lw=1.5)
+                            rect = patches.Rectangle((x-0.1, y-0.1), 0.2, 0.2, angle=45, edgecolor='#aaaaaa', facecolor='#ffffff', lw=1.5)
                             ax.add_patch(rect)
                             continue
 
