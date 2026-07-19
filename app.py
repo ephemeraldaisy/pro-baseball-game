@@ -1024,7 +1024,7 @@ def main() -> None:
                 # 아이템 1. 타격 확률 극대화 버프
                 col1, col2 = st.columns([3, 1])
                 with col1:
-                    st.markdown("🔥 **타격 확률 극대화**  \n`안타 확률 +8.5%` (100💎)")
+                    st.markdown("🔥 **타격 확률 극대화**  \n`안타 확률 +2.0%` (100💎)")
                 with col2:
                     if st.button("구매", key="buy_buff_hit"):
                         if st.session_state.nc_diamonds >= 100:
@@ -1072,7 +1072,7 @@ def main() -> None:
                 # 아이템 2. 관중 매수 야유 (적 타자 디버프)
                 col3_d, col4_d = st.columns([3, 1])
                 with col3_d:
-                    st.markdown("🔊 **관중 매수 야유**  \n`적 안타 확률 -5%` (120💎)")
+                    st.markdown("🔊 **관중 매수 야유**  \n`적 안타 확률 -2%` (120💎)")
                 with col4_d:
                     if st.button("구매", key="buy_debuff_crowd"):
                         if st.session_state.nc_diamonds >= 120:
@@ -1249,11 +1249,77 @@ def main() -> None:
             with col_main:
                 cz1, cz2 = st.columns(2)
                 with cz1:
-                    st.markdown(f"* **아웃:** {'🔴' * game.out_count}{'⚪' * (3-game.out_count)}")
-                    st.markdown(f"* **S:** {'🔥' * game.strike}{'⚪' * (3-game.strike)} | **B:** {'🟢' * game.ball}{'⚪' * (4-game.ball)}")
+                    st.markdown(f"#### **🚨 COUNT BOARD**")
+                    st.markdown(f"**OUT :** {'🔴' * game.out_count}{'⚪' * (3-game.out_count)}")
+                    st.markdown(f"**STRIKE :** {'🟡' * game.strike}{'⚪' * (3-game.strike)}")
+                    st.markdown(f"**BALL :** {'🟢' * game.ball}{'⚪' * (4-game.ball)}")
                 with cz2:
-                    st.code(f"   [{'🏃' if game.base2 else '◯'}] 2루\n[{'🏃' if game.base3 else '◯'}] 3루   [{'🏃' if game.base1 else '◯'}] 1루", language="text")
+                    import matplotlib.pyplot as plt
+                    import matplotlib.patches as patches
 
+                    # 🎨 다이아몬드 베이스 시각화 도화지 설정
+                    fig, ax = plt.subplots(figsize=(3, 3), facecolor='#1e1e1e') # 다크 모드 배경 테마
+                    ax.set_facecolor('#1e1e1e')
+                    ax.set_xlim(-1.5, 1.5)
+                    ax.set_ylim(-0.5, 2.8)
+                    ax.axis('off') # 불필요한 축 레이블 제거
+
+                    # 각 루의 중심 좌표 (홈, 1루, 2루, 3루)
+                    base_coords = {
+                        "home": (0, 0),
+                        "base1": (1, 1),
+                        "base2": (0, 2),
+                        "base3": (-1, 1)
+                    }
+
+                    # 주자 진루 상태 체크 연동
+                    base_states = {
+                        "base1": game.base1,
+                        "base2": game.base2,
+                        "base3": game.base3
+                    }
+
+                    # 1루, 2루, 3루 다이아몬드 패치 그리기
+                    for b_name, (x, y) in base_coords.items():
+                        if b_name == "home":
+                            # 홈 플레이트는 오각형 기믹이지만 간결하게 작은 사각형으로 마킹
+                            rect = patches.Rectangle((x-0.1, y-0.1), 0.2, 0.2, rotation=45, edgecolor='#aaaaaa', facecolor='#ffffff', lw=1.5)
+                            ax.add_patch(rect)
+                            continue
+
+                        # 주자 유무에 따른 동적 컬러 바인딩 (주자 있음: 주황 불빛 🔥, 주자 없음: 빈 베이스 ⚪)
+                        is_runner = base_states[b_name]
+                        bg_color = '#ff6b6b' if is_runner else '#3d3d3d'
+                        edge_color = '#ffcbd1' if is_runner else '#777777'
+                        line_width = 2.0 if is_runner else 1.0
+
+                        rect = patches.Rectangle((x-0.18, y-0.18), 0.36, 0.36, angle=45, rotation_point='center',
+                                                 edgecolor=edge_color, facecolor=bg_color, lw=line_width)
+                        ax.add_patch(rect)
+                        
+                        # 루상 넘버링 텍스트 레이블 가독성 부여
+                        label_map = {"base1": "1B", "base2": "2B", "base3": "3B"}
+                        text_color = '#ffffff' if is_runner else '#aaaaaa'
+                        ax.text(x, y, label_map[b_name], color=text_color, fontsize=9, ha='center', va='center', weight='bold')
+
+                    # 베이스 간 연결선 그리기 (야구장 흙길 라인 고증)
+                    line_style = dict(color='#555555', linestyle='--', linewidth=1, zorder=0)
+                    ax.plot([0, 1, 0, -1, 0], [0, 1, 2, 1, 0], **line_style)
+
+                    # 🎯 [신규 기능] 현재 공수 상태에 따른 타석의 타자 번호 판별
+                    current_is_our_turn = (not game.is_home_team and game.phase == "초") or (game.is_home_team and game.phase == "말")
+                    if current_is_our_turn:
+                        active_batter = f"👉 우리 팀 {game.my_batter_number}번 타자"
+                    else:
+                        active_batter = f"🔥 상대 {game.enemy_batter_number}번 타자"
+
+                    # 전광판 최하단 홈 플레이트 아래(y=-0.4)에 타자 정보 텍스트 박스 출력
+                    ax.text(0, -0.4, active_batter, color='#51cf66', fontsize=11, ha='center', va='center', 
+                            weight='bold', bbox=dict(facecolor='#2b2b2b', edgecolor='#51cf66', boxstyle='round,pad=0.3', lw=1))
+
+                    # Streamlit 화면에 차트 주입
+                    st.pyplot(fig, use_container_width=False)
+                    plt.close(fig) # 메모리 누수 방지용 클로즈 인터셉트
                 st.info(HyperClovaX_AI.get_recommendation(game.pitch_history, game.base3, game.inning, current_is_our_turn))
 
                 if current_is_our_turn:
