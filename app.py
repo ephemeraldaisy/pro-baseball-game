@@ -5,6 +5,8 @@ import base64
 import pandas as pd
 import streamlit as st
 from typing import Dict, Any, List
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches 
 
 # =====================================================================
 # [STATIC DATA LAYER] 1. KBO 글로벌 프로 스탯 인프라
@@ -1254,9 +1256,6 @@ def main() -> None:
                     st.markdown(f"**STRIKE :** {'🟡' * game.strike}{'⚪' * (3-game.strike)}")
                     st.markdown(f"**BALL :** {'🟢' * game.ball}{'⚪' * (4-game.ball)}")
                 with cz2:
-                    import matplotlib.pyplot as plt
-                    import matplotlib.patches as patches
-
                     # 🎨 다이아몬드 베이스 시각화 도화지 설정
                     fig, ax = plt.subplots(figsize=(3, 3), facecolor='#1e1e1e') # 다크 모드 배경 테마
                     ax.set_facecolor('#1e1e1e')
