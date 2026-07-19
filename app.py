@@ -249,6 +249,21 @@ class PureKboEngine:
         self.strike = 0; self.ball = 0; self.out_count = 0
         self.base1 = self.base2 = self.base3 = False
         self.hit_buff = 0.0
+        
+        if self.inning >= 6:
+            current_is_our_defense = (self.phase == "초" and not self.is_home_team) or (self.phase == "말" and self.is_home_team)
+            if current_is_our_defense:
+                t_idx = self.evaluate_pitcher_scenario(is_defense=True)
+                if t_idx != -99 and t_idx != self.my_pitcher_idx:
+                    self.my_pitcher_idx = t_idx
+                    self.my_used_pitchers.add(t_idx)
+                    self.game_log.append(f"🔄 [이닝 교체 공수전환] 벤치가 움직입니다. 새로운 이닝을 책임질 리드 맞춤형 [{self.get_current_my_pitcher().role}] 등판!")
+            else:
+                t_en_idx = self.evaluate_pitcher_scenario(is_defense=False)
+                if t_en_idx != -99 and t_en_idx != self.enemy_pitcher_idx:
+                    self.enemy_pitcher_idx = t_en_idx
+                    self.enemy_used_pitchers.add(t_en_idx)
+                    self.game_log.append(f"🔄 [이닝 교체 공수전환] 상대 팀이 이닝 시작과 동시에 투수를 바꿉니다. [{self.get_current_enemy_pitcher().role}] 등판!")
 
     def update_live_scoreboard(self, run: int) -> None:
         idx = self.inning - 1
@@ -409,30 +424,23 @@ class PureKboEngine:
         if self.game_over: return
         p_my = self.get_current_my_pitcher()
 
-        #투수 체력
-        need_change = False
-        if p_my.stamina <= (p_my.max_stamina * 0.20):
-            need_change = True
-
-        if self.inning >= 7 and p_my.role in ["선발", "추격조"]:
-            score_diff = abs(self.get_away_score() - self.get_home_score())
-            if score_diff <= 2:
-                need_change = True
-
-        if need_change:
-            if self.my_pitcher_idx < len(self.my_pitchers) - 1:
-                if self.inning >= 8 and self.my_pitcher_idx < 2:
-                    self.my_pitcher_idx = 2  # 셋업맨 단계 점프
-                self.change_my_pitcher()
-                p_my = self.get_current_my_pitcher()
-                
-            elif p_my.role == "마무리" and p_my.stamina <= 0 and p_my.name != "⚠️ 야수(패전처리)":
+        # 🔋 [완전체 시나리오 엔진] 아군 현재 투수 체력 고갈 혹은 이닝 조건에 따른 교체 연산
+        if (p_my.stamina <= 0 or self.inning >= 6) and p_my.role != "야수등판":
+            target_idx = self.evaluate_pitcher_scenario(is_defense=True)
+            
+            if target_idx == -99:
                 p_my.name = "⚠️ 야수(패전처리)"
                 p_my.role = "야수등판"
                 p_my.max_stamina = 15
                 p_my.stamina = 15
-                self.game_log.append("🚨 [비상사태] 불펜 투수가 전원 방전되었습니다! 감독님이 어쩔 수 없이 야수를 마운드에 올립니다!! 야수 등판!!! 😱")
+                self.game_log.append("🚨 [예능 모드 활성화] 8점 차 이상 대참사 혹은 불펜 방전! 투수진을 아끼기 위해 야수가 마운드에 오릅니다!")
                 p_my = self.get_current_my_pitcher()
+            elif target_idx != self.my_pitcher_idx:
+                self.my_pitcher_idx = target_idx
+                self.my_used_pitchers.add(target_idx) # 등판 기록 잠금
+                p_my = self.get_current_my_pitcher()
+                self.game_log.append(f"🔄 [명장 전술 작전] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_my.role}] '{p_my.name}' 등판!")
+
         
         #1클릭 1구
         if p_my.role == "야수등판":
@@ -509,9 +517,22 @@ class PureKboEngine:
     def play_turn(self, user_choice: int) -> None:
         if self.game_over: return
         p_en = self.get_current_enemy_pitcher()
-        if p_en.stamina <= 0 and p_en.role != "마무리":
-            self.change_enemy_pitcher()
-            p_en = self.get_current_enemy_pitcher()
+        
+        if (p_en.stamina <= 0 or self.inning >= 6) and p_en.role != "야수등판":
+            target_en_idx = self.evaluate_pitcher_scenario(is_defense=False)
+            
+            if target_en_idx == -99:
+                p_en.name = "⚠️ 야수(상대패전처리)"
+                p_en.role = "야수등판"
+                p_en.max_stamina = 15
+                p_en.stamina = 15
+                self.game_log.append("🚨 [상대팀 예능 모드] 폭망 상태 혹은 불펜 고갈! 상대 감독이 포기하고 야수를 마운드에 올립니다!")
+                p_en = self.get_current_enemy_pitcher()
+            elif target_en_idx != self.enemy_pitcher_idx:
+                self.enemy_pitcher_idx = target_en_idx
+                self.enemy_used_pitchers.add(target_en_idx) # 등판 기록 잠금
+                p_en = self.get_current_enemy_pitcher()
+                self.game_log.append(f"🔄 [상대 벤치 움직임] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_en.role}] '{p_en.name}' 등판!")
 
         pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
         speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
@@ -524,7 +545,7 @@ class PureKboEngine:
         if self.base2 or self.base3:
             if runners_count >= 2:
                 strike_probability += 0.05
-                mental_penalty = 0.05
+                mental_penalty = -0.05
                 p_en.stamina = max(0, p_en.stamina - 1)
             else:
                 strike_probability += 0.02
