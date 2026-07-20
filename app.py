@@ -865,12 +865,19 @@ class PureKboEngine:
                 self.process_walk(is_defense=True)
             return
 
-        hit_prob = 0.23 + (enemy_stats["hit"] - my_stats["defense"]) * 0.0015 + penalty + matchup_mod
-        hr_prob = 0.02 + (enemy_stats["homerun"] * 0.0006) + (matchup_mod * 0.01)
+        enemy_hit_base = enemy_stats["hit"] * 0.0025
+        enemy_hr_base = enemy_stats["homerun"] * 0.0012
+
+        hit_prob = 0.25 + (enemy_hit_base = my_stats["defense"] * 0.001) + penalty + matchup_mod
+        hr_prob = 0.03 + enemy_hr_base + (matchup_mod * 0.01)
+
+        if self.base2 or self.base3:
+            hit_prob += 0.06
+            hr_prob += 0.02
         
         if not is_strike_context: 
-            hit_prob *= 0.4
-            hr_prob *= 0.10
+            hit_prob *= 0.55
+            hr_prob *= 0.20
         
         roll = random.random()
 
@@ -890,11 +897,25 @@ class PureKboEngine:
             self.strike = 0; self.ball = 0  # 인플레이 안타 종료 시에만 초기화!
             self.add_stat("H")
             gained = 0
-            if self.base3: gained += 1
-            if self.base2: gained += 1
-            self.base3 = self.base1; self.base2 = False; self.base1 = True
+
+            # 안타 시 주자 진루 다이내믹 확장 (2루타 확률 가산)
+            hit_roll = random.random()
+            if hit_roll < 0.25 and (self.base1 or self.base2 or self.base3):
+                # 상대 팀의 우중간 가르는 연속 2루타 기믹
+                if self.base3: gained += 1
+                if self.base2: gained += 1
+                if self.base1: self.base3 = True; self.base1 = False
+                else: self.base3 = False
+                self.base2 = True
+                self.game_log.append(log_prefix + f"🌟 [상대 집중 타선] 좌익수 키를 무자비하게 넘기는 좌중간 대형 2루타 피안타! (+{gained}점)")
+            else:
+                if self.base3: gained += 1
+                if self.base2: gained += 1
+                self.base3 = self.base1; self.base2 = False; self.base1 = True
+                self.game_log.append(log_prefix + f"🌟 피안타! 정교하게 밀어친 안타로 주자 주판알 튕기듯 진루합니다. (+{gained}점)")
+                
             if gained > 0: self.update_live_scoreboard(gained)
-            self.game_log.append(log_prefix + f"🌟 피안타! (+{gained}점)")
+            
         else:
             if roll > (hit_prob + hr_prob) and random.random() < 0.25:
                 if self.strike < 2: 
