@@ -849,7 +849,7 @@ class PureKboEngine:
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
-        bat = self.enemy_batter_number
+        bat = self.enemy_batter_number #함수 시작과 동시에 bat 등록 
         
         p_my = self.get_current_my_pitcher()
 
@@ -877,6 +877,7 @@ class PureKboEngine:
                 self.process_walk(is_defense=True)
             return
 
+        #상대팀 공격 확률 상향 
         enemy_hit_base = enemy_stats["hit"] * 0.0025
         enemy_hr_base = enemy_stats["homerun"] * 0.0012
 
@@ -892,7 +893,8 @@ class PureKboEngine:
             hr_prob *= 0.20
         
         roll = random.random()
-
+        
+        #분기 발생
         if roll < hr_prob:
             self.add_stat("H")
             self.enemy_batter_number = 1 if bat == 9 else bat + 1
@@ -936,6 +938,36 @@ class PureKboEngine:
                     self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
 
+            #실책 추가 
+            error_prob = 0.04 + (100 - my_stats["defense"]) * 0.001
+            if p_my.stamina < (p_my.max_stamina * 0.3):
+                error_prob += 0.03
+
+            if random.random() < error_prob:
+                # 타석 카운트 초기화 및 다음 타자로 체인지 (실책으로 출루했으므로 타석 종료)
+                self.enemy_batter_number = 1 if bat == 9 else bat + 1
+                self.strike = 0
+                self.ball = 0
+                self.add_stat("E") # 팀 실책 스탯 가산
+                
+                # 실책으로 인한 주자 진루 연산 (안타와 유사하게 한 루씩 밀어내기/이동)
+                gained = 0
+                if self.base3: gained += 1; self.base3 = False
+                if self.base2: self.base3 = True; self.base2 = False
+                if self.base1: self.base2 = True
+                self.base1 = True # 타자는 실책으로 1루 출루
+                
+                if gained > 0: self.update_live_scoreboard(gained)
+                
+                err_log = random.choice([
+                    "⚠️ [치명적 실책] 평범한 내야 땅볼! 그러나 1루수의 포구 실책이 나오며 타자가 살아나갑니다! 😱",
+                    "⚠️ [송구 실책] 유격수가 타구를 잘 잡았으나 1루에 악송구를 범했습니다! 공이 뒤로 빠집니다! 😭",
+                    "⚠️ [알까기 실책] 외야 플라이성 타구! 어처구니없게도 좌익수가 공을 글러브에서 떨어뜨립니다!"
+                ])
+                self.game_log.append(log_prefix + err_log + (f" (+{gained}점)" if gained > 0 else ""))
+                return # 아웃카운트 증가 없이 함수 강제 종료!
+                
+            #실책을 피했을 때 아웃카운트 가산 
             self.enemy_batter_number = 1 if bat == 9 else bat + 1 
             self.strike = 0
             self.ball = 0
