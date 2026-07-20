@@ -822,11 +822,40 @@ class PureKboEngine:
                     self.update_live_scoreboard(gained)
                     
             elif res == "OUT":
+                #상대팀 수비 실책 
                 error_rate = max(0.01, 0.05 - (enemy_stats["defense"] * 0.0005))
+                
                 if random.random() < error_rate:
-                    self.process_error(log_prefix, bat)
+                    self.strike = 0
+                    self.ball = 0
+                    #아웃 없이 다음 타자로 
+                    bat = self.my_batter_number #실책 구역용 
+                    self.my_batter_number = 1 if bat == 9 else bat + 1
+                    
+                    #주자 진루 처리
+                    gained = 0
+                    if self.base3: gained += 1; self.base3 = False
+                    if self.base2: self.base3 = True; self.base2 = False
+                    if self.base1: self.base2 = True
+                    self.base1 = True
+                
+                    if gained > 0: self.update_live_scoreboard(gained)
+                
+                    enemy_err_log = random.choice([
+                    "🔥 [상대 실책 대박] 평범한 땅볼 타구! 그런데 상대 내야수가 송구 실책을 저지르며 타자가 안전하게 1루를 밟습니다! 🤩",
+                    "🔥 [상대 알까기] 완전히 잡힌 플라이 타구였으나, 상대 외야수가 낙구 지점을 놓치며 글러브에서 공을 떨어뜨립니다! 행운의 출루!",
+                    "🔥 [상대 야수 선택 에러] 상대 유격수가 볼을 더듬는 사이 주자와 타자 모두 세이프! 수비 집중력이 무너집니다!"
+                ])
+                    self.game_log.append(log_prefix + b_ctx + match_msg + enemy_err_log + (f" (+{gained}점)" if gained > 0 else ""))
+                    return # 💥 아웃 카운트를 올리지 않고 기분 좋게 턴 종료!
+                         
                 else:
                     out_roll = random.random()
+
+                    self.strike = 0
+                    self.ball = 0
+                    bat = self.my_batter_number
+                    self.my_batter_number = 1 if bat == 9 else bat + 1 
                     
                     if self.base1 and self.out_count < 2 and random.random() < 0.25:
                         self.out_count += 2; self.base1 = False
@@ -836,6 +865,7 @@ class PureKboEngine:
                         self.out_count += 1; self.base3 = False
                         self.update_live_scoreboard(1)
                         self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 희생플라이 타점.")
+                    
                     else:
                         self.out_count += 1
                         if is_contact_pest:
