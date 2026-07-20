@@ -435,12 +435,10 @@ class PureKboEngine:
         if score_diff > 0:
             if 6 <= self.inning <= 7:
                 next_idx = 4 if score_diff <= 3 else 1 #박빙이면 필승조 1번, 크게 이기면 롱릴리프 
-            elif self.inning == 8 and 1 <= score_diff <= 3:
-                next_idx = 5 # 셋업맨
-            elif self.inning >= 9 and 1 <= score_diff <= 3:
-                next_idx = 6 # 마무리
-            elif self.inning >= 8 and score_diff >= 4:
-                next_idx = 3 # 중간계투 
+            elif self.inning == 8:
+                next_idx = 5 if score_diff <= 3 else 3 #박빙이면 셋업맨, 크게 이기면 중간계투
+            elif self.inning >= 9:
+                next_idx = 6 #9회 이상 리드이면 마무리 
                 
         # 2️⃣ 비기고 있는 경우 (동점)
         elif score_diff == 0:
