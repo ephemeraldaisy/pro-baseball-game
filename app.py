@@ -868,7 +868,7 @@ class PureKboEngine:
         enemy_hit_base = enemy_stats["hit"] * 0.0025
         enemy_hr_base = enemy_stats["homerun"] * 0.0012
 
-        hit_prob = 0.25 + (enemy_hit_base = my_stats["defense"] * 0.001) + penalty + matchup_mod
+        hit_prob = 0.25 + (enemy_hit_base - my_stats["defense"] * 0.001) + penalty + matchup_mod
         hr_prob = 0.03 + enemy_hr_base + (matchup_mod * 0.01)
 
         if self.base2 or self.base3:
