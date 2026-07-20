@@ -839,6 +839,8 @@ class PureKboEngine:
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
+        bat = self.enemy_batter_number
+        
         p_my = self.get_current_my_pitcher()
 
         hbp_probability = 0.01
@@ -892,7 +894,6 @@ class PureKboEngine:
             self.game_log.append(log_prefix + f"💥 실투 실점! {pts}점 홈런 허용.")
             
         elif roll < (hit_prob + hr_prob):
-            bat = self.enemy_batter_number
             self.enemy_batter_number = 1 if bat == 9 else bat + 1
             self.strike = 0; self.ball = 0  # 인플레이 안타 종료 시에만 초기화!
             self.add_stat("H")
@@ -925,7 +926,6 @@ class PureKboEngine:
                     self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
 
-            bat = self.enemy_batter_number
             self.enemy_batter_number = 1 if bat == 9 else bat + 1 
             self.strike = 0
             self.ball = 0
