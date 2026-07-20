@@ -879,10 +879,73 @@ class PureKboEngine:
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
-        bat = self.enemy_batter_number #함수 시작과 동시에 bat 등록 
-        
+        bat = self.enemy_batter_number #함수 시작과 동시에 bat 등록  
         p_my = self.get_current_my_pitcher()
 
+        #상대 팀 도루와 아군의 도루 저지
+        # 3루가 비어있고, 1루나 2루에 주자가 있을 때 도루 시도 조건 성립 (단, 3아웃 상황 제외)
+        if (self.base1 or self.base2) and not self.base3 and self.out_count < 3:
+            # 경기 후반 박빙이거나 지고 있을 때 상대가 더 공격적으로 도루 시도 (기본 8% 확률)
+            steal_attempt_prob = 0.08
+            if self.inning >= 6 and (self.our_score - self.enemy_score) <= 2:
+                steal_attempt_prob += 0.05
+                
+            if random.random() < steal_attempt_prob:
+                # 🚨 [확률 분기] 3루에 주자가 있고 1%의 극악의 확률이 뚫렸을 때 '기습 홈스틸' 발동!
+                if self.base3 and random.random() < 0.01:
+                    self.game_log.append(log_prefix + "🔥 [🚨 비상사태!! 홈스틸 시도] 투수가 와인드업에 들어간 순간, 3루 주자가 홈으로 무모하게 몸을 던졌습니다!!! 전 관중 기립!!!")
+                    
+                    # 홈스틸 저지율 (포수와 투수의 완벽한 호흡 필요, 기본적으로 세이프 확률이 극히 낮음)
+                    home_cs_rate = 0.75 + (my_stats["defense"] - 65) * 0.002
+                    if p_my.stamina < (p_my.max_stamina * 0.3):
+                        home_cs_rate -= 0.10
+                    home_cs_rate = max(0.40, min(0.95, home_cs_rate))
+                    
+                    if random.random() < home_cs_rate:
+                        # 🛑 홈에서 태그 아웃!
+                        self.out_count += 1
+                        self.base3 = False
+                        self.game_log.append(log_prefix + "⚡ [도루 저지 성공] 투수의 재빠른 홈 송구!! 포수가 홈 플레이트를 슬라이딩하던 주자를 완벽하게 블로킹하며 태그 아웃시켰습니다! 아웃! 😤")
+                        self.check_three_out_change()
+                        return
+                    else:
+                        # 💨 홈스틸 대성공!
+                        self.base3 = False
+                        self.update_live_scoreboard(1)
+                        self.game_log.append(log_prefix + "😱 [상대 홈스틸 성공] 세상에 이런 일이!! 투수의 허점을 완벽하게 찌르고 3루 주자가 홈을 훔쳐냈습니다! 상대 팀의 미친 승부수 적중! (+1점)")
+                        # 홈스틸 성공 후 주자만 사라진 채로 원래 예정된 투구 계속 진행
+                        
+                # 🏃‍♂️ 일반 도루 (1루 혹은 2루 주자 진루 연산)
+                elif (self.base1 or self.base2) and not self.base3:
+                    self.game_log.append(log_prefix + "🏃‍♂️ [상대 기습 도루] 앗! 투수가 와인드업에 들어간 순간, 루상의 주자가 다음 베이스로 스타트를 끊었습니다!!")
+                    
+                    cs_rate = 0.30 + (my_stats["defense"] - 65) * 0.003
+                    if p_my.stamina < (p_my.max_stamina * 0.3):
+                        cs_rate -= 0.08
+                    cs_rate = max(0.10, min(0.70, cs_rate))
+                    
+                    is_3rd_steal = self.base2
+                    
+                    if random.random() < cs_rate:
+                        self.out_count += 1
+                        if is_3rd_steal:
+                            self.base2 = False
+                            self.game_log.append(log_prefix + "⚡ [도루 저지 성공] 포수가 총알 같은 3루 송구로 슬라이딩하던 주자를 저격했습니다! 아웃! 😤")
+                        else:
+                            self.base1 = False
+                            self.game_log.append(log_prefix + "⚡ [도루 저지 성공] 우리 포수의 앉아쏴 레이저 송구!! 2루에서 주자를 지워버립니다! 아웃! ⚾")
+                        self.check_three_out_change()
+                        return
+                    else:
+                        if is_3rd_steal:
+                            self.base3 = True; self.base2 = False
+                            self.game_log.append(log_prefix + "💨 [도루 허용] 상대 2루 주자가 기가 막힌 타이밍에 3루를 훔쳐냈습니다. 3루 위기!")
+                        else:
+                            self.base2 = True; self.base1 = False
+                            self.game_log.append(log_prefix + "💨 [도루 허용] 투수의 모션을 완전히 빼앗겼습니다! 상대 주자 2루 안착.")
+
+
+        #몸에 맞는공과 헤드샷        
         hbp_probability = 0.01
         if p_my.stamina < (p_my.max_stamina * 0.4):
             hbp_probability += 0.02
