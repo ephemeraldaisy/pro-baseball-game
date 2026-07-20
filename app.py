@@ -1101,15 +1101,61 @@ def main() -> None:
         
         # 세이브 발급
         with st.expander("🔑 세이브 코드 발급"):
-            st.write("메모장 등에 코드를 복사하여 영구 보관하십시오.")
-            save_data = {
-                "diamonds": st.session_state.nc_diamonds,
-                "my_team": st.session_state.my_team
-            }
-            json_str = json.dumps(save_data)
-            encoded_code = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
-            st.code(encoded_code, language="text")
-            st.caption("위 코드를 더블클릭해 복사하세요!")
+            if st.session_state.full_kbo_engine is None:
+                st.caption("경기가 시작된 후에 중간 저장이 가능합니다. ")
+            else:
+                st.write("현재 경기 상황과 투수 체력까지 모두 저장됩니다. 코드를 복사해 보관하세요.")
+                game = st.session_state.full_kbo_engine
+
+                # 아군 불펜진 실시간 상태 추출
+                my_pitchers_data = [
+                    {"name": p.name, "role": p.role, "max_stamina": p.max_stamina, "stamina": p.stamina, "pitches_thrown": p.pitches_thrown}
+                    for p in game.my_pitchers
+                ]
+                # 적군 불펜진 실시간 상태 추출
+                enemy_pitchers_data = [
+                    {"name": p.name, "role": p.role, "max_stamina": p.max_stamina, "stamina": p.stamina, "pitches_thrown": p.pitches_thrown}
+                    for p in game.enemy_pitchers
+                ]
+                #세이브할 데이터 
+                save_data = {
+                    "diamonds": st.session_state.nc_diamonds,
+                    "my_team": st.session_state.my_team,
+                    "enemy_team": game.enemy_team,
+                    "is_home_team": game.is_home_team,
+                    "our_score": game.our_score,
+                    "enemy_score": game.enemy_score,
+                    "away_stats": game.away_stats,
+                    "home_stats": game.home_stats,
+                    "inning": game.inning,
+                    "phase": game.phase,
+                    "my_batter_number": game.my_batter_number,
+                    "enemy_batter_number": game.enemy_batter_number,
+                    "our_total_pitches": game.our_total_pitches,
+                    "enemy_total_pitches": game.enemy_total_pitches,
+                    "strike": game.strike,
+                    "ball": game.ball,
+                    "out_count": game.out_count,
+                    "base1": game.base1,
+                    "base2": game.base2,
+                    "base3": game.base3,
+                    "away_inning_scores": game.away_inning_scores,
+                    "home_inning_scores": game.home_inning_scores,
+                    "game_log": game.game_log,
+                    "pitch_history": game.pitch_history,
+                    "chzzk_chats": game.chzzk_chats,
+                    "hit_buff": game.hit_buff,
+                    "my_pitcher_idx": game.my_pitcher_idx,
+                    "my_used_pitchers": list(game.my_used_pitchers), # JSON 변환을 위해 list로 직렬화
+                    "my_pitchers": my_pitchers_data,
+                    "enemy_pitcher_idx": game.enemy_pitcher_idx,
+                    "enemy_used_pitchers": list(game.enemy_used_pitchers),
+                    "enemy_pitchers": enemy_pitchers_data
+                }
+                json_str = json.dumps(save_data, ensure_ascii=False)
+                encoded_code = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+                st.code(encoded_code, language="text")
+                st.caption("위 코드를 더블클릭해 복사하세요!")
 
             # 로드 실행
         with st.expander("🔓 코드 불러오기"):
@@ -1123,6 +1169,55 @@ def main() -> None:
                         
                         st.session_state.nc_diamonds = data.get("diamonds", 1000)
                         st.session_state.my_team = data.get("my_team", "💖 핑크 돌핀스")
+
+                        loaded_game = PureKboEngine(data["my_team"], data["enemy_team"])
+
+                        # 3. 실시간 경기 스코어 및 변수 덮어쓰기 복구
+                        loaded_game.is_home_team = data["is_home_team"]
+                        loaded_game.our_score = data["our_score"]
+                        loaded_game.enemy_score = data["enemy_score"]
+                        loaded_game.away_stats = data["away_stats"]
+                        loaded_game.home_stats = data["home_stats"]
+                        loaded_game.inning = data["inning"]
+                        loaded_game.phase = data["phase"]
+                        loaded_game.my_batter_number = data["my_batter_number"]
+                        loaded_game.enemy_batter_number = data["enemy_batter_number"]
+                        loaded_game.our_total_pitches = data["our_total_pitches"]
+                        loaded_game.enemy_total_pitches = data["enemy_total_pitches"]
+                        loaded_game.strike = data["strike"]
+                        loaded_game.ball = data["ball"]
+                        loaded_game.out_count = data["out_count"]
+                        loaded_game.base1 = data["base1"]
+                        loaded_game.base2 = data["base2"]
+                        loaded_game.base3 = data["base3"]
+                        loaded_game.away_inning_scores = data["away_inning_scores"]
+                        loaded_game.home_inning_scores = data["home_inning_scores"]
+                        loaded_game.game_log = data["game_log"]
+                        loaded_game.pitch_history = data["pitch_history"]
+                        loaded_game.chzzk_chats = data["chzzk_chats"]
+                        loaded_game.hit_buff = data["hit_buff"]
+
+                        # 4. 🔥 [핵심] 투수진 객체화 복구 및 락(Lock) 상태 복원
+                        loaded_game.my_pitcher_idx = data["my_pitcher_idx"]
+                        loaded_game.my_used_pitchers = set(data["my_used_pitchers"])
+                        loaded_game.my_pitchers = []
+                        for p_dict in data["my_pitchers"]:
+                            p_obj = PitcherDomain(p_dict["name"], p_dict["role"], p_dict["max_stamina"])
+                            p_obj.stamina = p_dict["stamina"]
+                            p_obj.pitches_thrown = p_dict["pitches_thrown"]
+                            loaded_game.my_pitchers.append(p_obj)
+                            
+                        loaded_game.enemy_pitcher_idx = data["enemy_pitcher_idx"]
+                        loaded_game.enemy_used_pitchers = set(data["enemy_used_pitchers"])
+                        loaded_game.enemy_pitchers = []
+                        for p_dict in data["enemy_pitchers"]:
+                            p_obj = PitcherDomain(p_dict["name"], p_dict["role"], p_dict["max_stamina"])
+                            p_obj.stamina = p_dict["stamina"]
+                            p_obj.pitches_thrown = p_dict["pitches_thrown"]
+                            loaded_game.enemy_pitchers.append(p_obj)
+                        
+                        # 5. 세션 엔진 최종 교체 완료
+                        st.session_state.full_kbo_engine = loaded_game
                         
                         st.toast("🎉 데이터 복구 성공! 로드가 완료되었습니다핑!", icon="💾")
                         st.rerun()
