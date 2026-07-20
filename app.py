@@ -416,6 +416,9 @@ class PureKboEngine:
 
     def evaluate_pitcher_scenario(self, is_defense: bool) -> int:
         """현재 이닝, 점수차를 계산하여 시나리오 트리에 맞는 투수 인덱스를 반환합니다."""
+
+        used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
+        
         if is_defense:
             score_diff = self.our_score - self.enemy_score
             current_idx = self.my_pitcher_idx
@@ -433,44 +436,62 @@ class PureKboEngine:
 
         #연장전
         if self.inning >= 10:
-            if score_diff == 0:
-                # 동점 상황: 무조건 셋업맨(5)이나 마무리(6) 중 남은 투수 투입 (우선순위 마무리)
-                return 6 if 6 not in self.used_pitchers else (5 if 5 not in self.used_pitchers else 4)
-            elif score_diff > 0:
-                # 우리가 이기고 있다면: 문 잠가야 하므로 무조건 마무리(6) -> 셋업(5)
-                return 6 if 6 not in self.used_pitchers else (5 if 5 not in self.used_pitchers else 4)
+            if score_diff >= 0:
+                # 동점이거나 이기고 있다면: 경기 문을 잠가야 하므로 마무리(6) -> 셋업(5) -> 필승조(4)
+                for idx in [6, 5, 4]:
+                    if idx not in used_set: return idx
+                # 필승조가 전부 전멸했다면 추격조 중 가장 구위가 좋은 3번(좌완) -> 1번 순으로 투입
+                for idx in [3, 1, 2]:
+                    if idx not in used_set: return idx
             else:
-                # 우리가 지고 있다면: 추격해야 하므로 중간계투 최고 존엄(4) 혹은 셋업(5)으로 버티기
-                return 4 if 4 not in self.used_pitchers else (3 if 3 not in self.used_pitchers else 2)
-        
+                # 지고 있다면: 따라붙어야 하므로 중간계투 최고 존엄(4) 혹은 셋업(5)으로 실점 억제
+                for idx in [4, 5, 3]:
+                    if idx not in used_set: return idx
+                for idx in [1, 2, 6]:
+                    if idx not in used_set: return idx
+                        
         # 1️⃣ 이기고 있는 경우
         if score_diff > 0:
             if 6 <= self.inning <= 7:
-                next_idx = 4 if score_diff <= 3 else 1 #박빙이면 필승조 1번, 크게 이기면 롱릴리프 
+                # 3점 차 이하 박빙이면 필승조 1번(4), 크게 이기면 롱릴리프(1)
+                target = 4 if score_diff <= 3 else 1
+                return target if target not in used_set else 3
             elif self.inning == 8:
-                next_idx = 5 if score_diff <= 3 else 3 #박빙이면 셋업맨, 크게 이기면 중간계투
+                # 3점 차 이하 박빙이면 셋업맨(5), 크게 이기면 중간계투(3)
+                target = 5 if score_diff <= 3 else 3
+                return target if target not in used_set else 4
             elif self.inning >= 9:
-                next_idx = 6 #9회 이상 리드이면 마무리 
+                # 9회 이상 리드는 점수 차 무관하게 무조건 마무리 클로저(6) 등판!
+                return 6 if 6 not in used_set else 5
                 
         # 2️⃣ 비기고 있는 경우 (동점, 9회 이하)
         elif score_diff == 0:
-            # CASE 2-B: 9회 말 홈팀 수비 상황(1점 주면 끝내기 패배 위기)이거나 10회 이후 연장전일 때
-            if (self.inning == 9 and self.phase == "말" and is_home_defense) or self.inning > 9:
-                next_idx = 6 # 마무리 조기 투입
-            elif 6 <= self.inning <= 8:
-                next_idx = 4 # 필승조 1번 투입
+            if 6 <= self.inning <= 7:
+                # 중간에서 버텨줄 좌완/중간계투(3) 호출
+                return 3 if 3 not in used_set else 1
+            elif self.inning >= 8:
+                # 8~9회 동점은 사실상 한 점 싸움이므로 필승조(5번 셋업맨 또는 4번) 가동
+                return 5 if 5 not in used_set else (4 if 4 not in used_set else 3)
                 
         # 3️⃣ 지고 있는 경우, 9회 이하 
         else:
             abs_diff = abs(score_diff)
+            # 7회 이상 8점 차 이상 대참사면 야수 등판 처리 트리거 (-99)
             if self.inning >= 7 and abs_diff >= 8:
-                return -99 # 야구등판
+                return -99 
             elif 1 <= abs_diff <= 3:
-                next_idx = 1 # 추격조 1번
+                # 역전 사정권이므로 롱릴리프(1)로 실점 억제하며 추격
+                return 1 if 1 not in used_set else 3
             elif 4 <= abs_diff <= 7:
-                next_idx = 2 # 추격조 2번
+                # 점수 차가 크므로 순수 패전처리(2)를 올려 이닝 소모
+                return 2 if 2 not in used_set else 1
 
-        return 3 
+        # 모든 시나리오 조건에서 락(Lock)에 걸려 리턴에 실패할 경우, 사용 가능한 투수 무작위 색출
+        for idx in range(1, 7):
+            if idx not in used_set:
+                return idx
+                
+        return 2 # 불펜이 완전히 전멸했을 때 최종 디폴트 패전처리 반환 
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
         # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
