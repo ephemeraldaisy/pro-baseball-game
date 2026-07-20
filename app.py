@@ -628,8 +628,20 @@ class PureKboEngine:
         
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
-        
-        total_buff = matchup_mod + self.hit_buff + 0.02 + mental_penalty 
+
+        #승부처 하위 타선 대타 
+        pinch_hit_buff = 0.0
+        if self.inning >= 6:
+            score_diff = self.our_score - self.enemy_score
+            # 6회 이후 비기고 있거나, 2점 차 이내 박빙이거나, 지고 있을 때 하위 타선(7, 8, 9번) 등장 시
+            if score_diff <= 2 and self.my_batter_number in [7, 8, 9]:
+                # 35%의 전술적 확률로 대타 요원 대기석에서 박차고 등판!
+                if random.random() < 0.35:
+                    pinch_hit_buff = 0.07  # 타격 기본 베이스 확률 +7.0% 가산
+                    b_ctx = f"[{self.my_batter_number}번 대타 요원] "  # 로그 식별자 변경
+                    self.game_log.append(log_prefix + f"🔄 [대타 작전 발동] ⚡ 감독님의 신의 한 수! 승부처 득점을 위해 {self.my_batter_number}번 타자 자리에 '해결사 대타'를 대기석에서 긴급 투입합니다!")
+                   
+        total_buff = matchup_mod + self.hit_buff + 0.02 + mental_penalty + pinch_hit_buff
 
         hbp_probability = 0.005
         if p_en.stamina < (p_en.max_stamina * 0.4):
