@@ -183,7 +183,7 @@ class PureKboEngine:
         self.enemy_pitchers = [
             random.choice(enemy_sp_pool),
             PitcherDomain("상대 추격조 1번", "추격조", 45),
-            PitcherDomain("상대 패전처리", "추격조", 40),
+            PitcherDomain("상대 추격조 2번(패전처리)", "추격조", 40),
             PitcherDomain("상대 중간계투", "추격조", 35),
             PitcherDomain("상대 필승조 1번", "필승조", 35),
             PitcherDomain("상대 셋업맨", "필승조", 30),
@@ -430,6 +430,18 @@ class PureKboEngine:
             is_home_defense = (self.phase == "말" and not self.is_home_team) or (self.phase == "초" and self.is_home_team)
 
         next_idx = current_idx
+
+        #연장전
+        if self.inning >= 10:
+            if score_diff == 0:
+                # 동점 상황: 무조건 셋업맨(5)이나 마무리(6) 중 남은 투수 투입 (우선순위 마무리)
+                return 6 if 6 not in self.used_pitchers else (5 if 5 not in self.used_pitchers else 4)
+            elif score_diff > 0:
+                # 우리가 이기고 있다면: 문 잠가야 하므로 무조건 마무리(6) -> 셋업(5)
+                return 6 if 6 not in self.used_pitchers else (5 if 5 not in self.used_pitchers else 4)
+            else:
+                # 우리가 지고 있다면: 추격해야 하므로 중간계투 최고 존엄(4) 혹은 셋업(5)으로 버티기
+                return 4 if 4 not in self.used_pitchers else (3 if 3 not in self.used_pitchers else 2)
         
         # 1️⃣ 이기고 있는 경우
         if score_diff > 0:
@@ -440,7 +452,7 @@ class PureKboEngine:
             elif self.inning >= 9:
                 next_idx = 6 #9회 이상 리드이면 마무리 
                 
-        # 2️⃣ 비기고 있는 경우 (동점)
+        # 2️⃣ 비기고 있는 경우 (동점, 9회 이하)
         elif score_diff == 0:
             # CASE 2-B: 9회 말 홈팀 수비 상황(1점 주면 끝내기 패배 위기)이거나 10회 이후 연장전일 때
             if (self.inning == 9 and self.phase == "말" and is_home_defense) or self.inning > 9:
@@ -448,7 +460,7 @@ class PureKboEngine:
             elif 6 <= self.inning <= 8:
                 next_idx = 4 # 필승조 1번 투입
                 
-        # 3️⃣ 지고 있는 경우
+        # 3️⃣ 지고 있는 경우, 9회 이하 
         else:
             abs_diff = abs(score_diff)
             if self.inning >= 7 and abs_diff >= 8:
@@ -457,6 +469,8 @@ class PureKboEngine:
                 next_idx = 1 # 추격조 1번
             elif 4 <= abs_diff <= 7:
                 next_idx = 2 # 추격조 2번
+
+        return 3 
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
         # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
@@ -1400,7 +1414,7 @@ def main() -> None:
                 st.error("⚠️ assets/team_stories.txt 파일 누락.")
 
         st.divider()
-        st.header("💡 [Guide] 전술 매뉴얼")
+        st.header("💡 전술 매뉴얼")
         if st.button("가이드 열람"):
             if os.path.exists("assets/game_tips.txt"):
                 with open("assets/game_tips.txt", "r", encoding="utf-8") as f:
