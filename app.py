@@ -766,14 +766,11 @@ class PureKboEngine:
         
         if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.07: 
             res = "OUT"
-
-        base_hit_prob = 0.22
-        base_hr_prob = 0.03
-        
+            
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
             pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
-            if random.random() < (total_buff * 0.20 * pitcher_stamina_factor): 
+            if random.random() < (total_buff * 0.12 * pitcher_stamina_factor): 
                 res = "HIT"
         
         if res == "MISS":
