@@ -478,7 +478,13 @@ class PureKboEngine:
             elif self.inning == 8:
                 target = 6 #셋업맨
             else:  # 9회
-                target = 7 #클로저
+                if 7 not in used_set:
+                    return 7 #마무리 등판
+                elif 6 not in used_Set:
+                    return 6 #마무리 쓰면 셋업맨
+                else:
+                    target = 5
+                
         elif score_diff >= 4:  # 큰 차이로 이기는 경우
             if self.inning <= 6:
                 target = 1
