@@ -416,23 +416,10 @@ class PureKboEngine:
 
     def evaluate_pitcher_scenario(self, is_defense: bool) -> int:
         """현재 이닝, 점수차를 계산하여 시나리오 트리에 맞는 투수 인덱스를 반환합니다."""
+        if "is_defense" in kwargs:
+            is_enemy = not kwargs["is_defense"]
 
         used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
-        
-        if is_defense:
-            score_diff = self.our_score - self.enemy_score
-            current_idx = self.my_pitcher_idx
-            used_set = self.my_used_pitchers
-            # 수비할 때 우리가 홈팀인지 여부 (phase == '말'이면 홈팀 수비)
-            is_home_defense = (self.phase == "말" and self.is_home_team) or (self.phase == "초" and not self.is_home_team)
-        else:
-            score_diff = self.enemy_score - self.our_score
-            current_idx = self.enemy_pitcher_idx
-            used_set = self.enemy_used_pitchers
-            # 상대가 수비할 때 상대가 홈팀인지 여부
-            is_home_defense = (self.phase == "말" and not self.is_home_team) or (self.phase == "초" and self.is_home_team)
-
-        next_idx = current_idx
 
         #연장전
         if self.inning >= 10:
@@ -450,7 +437,8 @@ class PureKboEngine:
                 for idx in [1, 2, 6]:
                     if idx not in used_set: return idx
                         
-        # 1️⃣ 이기고 있는 경우
+        # 정규 이닝 (9회 이내)
+        # 1️⃣ 이기고 있는 경우 
         if score_diff > 0:
             if 6 <= self.inning <= 7:
                 # 3점 차 이하 박빙이면 필승조 1번(4), 크게 이기면 롱릴리프(1)
@@ -774,6 +762,10 @@ class PureKboEngine:
         
         if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.07: 
             res = "OUT"
+
+        base_hit_prob = 0.22
+        base_hr_prob = 0.03
+        
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
             pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
@@ -1006,11 +998,11 @@ class PureKboEngine:
             return
 
         #상대팀 공격 확률 상향 
-        enemy_hit_base = enemy_stats["hit"] * 0.0025
-        enemy_hr_base = enemy_stats["homerun"] * 0.0012
+        enemy_hit_base = enemy_stats["hit"] * 0.0022
+        enemy_hr_base = enemy_stats["homerun"] * 0.0010
 
-        hit_prob = 0.25 + (enemy_hit_base - my_stats["defense"] * 0.001) + penalty + matchup_mod
-        hr_prob = 0.03 + enemy_hr_base + (matchup_mod * 0.01)
+        hit_prob = 0.23 + (enemy_hit_base - my_stats["defense"] * 0.0015) + penalty + matchup_mod
+        hr_prob = 0.02 + enemy_hr_base + (matchup_mod * 0.01)
 
         if self.base2 or self.base3:
             hit_prob += 0.06
