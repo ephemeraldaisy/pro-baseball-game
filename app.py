@@ -444,8 +444,6 @@ class PureKboEngine:
         if "is_defense" in kwargs:
             is_defense = kwargs["is_defense"]
 
-        is_enemy = not is_defense
-
         if score_diff is None:
             if is_defense:
                 score_diff = self.our_score - self.enemy_score
@@ -453,6 +451,8 @@ class PureKboEngine:
             else:
                 score_diff = self.enemy_score - self.our_score
                 is_enemy = True
+        else:
+            is_enemy = not is_defense 
 
         used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
         target = 1
@@ -914,6 +914,8 @@ class PureKboEngine:
                 if random.random() < error_rate:
                     self.strike = 0
                     self.ball = 0
+
+                    self.enemy_errors += 1
                     #아웃 없이 다음 타자로 
                     bat = self.my_batter_number #실책 구역용 
                     self.my_batter_number = 1 if bat == 9 else bat + 1
