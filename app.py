@@ -282,24 +282,21 @@ class PureKboEngine:
     def setup_half_inning(self) -> None:
         is_def = getattr(self, 'is_defense', True)
         try: 
-            current_p = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
+            p_def = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
 
-            if current_p.stamina <= 0:
-                if self.is_defense:
+            if p_def.stamina <= 0:
+                next_idx = self.evaluate_pitcher_scenario(is_defense=self.is_def
+                if self.is_def:
                     self.my_pitcher_idx = next_idx
                     self.my_used_pitchers.add(next_idx)
-                    new_p = self.get_current_my_pitcher()
-                    # 불펜이 전멸해서 체력 0인 투수가 다시 올라오면 최소 체력 15 심폐소생!
-                    if new_p.stamina <= 0: 
-                        new_p.stamina = 15 
-                    self.game_log.append(f"🔄 [벤치 비상] 체력이 완전 방전된 투수를 대신해 {new_p.name}(이)가 마운드에 급히 올라옵니다.")
+                    p_new = self.get_current_my_pitcher()
+                    if p_new.stamina <= 0: p_new.stamina = 20
                 else:
                     self.enemy_pitcher_idx = next_idx
                     self.enemy_used_pitchers.add(next_idx)
-                    new_p = self.get_current_enemy_pitcher()
-                    if new_p.stamina <= 0: 
-                        new_p.stamina = 15
-                    self.game_log.append(f"🔄 [상대 벤치] 지친 투수가 내려가고 {new_p.name}(이)가 마운드를 받칩니다.")
+                    p_new = self.get_current_enemy_pitcher()
+                    if new_p.stamina <= 0: new_p.stamina = 20
+                    self.game_log.append(f"🔄 [상대 벤치] 지친 투수가 내려가고 {p_new.name}(이)가 마운드를 받칩니다.")
         except Exception:
             pass 
         if self.game_over: return
@@ -785,16 +782,25 @@ class PureKboEngine:
         is_power_hitter = my_stats.get("homerun", 30) >= 40
         is_contact_pest = (my_stats.get("hit", 65) >= 70 and not is_power_hitter) or (self.my_batter_number in [2, 9])
 
-        base_hit_prob = 0.22 + (my_stats["hit"] * 0.0025 - enemy_stats["defense"] * 0.0010)
-        base_hr_prob = 0.025 + (my_stats["homerun"] * 0.0012)
+        base_hit_prob = 0.20 + (my_stats["hit"] * 0.0020 - enemy_stats["defense"] * 0.0010)
+        base_hr_prob = 0.010 + (my_stats["homerun"] * 0.0008)
         
-        if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.07: 
-            res = "OUT"           
+        if res == "HR":
+            if total_buff > 0 and random.random() < 0.35:
+                res = "HR"
+            elif total_buff > 0:
+                res = "HIT"
+            else:
+                res = "OUT" 
+
+        elif res == "HIT" and total_buff < 0 and random.random() < 0.20:
+            res = "OUT" 
+            
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
             pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
             
-            if random.random() < (total_buff * 0.10 * pitcher_stamina_factor): 
+            if random.random() < (total_buff * 0.05 * pitcher_stamina_factor): 
                 res = "HIT"
         
         if res == "MISS":
@@ -1027,11 +1033,11 @@ class PureKboEngine:
             return
 
         #상대팀 공격 확률 상향 
-        enemy_hit_base = enemy_stats["hit"] * 0.0025
-        enemy_hr_base = enemy_stats["homerun"] * 0.0012
+        enemy_hit_base = enemy_stats["hit"] * 0.0020
+        enemy_hr_base = enemy_stats["homerun"] * 0.0010
 
-        hit_prob = 0.22 + (enemy_hit_base - my_stats["defense"] * 0.0010) + penalty + matchup_mod
-        hr_prob = 0.02 + enemy_hr_base + (matchup_mod * 0.01)
+        hit_prob = 0.20 + (enemy_hit_base - my_stats["defense"] * 0.0010) + penalty + matchup_mod
+        hr_prob = 0.015 + enemy_hr_base + (matchup_mod * 0.01)
 
         if p_my.stamina < (p_my.max_stamina * 0.5):
             hit_prob += 0.03
@@ -1045,8 +1051,8 @@ class PureKboEngine:
             hit_prob *= 0.48
             hr_prob *= 0.12
 
-        hit_prob = max(0.10, min(0.48, hit_prob))
-        hr_prob = max(0.005, min(0.12, hr_prob))
+        hit_prob = max(0.08, min(0.42, hit_prob))
+        hr_prob = max(0.005, min(0.10, hr_prob))
         
         roll = random.random()
         
