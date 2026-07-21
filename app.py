@@ -479,12 +479,12 @@ class PureKboEngine:
             # 7회 이상 8점 차 이상 대참사면 야수 등판 처리 트리거 (-99)
             if self.inning >= 7 and abs_diff >= 8:
                 return -99 
+            elif abs_diff <= 4:
+                # 4점차 이상 큰 차이: 패전처리 (2) -> 추격조 (1) 
+                return 2 if 2 not in used_set else (1 if 1 not in used_set else 3)
             elif 1 <= abs_diff <= 3:
-                # 역전 사정권이므로 롱릴리프(1)로 실점 억제하며 추격
-                return 1 if 1 not in used_set else 3
-            elif 4 <= abs_diff <= 7:
-                # 점수 차가 크므로 순수 패전처리(2)를 올려 이닝 소모
-                return 2 if 2 not in used_set else 1
+                # 1-3점차 박빙 열세면 롱릴리프 (1) 실점 억제
+                return 1 if 1 not in used_set else 3 
 
         # 모든 시나리오 조건에서 락(Lock)에 걸려 리턴에 실패할 경우, 사용 가능한 투수 무작위 색출
         for idx in range(1, 7):
