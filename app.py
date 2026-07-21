@@ -162,10 +162,11 @@ class PureKboEngine:
         ]
         self.my_pitchers = [
             random.choice(my_sp_pool), # 🎲 5인 중 랜덤 결정
-            PitcherDomain("추격조(롱릴리프)", "추격조", 45), # 1: 추격조 1 (롱릴리프)
-            PitcherDomain("추격조 2번(패전)", "추격조", 40), # 2: 추격조 2 (순수 패전처리)
+            PitcherDomain("추격조 1번(롱릴리프)", "추격조", 45), # 1: 추격조 1 (롱릴리프)
+            PitcherDomain("추격조 2번(중간계투)", "추격조", 40), # 2: 추격조 2 (순수 패전처리)
             PitcherDomain("추격조 3번(좌완)", "추격조", 35), # 3: 추격조 3 (원포인트/중간계투)
-            PitcherDomain("필승조 1번(안방마님)", "필승조", 35), # 4: 셋업맨 앞을 책임질 필승조
+            PitcherDomain("추격조 4번(추격)", "추격조", 35),
+            PitcherDomain("필승조 1번(마당쇠)", "필승조", 35), # 4: 셋업맨 앞을 책임질 필승조
             PitcherDomain("셋업맨", "필승조", 30),          # 5: 셋업맨 (인덱스 3 -> 5로 이동)
             PitcherDomain("클로저(마무리)", "마무리", 20)     # 6: 마무리 (인덱스 4 -> 6으로 이동)
         ]
@@ -183,8 +184,9 @@ class PureKboEngine:
         self.enemy_pitchers = [
             random.choice(enemy_sp_pool),
             PitcherDomain("상대 추격조 1번", "추격조", 45),
-            PitcherDomain("상대 추격조 2번(패전처리)", "추격조", 40),
-            PitcherDomain("상대 중간계투", "추격조", 35),
+            PitcherDomain("상대 추격조 2번", "추격조", 40),
+            PitcherDomain("상대 추격조 3번", "추격조", 35),
+            PitcherDomain("상대 추격조 4번", "추격조", 35),
             PitcherDomain("상대 필승조 1번", "필승조", 35),
             PitcherDomain("상대 셋업맨", "필승조", 30),
             PitcherDomain("상대 클로저", "마무리", 20)
@@ -454,54 +456,68 @@ class PureKboEngine:
 
         forbidden_indices = set()
         if self.inning < 8:
-            forbidden_indices.add(6)
+            forbidden_indices.add(7)
         if self.inning < 7:
-            forbidden_indices.add(5) 
+            forbidden_indices.add(6) 
+
+        if not (1 <= score_diff <= 3):
+            forbidden_indices.add(6)
+            forbidden_indices.add(7)
             
         #연장전 (10회 이상)
         if self.inning >= 10:
-            candidate_list = [6, 5, 4, 3, 1, 2] if score_diff >= 0 else [4, 5, 3, 1, 2, 6]
+            candidate_list = [7, 6, 5, 4, 3, 2, 1] if (1 <= score_diff <= 3) else [5, 4, 3, 2, 1]
             for idx in candidate_list:
                 if idx not in used_set and idx not in forbidden_indices:
                     return idx
                         
         # 정규 이닝 (9회 이하) 
-        if score_diff > 0:  # 이기고 있는 경우
+        if 1 <= score_diff <= 3:  # 근소하게 이기고 있는 경우 (세이브/홀드)
             if self.inning <= 7:
-                target = 4 if score_diff <= 3 else 1
+                target = 5 #필승조 1번
             elif self.inning == 8:
-                target = 5 if score_diff <= 3 else 3
+                target = 6 #셋업맨
             else:  # 9회
-                target = 6
-        elif score_diff == 0:  # 동점인 경우
-            if self.inning <= 7:
-                target = 3
+                target = 7 #클로저
+        elif score_diff => 4:  # 큰 차이로 이기는 경우
+            if self.inning <= 6:
+                target = 1
+            elif self.inning <= 8:
+                target = 2 if 2 not in used_set else 3
             else:
-                target = 5 if 5 not in used_set else 4
+                target = 4 if 4 not in used_Set else 5
+        elif score_diff == 0:
+            if self.inning <= 6:
+                target = 2
+            elif self.inning <= 8:
+                target = 4
+            else:
+                targer = 5
+
         else:  # 지고 있는 경우 (score_diff < 0)
             abs_diff = abs(score_diff)
             if self.inning >= 7 and abs_diff >= 8:
                 return -99  # 야수 패전처리
             elif abs_diff >= 4:
-                target = 2 if 2 not in used_set else 1
+                target = 3 if 3 not in used_set else 4
             else:
-                target = 1 if 1 not in used_set else 3
+                target = 1 if 1 not in used_set else 2
 
         # 선택된 타겟이 이미 사용되었거나 금지된 투수라면 대체 투수 순차 탐색
         if target not in used_set and target not in forbidden_indices:
             return target
 
         # 순서 및 사용 여부 검증 후 사용 가능한 가장 낮은 인덱스(추격조 우선) 순차 등판
-        for idx in [1, 2, 3, 4, 5, 6]:
+        for idx in [1, 2, 3, 4, 5, 6, 7]:
             if idx not in used_set and idx not in forbidden_indices:
                 return idx
 
         # 7회 이전 비상 상황 시 4, 3번 중 사용 가능한 투수 반환
-        for idx in [3, 4, 1, 2]:
+        for idx in [1, 2, 3, 4, 5]:
             if idx not in used_set:
                 return idx
 
-        return 2 
+        return 1
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
         # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
