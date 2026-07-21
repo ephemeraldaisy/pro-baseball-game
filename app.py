@@ -280,26 +280,28 @@ class PureKboEngine:
     def get_home_score(self) -> int: return self.home_stats["R"]
 
     def setup_half_inning(self) -> None:
+        is_def = getattr(self, 'is_defense', True)
+        try: 
+            current_p = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
 
-        current_p = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
-
-        if current_p.stamina <= 0:
-            if self.is_defense:
-                self.my_pitcher_idx = next_idx
-                self.my_used_pitchers.add(next_idx)
-                new_p = self.get_current_my_pitcher()
-                # 불펜이 전멸해서 체력 0인 투수가 다시 올라오면 최소 체력 15 심폐소생!
-                if new_p.stamina <= 0: 
-                    new_p.stamina = 15 
-                self.game_log.append(f"🔄 [벤치 비상] 체력이 완전 방전된 투수를 대신해 {new_p.name}(이)가 마운드에 급히 올라옵니다.")
-            else:
-                self.enemy_pitcher_idx = next_idx
-                self.enemy_used_pitchers.add(next_idx)
-                new_p = self.get_current_enemy_pitcher()
-                if new_p.stamina <= 0: 
-                    new_p.stamina = 15
-                self.game_log.append(f"🔄 [상대 벤치] 지친 투수가 내려가고 {new_p.name}(이)가 마운드를 받칩니다.")
-            
+            if current_p.stamina <= 0:
+                if self.is_defense:
+                    self.my_pitcher_idx = next_idx
+                    self.my_used_pitchers.add(next_idx)
+                    new_p = self.get_current_my_pitcher()
+                    # 불펜이 전멸해서 체력 0인 투수가 다시 올라오면 최소 체력 15 심폐소생!
+                    if new_p.stamina <= 0: 
+                        new_p.stamina = 15 
+                    self.game_log.append(f"🔄 [벤치 비상] 체력이 완전 방전된 투수를 대신해 {new_p.name}(이)가 마운드에 급히 올라옵니다.")
+                else:
+                    self.enemy_pitcher_idx = next_idx
+                    self.enemy_used_pitchers.add(next_idx)
+                    new_p = self.get_current_enemy_pitcher()
+                    if new_p.stamina <= 0: 
+                        new_p.stamina = 15
+                    self.game_log.append(f"🔄 [상대 벤치] 지친 투수가 내려가고 {new_p.name}(이)가 마운드를 받칩니다.")
+        except Exception:
+            pass 
         if self.game_over: return
         idx = self.inning - 1
         if idx < 12:
