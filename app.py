@@ -479,7 +479,7 @@ class PureKboEngine:
                 target = 6 #셋업맨
             else:  # 9회
                 target = 7 #클로저
-        elif score_diff => 4:  # 큰 차이로 이기는 경우
+        elif score_diff >= 4:  # 큰 차이로 이기는 경우
             if self.inning <= 6:
                 target = 1
             elif self.inning <= 8:
