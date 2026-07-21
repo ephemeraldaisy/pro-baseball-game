@@ -285,7 +285,7 @@ class PureKboEngine:
             p_def = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
 
             if p_def.stamina <= 0:
-                next_idx = self.evaluate_pitcher_scenario(is_defense=self.is_def
+                next_idx = self.evaluate_pitcher_scenario(is_defense=self.is_def)
                 if self.is_def:
                     self.my_pitcher_idx = next_idx
                     self.my_used_pitchers.add(next_idx)
