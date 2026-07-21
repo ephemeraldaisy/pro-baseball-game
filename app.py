@@ -473,6 +473,8 @@ class PureKboEngine:
             for idx in candidate_list:
                 if idx not in used_set and idx not in forbidden_indices:
                     return idx
+
+            return 1 
                         
         # 정규 이닝 (9회 이하) 
         if 1 <= score_diff <= 3:  # 근소하게 이기고 있는 경우 (세이브/홀드)
