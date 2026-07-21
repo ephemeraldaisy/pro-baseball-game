@@ -280,6 +280,26 @@ class PureKboEngine:
     def get_home_score(self) -> int: return self.home_stats["R"]
 
     def setup_half_inning(self) -> None:
+
+        current_p = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
+
+        if current_p.stamina <= 0:
+            if self.is_defense:
+                self.my_pitcher_idx = next_idx
+                self.my_used_pitchers.add(next_idx)
+                new_p = self.get_current_my_pitcher()
+                # 불펜이 전멸해서 체력 0인 투수가 다시 올라오면 최소 체력 15 심폐소생!
+                if new_p.stamina <= 0: 
+                    new_p.stamina = 15 
+                self.game_log.append(f"🔄 [벤치 비상] 체력이 완전 방전된 투수를 대신해 {new_p.name}(이)가 마운드에 급히 올라옵니다.")
+            else:
+                self.enemy_pitcher_idx = next_idx
+                self.enemy_used_pitchers.add(next_idx)
+                new_p = self.get_current_enemy_pitcher()
+                if new_p.stamina <= 0: 
+                    new_p.stamina = 15
+                self.game_log.append(f"🔄 [상대 벤치] 지친 투수가 내려가고 {new_p.name}(이)가 마운드를 받칩니다.")
+            
         if self.game_over: return
         idx = self.inning - 1
         if idx < 12:
@@ -762,14 +782,17 @@ class PureKboEngine:
 
         is_power_hitter = my_stats.get("homerun", 30) >= 40
         is_contact_pest = (my_stats.get("hit", 65) >= 70 and not is_power_hitter) or (self.my_batter_number in [2, 9])
+
+        base_hit_prob = 0.22 + (my_stats["hit"] * 0.0025 - enemy_stats["defense"] * 0.0010)
+        base_hr_prob = 0.025 + (my_stats["homerun"] * 0.0012)
         
         if res in ["HR", "HIT"] and total_buff < 0 and random.random() < 0.07: 
-            res = "OUT"
-            
+            res = "OUT"           
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
             pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
-            if random.random() < (total_buff * 0.12 * pitcher_stamina_factor): 
+            
+            if random.random() < (total_buff * 0.10 * pitcher_stamina_factor): 
                 res = "HIT"
         
         if res == "MISS":
@@ -1002,26 +1025,26 @@ class PureKboEngine:
             return
 
         #상대팀 공격 확률 상향 
-        enemy_hit_base = enemy_stats["hit"] * 0.0040
-        enemy_hr_base = enemy_stats["homerun"] * 0.0022
+        enemy_hit_base = enemy_stats["hit"] * 0.0025
+        enemy_hr_base = enemy_stats["homerun"] * 0.0012
 
-        hit_prob = 0.32 + (enemy_hit_base - my_stats["defense"] * 0.0006) + penalty + matchup_mod
-        hr_prob = 0.04 + enemy_hr_base + (matchup_mod * 0.02)
+        hit_prob = 0.22 + (enemy_hit_base - my_stats["defense"] * 0.0010) + penalty + matchup_mod
+        hr_prob = 0.02 + enemy_hr_base + (matchup_mod * 0.01)
 
         if p_my.stamina < (p_my.max_stamina * 0.5):
-            hit_prob += 0.08
-            hr_prob += 0.03
+            hit_prob += 0.03
+            hr_prob += 0.01
 
         if self.base2 or self.base3:
-            hit_prob += 0.08
-            hr_prob += 0.03
+            hit_prob += 0.04
+            hr_prob += 0.02
         
         if not is_strike_context: 
-            hit_prob *= 0.65
-            hr_prob *= 0.30
+            hit_prob *= 0.48
+            hr_prob *= 0.12
 
-        hit_prob = max(0.12, min(0.72, hit_prob))
-        hr_prob = max(0.01, min(0.30, hr_prob))
+        hit_prob = max(0.10, min(0.48, hit_prob))
+        hr_prob = max(0.005, min(0.12, hr_prob))
         
         roll = random.random()
         
