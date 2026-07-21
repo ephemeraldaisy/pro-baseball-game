@@ -433,65 +433,56 @@ class PureKboEngine:
 
         used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
 
-        #연장전
+        forbidden_indices = set()
+        if self.inning < 8:
+            forbidden_indices.add(6)
+        if self.inning < 7:
+            forbidden_indices.add(5) 
+            
+        #연장전 (10회 이상)
         if self.inning >= 10:
-            if score_diff >= 0:
-                # 동점이거나 이기고 있다면: 경기 문을 잠가야 하므로 마무리(6) -> 셋업(5) -> 필승조(4)
-                for idx in [6, 5, 4]:
-                    if idx not in used_set: return idx
-                # 필승조가 전부 전멸했다면 추격조 중 가장 구위가 좋은 3번(좌완) -> 1번 순으로 투입
-                for idx in [3, 1, 2]:
-                    if idx not in used_set: return idx
-            else:
-                # 지고 있다면: 따라붙어야 하므로 중간계투 최고 존엄(4) 혹은 셋업(5)으로 실점 억제
-                for idx in [4, 5, 3]:
-                    if idx not in used_set: return idx
-                for idx in [1, 2, 6]:
-                    if idx not in used_set: return idx
+            candidate_list = [6, 5, 4, 3, 1, 2] if score_diff >= 0 else [4, 5, 3, 1, 2, 6]
+            for idx in candidate_list:
+                if idx not in used_set and idx not in forbidden_indices:
+                    return idx
                         
-        # 정규 이닝 (9회 이내)
-        # 1️⃣ 이기고 있는 경우 
-        if score_diff > 0:
-            if 6 <= self.inning <= 7:
-                # 3점 차 이하 박빙이면 필승조 1번(4), 크게 이기면 롱릴리프(1)
+        # 정규 이닝 (9회 이하) 
+        if score_diff > 0:  # 이기고 있는 경우
+            if self.inning <= 7:
                 target = 4 if score_diff <= 3 else 1
-                return target if target not in used_set else 3
             elif self.inning == 8:
-                # 3점 차 이하 박빙이면 셋업맨(5), 크게 이기면 중간계투(3)
                 target = 5 if score_diff <= 3 else 3
-                return target if target not in used_set else 4
-            elif self.inning >= 9:
-                # 9회 이상 리드는 점수 차 무관하게 무조건 마무리 클로저(6) 등판!
-                return 6 if 6 not in used_set else 5
-                
-        # 2️⃣ 비기고 있는 경우 (동점, 9회 이하)
-        elif score_diff == 0:
-            if 6 <= self.inning <= 7:
-                # 중간에서 버텨줄 좌완/중간계투(3) 호출
-                return 3 if 3 not in used_set else 1
-            elif self.inning >= 8:
-                # 8~9회 동점은 사실상 한 점 싸움이므로 필승조(5번 셋업맨 또는 4번) 가동
-                return 5 if 5 not in used_set else (4 if 4 not in used_set else 3)
-                
-        # 3️⃣ 지고 있는 경우, 9회 이하 
-        else:
+            else:  # 9회
+                target = 6
+        elif score_diff == 0:  # 동점인 경우
+            if self.inning <= 7:
+                target = 3
+            else:
+                target = 5 if 5 not in used_set else 4
+        else:  # 지고 있는 경우 (score_diff < 0)
             abs_diff = abs(score_diff)
-            # 7회 이상 8점 차 이상 대참사면 야수 등판 처리 트리거 (-99)
             if self.inning >= 7 and abs_diff >= 8:
-                return -99 
-            elif abs_diff <= 4:
-                # 4점차 이상 큰 차이: 패전처리 (2) -> 추격조 (1) 
-                return 2 if 2 not in used_set else (1 if 1 not in used_set else 3)
-            elif 1 <= abs_diff <= 3:
-                # 1-3점차 박빙 열세면 롱릴리프 (1) 실점 억제
-                return 1 if 1 not in used_set else 3 
+                return -99  # 야수 패전처리
+            elif abs_diff >= 4:
+                target = 2 if 2 not in used_set else 1
+            else:
+                target = 1 if 1 not in used_set else 3
 
-        # 모든 시나리오 조건에서 락(Lock)에 걸려 리턴에 실패할 경우, 사용 가능한 투수 무작위 색출
-        for idx in range(1, 7):
+        # 선택된 타겟이 이미 사용되었거나 금지된 투수라면 대체 투수 순차 탐색
+        if target not in used_set and target not in forbidden_indices:
+            return target
+
+        # 순서 및 사용 여부 검증 후 사용 가능한 가장 낮은 인덱스(추격조 우선) 순차 등판
+        for idx in [1, 2, 3, 4, 5, 6]:
+            if idx not in used_set and idx not in forbidden_indices:
+                return idx
+
+        # 7회 이전 비상 상황 시 4, 3번 중 사용 가능한 투수 반환
+        for idx in [3, 4, 1, 2]:
             if idx not in used_set:
                 return idx
-                
-        return 2 # 불펜이 완전히 전멸했을 때 최종 디폴트 패전처리 반환 
+
+        return 2 
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
         # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
@@ -1011,26 +1002,26 @@ class PureKboEngine:
             return
 
         #상대팀 공격 확률 상향 
-        enemy_hit_base = enemy_stats["hit"] * 0.0035
-        enemy_hr_base = enemy_stats["homerun"] * 0.0018
+        enemy_hit_base = enemy_stats["hit"] * 0.0040
+        enemy_hr_base = enemy_stats["homerun"] * 0.0022
 
-        hit_prob = 0.28 + (enemy_hit_base - my_stats["defense"] * 0.0008) + penalty + matchup_mod
-        hr_prob = 0.03 + enemy_hr_base + (matchup_mod * 0.015)
+        hit_prob = 0.32 + (enemy_hit_base - my_stats["defense"] * 0.0006) + penalty + matchup_mod
+        hr_prob = 0.04 + enemy_hr_base + (matchup_mod * 0.02)
 
         if p_my.stamina < (p_my.max_stamina * 0.5):
-            hit_prob += 0.06
-            hr_prob += 0.02
+            hit_prob += 0.08
+            hr_prob += 0.03
 
         if self.base2 or self.base3:
-            hit_prob += 0.06
-            hr_prob += 0.02
+            hit_prob += 0.08
+            hr_prob += 0.03
         
         if not is_strike_context: 
-            hit_prob *= 0.55
-            hr_prob *= 0.20
+            hit_prob *= 0.65
+            hr_prob *= 0.30
 
-        hit_prob = max(0.08, min(0.68, hit_prob))
-        hr_prob = max(0.005, min(0.25, hr_prob))
+        hit_prob = max(0.12, min(0.72, hit_prob))
+        hr_prob = max(0.01, min(0.30, hr_prob))
         
         roll = random.random()
         
