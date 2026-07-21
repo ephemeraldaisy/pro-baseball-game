@@ -454,6 +454,8 @@ class PureKboEngine:
 
         used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
 
+        target = 1
+        
         forbidden_indices = set()
         if self.inning < 8:
             forbidden_indices.add(7)
@@ -492,6 +494,7 @@ class PureKboEngine:
                 target = 2 if 2 not in used_set else 3
             else:
                 target = 4 if 4 not in used_Set else 5
+                
         elif score_diff == 0:
             if self.inning <= 6:
                 target = 2
@@ -522,7 +525,7 @@ class PureKboEngine:
         for idx in [1, 2, 3, 4, 5]:
             if idx not in used_set:
                 return idx
-
+                
         return 1
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
