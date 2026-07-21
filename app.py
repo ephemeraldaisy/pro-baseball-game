@@ -442,7 +442,9 @@ class PureKboEngine:
     def evaluate_pitcher_scenario(self, score_diff: int = None, is_enemy: bool = False, is_defense: bool = True, **kwargs) -> int:
         """현재 이닝, 점수차를 계산하여 시나리오 트리에 맞는 투수 인덱스를 반환합니다."""
         if "is_defense" in kwargs:
-            is_enemy = not kwargs["is_defense"]
+            is_defense = kwargs["is_defense"]
+
+        is_enemy = not is_defense
 
         if score_diff is None:
             if is_defense:
@@ -453,7 +455,6 @@ class PureKboEngine:
                 is_enemy = True
 
         used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
-
         target = 1
         
         forbidden_indices = set()
