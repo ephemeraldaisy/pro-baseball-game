@@ -337,6 +337,10 @@ class PureKboEngine:
             st.warning("루상에 주자가 없습니다.")
             return
         p_en = self.get_current_enemy_pitcher()
+        if p_en.stamina <= (p_en.max_stamina * 0.3) and not getattr(p_en, 'warned_stamina', False):
+            p_en.warned_stamina = True  # 중복 출력 방지
+            self.game_log.append(f"🔥 [기회 도래] 상대 {p_en.name} 투수의 어깨가 무거워졌습니다! (남은 체력: {p_en.stamina}/{p_en.max_stamina})")
+            self.game_log.append("💡 [타선 집중] 상대 투수의 실투 확률이 급증합니다. 적극적으로 타격해 빅이닝을 만드세요!")
         p_en.consume(1)
         self.enemy_total_pitches += 1
 
@@ -908,6 +912,10 @@ class PureKboEngine:
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
         bat = self.enemy_batter_number #함수 시작과 동시에 bat 등록  
         p_my = self.get_current_my_pitcher()
+        if p_my.stamina <= (p_my.max_stamina * 0.3) and not getattr(p_my, 'warned_stamina', False):
+            p_my.warned_stamina = True  # 중복 출력 방지
+            self.game_log.append(f"⚠️ [벤치 비상] 마운드의 {p_my.name} 투수가 현저히 지쳤습니다! (남은 체력: {p_my.stamina}/{p_my.max_stamina})")
+            self.game_log.append("💡 [감독 지시] 구위와 제구력이 크게 떨어져 실점 확률이 높아집니다. 불펜 교체를 고려하십시오!")
 
         #상대 팀 도루와 아군의 도루 저지
         # 3루가 비어있고, 1루나 2루에 주자가 있을 때 도루 시도 조건 성립 (단, 3아웃 상황 제외)
