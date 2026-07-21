@@ -1011,11 +1011,15 @@ class PureKboEngine:
             return
 
         #상대팀 공격 확률 상향 
-        enemy_hit_base = enemy_stats["hit"] * 0.0022
-        enemy_hr_base = enemy_stats["homerun"] * 0.0010
+        enemy_hit_base = enemy_stats["hit"] * 0.0035
+        enemy_hr_base = enemy_stats["homerun"] * 0.0018
 
-        hit_prob = 0.23 + (enemy_hit_base - my_stats["defense"] * 0.0015) + penalty + matchup_mod
-        hr_prob = 0.02 + enemy_hr_base + (matchup_mod * 0.01)
+        hit_prob = 0.28 + (enemy_hit_base - my_stats["defense"] * 0.0008) + penalty + matchup_mod
+        hr_prob = 0.03 + enemy_hr_base + (matchup_mod * 0.015)
+
+        if p_my.stamina < (p_my.max_stamina * 0.5):
+            hit_prob += 0.06
+            hr_prob += 0.02
 
         if self.base2 or self.base3:
             hit_prob += 0.06
@@ -1024,6 +1028,9 @@ class PureKboEngine:
         if not is_strike_context: 
             hit_prob *= 0.55
             hr_prob *= 0.20
+
+        hit_prob = max(0.08, min(0.68, hit_prob))
+        hr_prob = max(0.005, min(0.25, hr_prob))
         
         roll = random.random()
         
