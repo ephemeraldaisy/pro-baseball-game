@@ -1281,8 +1281,7 @@ class PureKboEngine:
                 return
             self.next_phase()
 
-if "game" not in st.session_state:
-    st.session_state.game = PureKboEngine()
+
 # =====================================================================
 # [FRONTEND] 통합 렌더러
 # =====================================================================
