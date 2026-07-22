@@ -1223,20 +1223,11 @@ class PureKboEngine:
 
     def process_walk(self, is_defense: bool) -> None:
         self.add_stat("B", 1)
+        
         if is_defense:
-            if hasattr(self, 'our_bb'):
-                self.our_bb += 1
-            elif hasattr(self, 'our_walk'):
-                self.our_walk += 1
-            else:
-                self.our_bb = 1
+            self.enemy_bb = getattr(self, 'enemy_bb', 0) + 1
         else:
-            if hasattr(self, 'enemy_bb'):
-                self.enemy_bb += 1
-            elif hasattr(self, 'enemy_walk'):
-                self.enemy_walk += 1
-            else:
-                self.enemy_bb = 1
+            self.our_bb = getattr(self, 'our_bb', 0) + 1 
             
         self.strike = 0
         self.ball = 0
