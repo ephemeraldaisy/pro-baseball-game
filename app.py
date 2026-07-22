@@ -1215,6 +1215,7 @@ class PureKboEngine:
                 else:
                     self.game_log.append(log_prefix + "⚾ 투수 앞 빗맞은 땅볼! 가볍게 아웃.")
             self.check_three_out_change()
+            return 
 
         if self.inning >= 9 and self.phase == "말" and not self.is_home_team and self.get_home_score() > self.get_away_score():
             self.game_log.append("❌ 이닝 끝내기 패배.")
