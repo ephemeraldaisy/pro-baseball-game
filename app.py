@@ -496,7 +496,7 @@ class PureKboEngine:
             elif self.inning <= 8:
                 target = 2 if 2 not in used_set else 3
             else:
-                target = 4 if 4 not in used_Set else 5
+                target = 4 if 4 not in used_set else 5
                 
         elif score_diff == 0:
             if self.inning <= 6:
@@ -504,7 +504,7 @@ class PureKboEngine:
             elif self.inning <= 8:
                 target = 4
             else:
-                targer = 5
+                target = 5
 
         else:  # 지고 있는 경우 (score_diff < 0)
             abs_diff = abs(score_diff)
