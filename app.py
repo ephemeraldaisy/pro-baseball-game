@@ -755,7 +755,9 @@ class PureKboEngine:
             if pitch_zone != 0:
                 self.strike += 1
                 self.game_log.append(log_prefix + b_ctx + f"스트라이크 지켜봄. ({self.strike}S {self.ball}B)")
-                if self.strike >= 3: self.process_strikeout(is_defense=False)
+                if self.strike >= 3: 
+                    self.process_strikeout(is_defense=False)
+                    return 
             else: #볼넷 나오는 경로 
                 self.ball += 1
                 self.game_log.append(log_prefix + b_ctx + f"볼 골라냄. ({self.strike}S {self.ball}B)")
@@ -860,7 +862,9 @@ class PureKboEngine:
         if res == "MISS":
             self.strike += 1
             self.game_log.append(log_prefix + b_ctx + f"헛스윙! ({self.strike}S {self.ball}B)")
-            if self.strike >= 3: self.process_strikeout(is_defense=False)
+            if self.strike >= 3: 
+                self.process_strikeout(is_defense=False)
+                return 
                 
         elif res == "FOUL":
             foul_decision = True
@@ -1718,21 +1722,28 @@ def main() -> None:
                     st.caption(f"🔍 구질 히스토리: {', '.join(game.pitch_history)}")
                     st.markdown("### 📢 공격 작전")
                     b1, b2, b3 = st.columns(3)
+                    
                     with b1:
                         if st.button("💥 강공 (풀스윙)", key="btn_swing_1"):
                             game.play_turn(1)    
+                            st.rerun()
                         if st.button("🏃‍♂️ 스퀴즈 번트", key="btn_bunt_4"):
                             game.play_turn(4)
+                            st.rerun()
                     with b2:
                         if st.button("🌟 밀어치기", key="btn_push_2"):
                             game.play_turn(2)
+                            st.rerun()
                         if st.button("🔥 런앤히트", key="btn_runhit_5"):
                             game.play_turn(5)
+                            st.rerun()
                     with b3:
                         if st.button("👀 웨이팅", key="btn_wait_3"): 
                             game.play_turn(3)
+                            st.rerun()
                         if st.button("🏃 도루", key="btn_steal"): 
                             game.trigger_steal()
+                            st.rerun()
                 else:
                     st.markdown("### 🛡️ 수비 볼배합")
                     d1, d2, d3 = st.columns(3)
