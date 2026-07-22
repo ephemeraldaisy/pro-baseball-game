@@ -960,7 +960,7 @@ class PureKboEngine:
                 if random.random() < error_rate:
                     self.strike = 0
                     self.ball = 0
-                    self.enemy_errors += 1 #상대 실책 전광판 반영 
+                    self.enemy_errors += getattr(self, 'enemy_errors', 0) + 1 #상대 실책 전광판 반영 
                     
                     #아웃 없이 다음 타자로 
                     bat = self.my_batter_number #실책 구역용 
