@@ -751,11 +751,11 @@ class PureKboEngine:
         #버튼 초이스별 분기
         if user_choice == 1: #강공 
             res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[180, 320, 200, 200, 100] if is_zone_matched else [40, 260, 350, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[70, 380, 150, 400])[0]
-            self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
+            self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone)
         
         elif user_choice == 2: #밀어치기 
             res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[520, 180, 200, 100] if is_zone_matched else [320, 330, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[80, 350, 200, 370])[0]
-            self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
+            self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone)
        
         elif user_choice == 3: #웨이팅
             if pitch_zone == 0 or random.random() < 0.25:
@@ -799,7 +799,7 @@ class PureKboEngine:
                 
             if pitch_zone != 0:
                 res = random.choices(["HIT", "OUT", "FOUL"], weights=[600, 300, 100])[0]
-                self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
+                self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone)
             else: #런앤히트 실패 
                 if random.random() < 0.65:
                     self.out_count += 2
@@ -817,7 +817,7 @@ class PureKboEngine:
             self.game_log.append(f"🎉 🎉 끝내기 역전!")
             self.end_kbo_game()
 
-    def process_swing_result(self, res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff) -> None:
+    def process_swing_result(self, res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone) -> None:
         match_msg = "🎯 [노림수 적중] " if is_zone_matched else ""
 
         is_power_hitter = my_stats.get("homerun", 30) >= 40
