@@ -827,9 +827,23 @@ class PureKboEngine:
         elif res == "OUT" and total_buff > 0:
             p_en = self.get_current_enemy_pitcher()
             pitcher_stamina_factor = 0.5 if p_en.stamina > (p_en.max_stamina * 0.7) else 1.0 
-            
+                
             if random.random() < (total_buff * 0.05 * pitcher_stamina_factor): 
                 res = "HIT"
+
+            else:
+                if self.outs < 2 and self.base1 and random.random() < 0.25:
+                    self.outs += 2
+                    self.base1 = False
+                    self.strike = 0
+                    self.ball = 0
+                    self.game_log.append("💥 [병살타!] 버프 투구였으나 뼈아픈 병살타로 이어집니다!")
+                else:
+                    self.outs += 1
+                    self.strike = 0
+                    self.ball = 0
+                    self.game_log.append("⚾ [아웃] 아웃 카운트가 올라갑니다.")
+                    
         
         if res == "MISS":
             self.strike += 1
@@ -910,12 +924,12 @@ class PureKboEngine:
             elif res == "OUT":
                 #상대팀 수비 실책 
                 error_rate = max(0.01, 0.05 - (enemy_stats["defense"] * 0.0005))
-                
+
                 if random.random() < error_rate:
                     self.strike = 0
                     self.ball = 0
-
-                    self.enemy_errors += 1
+                    self.enemy_errors += 1 #상대 실책 전광판 반영 
+                    
                     #아웃 없이 다음 타자로 
                     bat = self.my_batter_number #실책 구역용 
                     self.my_batter_number = 1 if bat == 9 else bat + 1
@@ -930,40 +944,47 @@ class PureKboEngine:
                     if gained > 0: self.update_live_scoreboard(gained)
                 
                     enemy_err_log = random.choice([
-                    "🔥 [상대 실책 대박] 평범한 땅볼 타구! 그런데 상대 내야수가 송구 실책을 저지르며 타자가 안전하게 1루를 밟습니다! 🤩",
-                    "🔥 [상대 알까기] 완전히 잡힌 플라이 타구였으나, 상대 외야수가 낙구 지점을 놓치며 글러브에서 공을 떨어뜨립니다! 행운의 출루!",
-                    "🔥 [상대 야수 선택 에러] 상대 유격수가 볼을 더듬는 사이 주자와 타자 모두 세이프! 수비 집중력이 무너집니다!"
-                ])
+                        "🔥 [상대 실책 대박] 평범한 땅볼 타구! 그런데 상대 내야수가 송구 실책을 저지르며 타자가 안전하게 1루를 밟습니다! 🤩",
+                        "🔥 [상대 알까기] 완전히 잡힌 플라이 타구였으나, 상대 외야수가 낙구 지점을 놓치며 글러브에서 공을 떨어뜨립니다! 행운의 출루!",
+                        "🔥 [상대 야수 선택 에러] 상대 유격수가 볼을 더듬는 사이 주자와 타자 모두 세이프! 수비 집중력이 무너집니다!"
+                    ])
                     self.game_log.append(log_prefix + b_ctx + match_msg + enemy_err_log + (f" (+{gained}점)" if gained > 0 else ""))
                     return # 💥 아웃 카운트를 올리지 않고 기분 좋게 턴 종료!
+
+                self.strike = 0
+                self.ball = 0 
+
+                bat = self.my_batter_number
+                self.my_batter_number = 1 if bat == 9 else bat + 1
+
+                #병살타 
+                if self.outs < 2 and self.base1 and random.random() < 0.25:
+                    self.outs += 2
+                    self.base1 = False
+                    self.game_log.append(log_prefix + "💥 2루수-1루수 이어지는 뼈아픈 병살타 아웃!")
+                #희생플라이 
+                elif self.outs < 2 and self.base3 and random.random() < 0.45:
+                    self.outs += 1
+                    self.base3 = False
+                    self.update_live_scoreboard(1)
+                    self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 3루 주자 홈인, 희생플라이 타점!") 
                          
                 else:
+                    self.outs += 1
                     out_roll = random.random()
-
-                    self.strike = 0
-                    self.ball = 0
-                    bat = self.my_batter_number
-                    self.my_batter_number = 1 if bat == 9 else bat + 1 
-                    
-                    if self.base1 and self.out_count < 2 and random.random() < 0.25:
-                        self.out_count += 2; self.base1 = False
-                        self.game_log.append(log_prefix + "😱 2루수-1루수 이어지는 병살타 아웃.")
-                        
-                    elif self.base3 and self.out_count < 2 and random.random() < 0.45:
-                        self.out_count += 1; self.base3 = False
-                        self.update_live_scoreboard(1)
-                        self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 희생플라이 타점.")
-                    
+                
+                    # 'is_contact_pest' 변수가 함수 내에 존재할 경우 적용
+                    is_pest = locals().get('is_contact_pest', False)
+                
+                    if is_pest:
+                        self.game_log.append(log_prefix + "⚾ 빗맞은 내야 땅볼 아웃.")
+                    elif out_roll < 0.40:
+                        self.game_log.append(log_prefix + "⚾ 유격수 방면 정면 땅볼 아웃.")
+                    elif out_roll < 0.75:
+                        self.game_log.append(log_prefix + "⚾ 큼지막한 외야 뜬공(플라이) 아웃.")
                     else:
-                        self.out_count += 1
-                        if is_contact_pest:
-                            self.game_log.append(log_prefix + "⚾ 빗맞은 내야 땅볼 아웃.")
-                        elif out_roll < 0.40:
-                            self.game_log.append(log_prefix + "⚾ 유격수 방면 정면 땅볼 아웃.")
-                        elif out_roll < 0.75:
-                            self.game_log.append(log_prefix + "⚾ 큼지막한 외야 뜬공(플라이) 아웃.")
-                        else:
-                            self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
+                        self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
+
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
@@ -1524,7 +1545,7 @@ def main() -> None:
                 
             st.dataframe(styled_status, use_container_width=True)
       
-        if st.button("글로벌 서버 경기 개시", type="primary"):
+        if st.button("⚾️ PLAY BALL!", type="primary"):
             st.session_state.full_kbo_engine = PureKboEngine(st.session_state.my_team, random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team]))
             st.rerun()
             
