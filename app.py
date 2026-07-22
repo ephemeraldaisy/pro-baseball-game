@@ -459,9 +459,9 @@ class PureKboEngine:
         
         forbidden_indices = set()
         if self.inning < 8:
-            forbidden_indices.add(7)
+            forbidden_indices.add(7) #8회 미만 클로저 금지
         if self.inning < 7:
-            forbidden_indices.add(6) 
+            forbidden_indices.add(6) #7회 미만 셋업맨 금지 
 
         if not (1 <= score_diff <= 3):
             forbidden_indices.add(6)
@@ -509,7 +509,7 @@ class PureKboEngine:
         else:  # 지고 있는 경우 (score_diff < 0)
             abs_diff = abs(score_diff)
             if self.inning >= 7 and abs_diff >= 8:
-                return -99  # 야수 패전처리
+                return -99  # 야수등판으로 패전처리 
             elif abs_diff >= 4:
                 target = 3 if 3 not in used_set else 4
             else:
@@ -520,12 +520,12 @@ class PureKboEngine:
             return target
 
         # 순서 및 사용 여부 검증 후 사용 가능한 가장 낮은 인덱스(추격조 우선) 순차 등판
-        for idx in [1, 2, 3, 4, 5, 6, 7]:
+        for idx in range(1, 8):
             if idx not in used_set and idx not in forbidden_indices:
                 return idx
 
         # 7회 이전 비상 상황 시 4, 3번 중 사용 가능한 투수 반환
-        for idx in [1, 2, 3, 4, 5]:
+        for idx in (1, 6):
             if idx not in used_set:
                 return idx
                 
