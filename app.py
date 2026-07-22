@@ -867,9 +867,7 @@ class PureKboEngine:
                         self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
                 self.check_three_out_change()
                 return 
-                
-                    
-        
+                  
         if res == "MISS":
             if pitch_zone == 0 and random.random() < 0.50:
                 self.ball += 1
