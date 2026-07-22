@@ -8,9 +8,6 @@ from typing import Dict, Any, List
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-if "game" not in st.session_state:
-    st.session_state.game = PureKboEngine()
-
 # =====================================================================
 # [STATIC DATA LAYER] 1. KBO 글로벌 프로 스탯 인프라
 # =====================================================================
@@ -1284,6 +1281,8 @@ class PureKboEngine:
                 return
             self.next_phase()
 
+if "game" not in st.session_state:
+    st.session_state.game = PureKboEngine()
 # =====================================================================
 # [FRONTEND] 통합 렌더러
 # =====================================================================
