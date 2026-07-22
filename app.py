@@ -840,9 +840,18 @@ class PureKboEngine:
                     self.game_log.append("💥 [병살타!] 버프 투구였으나 뼈아픈 병살타로 이어집니다!")
                 else:
                     self.out_count += 1
-                    self.strike = 0
-                    self.ball = 0
-                    self.game_log.append("⚾ [아웃] 아웃 카운트가 올라갑니다.")
+                    out_roll = random.random()
+                    is_pest = locals().get('is_contact_pest', False)
+                    if is_pest:
+                        self.game_log.append(log_prefix + "⚾ 빗맞은 내야 땅볼 아웃.")
+                    elif out_roll < 0.40:
+                        self.game_log.append(log_prefix + "⚾ 유격수 방면 정면 땅볼 아웃.")
+                    elif out_roll < 0.75:
+                        self.game_log.append(log_prefix + "⚾ 큼지막한 외야 뜬공(플라이) 아웃.")
+                    else:
+                        self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
+                self.check_three_out_change()
+                
                     
         
         if res == "MISS":
