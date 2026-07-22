@@ -427,8 +427,14 @@ class PureKboEngine:
     def end_kbo_game(self) -> None:
         self.game_over = True
         a, h = self.get_away_score(), self.get_home_score()
-        if a == h: self.game_result_msg = f"🤝 [무승부] 12회 {a}:{h} DRAW 종료."
-        else: self.game_result_msg = f"🏆 [경기 종료] {self.our_score} 대 {self.enemy_score}(으)로 우리 팀 {'승리!' if self.our_score > self.enemy_score else '패배.'}"
+        
+        if a == h: 
+            self.game_result_msg = f"🤝 [무승부] 12회 {a}:{h} DRAW 종료."
+        else: 
+            if self.our_score > self.enemy_score:
+                self.game_result_msg = f"🏆 [경기 종료] {self.our_score} 대 {self.enemy_score}(으)로 우리 팀 승리!"
+            else:
+                self.game_result_msg = f"😭 [경기 종료] {self.our_score} 대 {self.enemy_score}(으)로 우리 팀 패배."
 
     def process_error(self, log_prefix: str, bat: int) -> None:
         self.add_stat("E")
