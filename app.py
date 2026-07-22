@@ -955,7 +955,7 @@ class PureKboEngine:
                     
             elif res == "OUT":
                 #상대팀 수비 실책 
-                error_rate = max(0.01, 0.05 - (enemy_stats["defense"] * 0.0005))
+                error_rate = max(0.025, 0.075 - (enemy_stats["defense"] * 0.0005))
 
                 if random.random() < error_rate:
                     self.strike = 0
