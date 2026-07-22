@@ -485,7 +485,7 @@ class PureKboEngine:
             else:  # 9회
                 if 7 not in used_set:
                     return 7 #마무리 등판
-                elif 6 not in used_Set:
+                elif 6 not in used_set:
                     return 6 #마무리 쓰면 셋업맨
                 else:
                     target = 5
