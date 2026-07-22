@@ -447,14 +447,14 @@ class PureKboEngine:
         if score_diff is None:
             if is_defense:
                 score_diff = self.our_score - self.enemy_score
-                is_enemy = False
             else:
                 score_diff = self.enemy_score - self.our_score
-                is_enemy = True
-        else:
-            is_enemy = not is_defense 
 
-        used_set = self.enemy_used_pitchers if is_enemy else self.my_used_pitchers
+        if is_defense:
+            used_set = self.enemy_used_pitchers
+        else:
+            used_set = self.my_used_pitchers
+
         target = 1
         
         forbidden_indices = set()
