@@ -853,6 +853,7 @@ class PureKboEngine:
                     else:
                         self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
                 self.check_three_out_change()
+                return 
                 
                     
         
@@ -1719,19 +1720,19 @@ def main() -> None:
                     b1, b2, b3 = st.columns(3)
                     with b1:
                         if st.button("💥 강공 (풀스윙)", key="btn_swing_1"):
-                            st.session_state.game.play_turn(1)    
+                            game.play_turn(1)    
                         if st.button("🏃‍♂️ 스퀴즈 번트", key="btn_bunt_4"):
-                            st.session_state.game.play_turn(4)
+                            game.play_turn(4)
                     with b2:
                         if st.button("🌟 밀어치기", key="btn_push_2"):
-                            st.session_state.game.play_turn(2)
+                            game.play_turn(2)
                         if st.button("🔥 런앤히트", key="btn_runhit_5"):
-                            st.session_state.game.play_turn(5)
+                            game.play_turn(5)
                     with b3:
                         if st.button("👀 웨이팅", key="btn_wait_3"): 
-                            st.session_state.game.play_turn(3)
+                            game.play_turn(3)
                         if st.button("🏃 도루", key="btn_steal"): 
-                            st.session_state.game.trigger_steal()
+                            game.trigger_steal()
                 else:
                     st.markdown("### 🛡️ 수비 볼배합")
                     d1, d2, d3 = st.columns(3)
