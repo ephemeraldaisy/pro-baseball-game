@@ -832,14 +832,14 @@ class PureKboEngine:
                 res = "HIT"
 
             else:
-                if self.outs < 2 and self.base1 and random.random() < 0.25:
-                    self.outs += 2
+                if self.out_count < 2 and self.base1 and random.random() < 0.25:
+                    self.out_count += 2
                     self.base1 = False
                     self.strike = 0
                     self.ball = 0
                     self.game_log.append("💥 [병살타!] 버프 투구였으나 뼈아픈 병살타로 이어집니다!")
                 else:
-                    self.outs += 1
+                    self.out_count += 1
                     self.strike = 0
                     self.ball = 0
                     self.game_log.append("⚾ [아웃] 아웃 카운트가 올라갑니다.")
@@ -958,19 +958,19 @@ class PureKboEngine:
                 self.my_batter_number = 1 if bat == 9 else bat + 1
 
                 #병살타 
-                if self.outs < 2 and self.base1 and random.random() < 0.25:
-                    self.outs += 2
+                if self.out_count < 2 and self.base1 and random.random() < 0.25:
+                    self.out_count += 2
                     self.base1 = False
                     self.game_log.append(log_prefix + "💥 2루수-1루수 이어지는 뼈아픈 병살타 아웃!")
                 #희생플라이 
-                elif self.outs < 2 and self.base3 and random.random() < 0.45:
-                    self.outs += 1
+                elif self.out_count < 2 and self.base3 and random.random() < 0.45:
+                    self.out_count += 1
                     self.base3 = False
                     self.update_live_scoreboard(1)
                     self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 3루 주자 홈인, 희생플라이 타점!") 
                          
                 else:
-                    self.outs += 1
+                    self.out_count += 1
                     out_roll = random.random()
                 
                     # 'is_contact_pest' 변수가 함수 내에 존재할 경우 적용
