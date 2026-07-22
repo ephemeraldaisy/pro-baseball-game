@@ -792,6 +792,7 @@ class PureKboEngine:
                 self.out_count += 1
                 self.game_log.append(log_prefix + b_ctx + "❌ 스퀴즈 실패! 번트 타구가 포수 정면 플라이로 잡혔습니다. 주자 이동 불가.")
                 self.check_three_out_change()
+        
         elif user_choice == 5: #런앤히트 
             if not (self.base1 or self.base2 or self.base3):
                 st.warning("루상에 진루한 주자가 없어 런앤히트 작전이 불가능합니다.")
@@ -802,13 +803,14 @@ class PureKboEngine:
                 self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone)
             else: #런앤히트 실패 
                 if random.random() < 0.65:
-                    self.out_count += 2
+                    self.out_count += min(3, self.out_count + 2)
                     self.strike = 0; self.ball = 0
                     bat = self.my_batter_number
                     self.my_batter_number = 1 if bat == 9 else bat + 1
                     self.base1 = self.base2 = self.base3 = False
                     self.game_log.append(log_prefix + f"😱 작전 대실패!! 볼 존 유인구에 타자가 헛스윙 삼진을 당한 사이, 스타트를 끊은 주자까지 포수 송구에 걸려 더블아웃(2아웃) 처리됩니다!")
                     self.check_three_out_change()
+                    return
                 else:
                     if self.strike < 2: self.strike += 1
                     self.game_log.append(log_prefix + b_ctx + "⚠️ 작전 미스! 빠지는 공을 타자가 간신히 걷어내며 파울을 만들었습니다.")
