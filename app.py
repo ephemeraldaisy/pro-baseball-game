@@ -784,9 +784,9 @@ class PureKboEngine:
             if not (self.base1 or self.base2 or self.base3):
                 st.warning("루상에 진루한 주자가 없어 런앤히트 작전이 불가능합니다.")
                 return
-            if pitch_zone != 0:
+            """if pitch_zone != 0:
                 res = random.choices(["HIT", "OUT", "FOUL"], weights=[600, 300, 100])[0]
-                self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
+                self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)"""
             else:
                 if random.random() < 0.65:
                     self.out_count += 2
