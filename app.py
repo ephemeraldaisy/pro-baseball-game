@@ -673,7 +673,7 @@ class PureKboEngine:
         
         runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
 
-        strike_probability = 0.75
+        strike_probability = 0.70
         mental_penalty = 0.0
 
         if self.base2 or self.base3:
@@ -693,7 +693,7 @@ class PureKboEngine:
         p_en.consume(added_pitches)
         self.enemy_total_pitches += added_pitches
         
-        pitch_zone = random.randint(1, 9) if random.random() < max(0.40, strike_probability) else 0
+        pitch_zone = random.randint(1, 9) if random.random() < max(0.50, strike_probability) else 0
         self.guess_zone = random.randint(1, 9)
 
         self.pitch_history.append(f"{pitch_type} ({speed}km/h) - 존: {pitch_zone if pitch_zone != 0 else '외곽'}")
@@ -758,16 +758,19 @@ class PureKboEngine:
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
        
         elif user_choice == 3: #웨이팅
-            if pitch_zone != 0:
+            if pitch_zone == 0 or random.random() < 0.25:
+                self.ball += 1
+                self.game_log.append(log_prefix + b_ctx + f"👀 예리한 선구안! 공을 골라냅니다. ({self.strike}S {self.ball}B)")
+                if self.ball >= 4: 
+                    self.process_walk(is_defense=False)
+                    return
+            else:
                 self.strike += 1
                 self.game_log.append(log_prefix + b_ctx + f"스트라이크 지켜봄. ({self.strike}S {self.ball}B)")
                 if self.strike >= 3: 
                     self.process_strikeout(is_defense=False)
-                    return 
-            else: #볼넷 나오는 경로 
-                self.ball += 1
-                self.game_log.append(log_prefix + b_ctx + f"볼 골라냄. ({self.strike}S {self.ball}B)")
-                if self.ball >= 4: self.process_walk(is_defense=False)
+                    return
+                
                     
         elif user_choice == 4: #스퀴즈 번트 
             if not self.base3:
@@ -866,6 +869,13 @@ class PureKboEngine:
                     
         
         if res == "MISS":
+            if pitch_zone == 0 and random.random() < 0.50:
+                self.ball += 1
+                self.game_log.append(log_prefix + b_ctx + f"🔍 참아냈습니다! 빠지는 유인구를 침착하게 골라냅니다. ({self.strike}S {self.ball}B)")
+                if self.ball >= 4:
+                    self.process_walk(is_defense=False)
+                return
+                
             self.strike += 1
             self.game_log.append(log_prefix + b_ctx + f"헛스윙! ({self.strike}S {self.ball}B)")
             if self.strike >= 3: 
