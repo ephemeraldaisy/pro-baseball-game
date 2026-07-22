@@ -641,7 +641,8 @@ class PureKboEngine:
         
 
     def play_turn(self, user_choice: int) -> None:
-        if self.game_over: return
+        if self.game_over: 
+            return
         p_en = self.get_current_enemy_pitcher()
         
         if (p_en.stamina <= 0 or self.inning >= 6) and p_en.role != "야수등판":
@@ -659,7 +660,8 @@ class PureKboEngine:
                 self.enemy_used_pitchers.add(target_en_idx) # 등판 기록 잠금
                 p_en = self.get_current_enemy_pitcher()
                 self.game_log.append(f"🔄 [상대 벤치 움직임] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_en.role}] '{p_en.name}' 등판!")
-
+        
+        #구종과 페널티
         pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
         speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
         
@@ -739,28 +741,27 @@ class PureKboEngine:
                 self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 강타합니다! 몸에 맞는 공으로 출루!")
                 self.process_walk(is_defense=False)
             return
-
-        if pitch_zone == 0 and random.random() < hbp_probability:
-            self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 정면으로 강타합니다! 몸에 맞는 공(사구)으로 출루!")
-            self.process_walk(is_defense=False)
-            return
-
-        if user_choice == 1:
+        
+        #버튼 초이스별 분기
+        if user_choice == 1: #강공 
             res = random.choices(["HR", "HIT", "OUT", "FOUL", "MISS"], weights=[180, 320, 200, 200, 100] if is_zone_matched else [40, 260, 350, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[70, 380, 150, 400])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
-        elif user_choice == 2:
+        
+        elif user_choice == 2: #밀어치기 
             res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[520, 180, 200, 100] if is_zone_matched else [320, 330, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[80, 350, 200, 370])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
-        elif user_choice == 3: 
+       
+        elif user_choice == 3: #웨이팅
             if pitch_zone != 0:
                 self.strike += 1
                 self.game_log.append(log_prefix + b_ctx + f"스트라이크 지켜봄. ({self.strike}S {self.ball}B)")
                 if self.strike >= 3: self.process_strikeout(is_defense=False)
-            else:
+            else: #볼넷 나오는 경로 
                 self.ball += 1
                 self.game_log.append(log_prefix + b_ctx + f"볼 골라냄. ({self.strike}S {self.ball}B)")
                 if self.ball >= 4: self.process_walk(is_defense=False)
-        elif user_choice == 4:
+                    
+        elif user_choice == 4: #스퀴즈 번트 
             if not self.base3:
                 st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
                 return
@@ -780,25 +781,26 @@ class PureKboEngine:
                 self.out_count += 1
                 self.game_log.append(log_prefix + b_ctx + "❌ 스퀴즈 실패! 번트 타구가 포수 정면 플라이로 잡혔습니다. 주자 이동 불가.")
                 self.check_three_out_change()
-        elif user_choice == 5:
+        elif user_choice == 5: #런앤히트 
             if not (self.base1 or self.base2 or self.base3):
                 st.warning("루상에 진루한 주자가 없어 런앤히트 작전이 불가능합니다.")
                 return
-            """if pitch_zone != 0:
+                
+            if pitch_zone != 0:
                 res = random.choices(["HIT", "OUT", "FOUL"], weights=[600, 300, 100])[0]
-                self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)"""
-        else:
-            if random.random() < 0.65:
-                self.out_count += 2
-                self.strike = 0; self.ball = 0
-                bat = self.my_batter_number
-                self.my_batter_number = 1 if bat == 9 else bat + 1
-                self.base1 = self.base2 = self.base3 = False
-                self.game_log.append(log_prefix + f"😱 작전 대실패!! 볼 존 유인구에 타자가 헛스윙 삼진을 당한 사이, 스타트를 끊은 주자까지 포수 송구에 걸려 더블아웃(2아웃) 처리됩니다!")
-                self.check_three_out_change()
-            else:
-                if self.strike < 2: self.strike += 1
-                self.game_log.append(log_prefix + b_ctx + "⚠️ 작전 미스! 빠지는 공을 타자가 간신히 걷어내며 파울을 만들었습니다.")
+                self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff)
+            else: #런앤히트 실패 
+                if random.random() < 0.65:
+                    self.out_count += 2
+                    self.strike = 0; self.ball = 0
+                    bat = self.my_batter_number
+                    self.my_batter_number = 1 if bat == 9 else bat + 1
+                    self.base1 = self.base2 = self.base3 = False
+                    self.game_log.append(log_prefix + f"😱 작전 대실패!! 볼 존 유인구에 타자가 헛스윙 삼진을 당한 사이, 스타트를 끊은 주자까지 포수 송구에 걸려 더블아웃(2아웃) 처리됩니다!")
+                    self.check_three_out_change()
+                else:
+                    if self.strike < 2: self.strike += 1
+                    self.game_log.append(log_prefix + b_ctx + "⚠️ 작전 미스! 빠지는 공을 타자가 간신히 걷어내며 파울을 만들었습니다.")
 
         if self.inning >= 9 and self.phase == "말" and self.is_home_team and self.get_home_score() > self.get_away_score():
             self.game_log.append(f"🎉 🎉 끝내기 역전!")
