@@ -456,10 +456,7 @@ class PureKboEngine:
             else:
                 score_diff = self.enemy_score - self.our_score
 
-        if is_defense:
-            used_set = self.enemy_used_pitchers
-        else:
-            used_set = self.my_used_pitchers
+        used_set = self.enemy_used_pitchers if is_defense else self.my_used_pitchers
 
         forbidden_indices = set()
         if self.inning < 8:
@@ -474,21 +471,31 @@ class PureKboEngine:
         #연장전 (10회 이상)
         if self.inning >= 10:
             #동점이거나 3점차 내면 클로저/셋업맨 포함하여 사용 안 한 차례로 기용 
-            candidate_list = [7, 6, 5, 4, 3, 2, 1] if abs(score_diff) <= 3 else [5, 4, 3, 2, 1]
+            if abs(score_diff) <= 3:
+                candidate_list = [7, 6, 5, 4, 3, 2, 1]
+            else:
+                candidate_list = [5, 4, 3, 2, 1]
+
+            #남은 투수 중 최우선 순위 
             for idx in candidate_list:
                 if idx not in used_set and idx not in forbidden_indices:
-                    return idx
-                return -99 #불펜 전멸 시 야수 등판 
+                    return idx 
 
-            return 1 
+            #남은 투수 중 최우선 순위 
+            for idx in range(1, 8):
+                if idx not in used_set:
+                    return idx
+
+            return -99 #모든 투수 소진했을 때만 야수등판 
 
         target = 1 
+        
         # 정규 이닝 (9회 이하) 
         if 1 <= score_diff <= 3:  # 근소하게 이기고 있는 경우 (세이브/홀드)
             if self.inning <= 7:
                 target = 5 #필승조 1번
             elif self.inning == 8:
-                target = 6 #셋업맨
+                target = 6 if 6 not in used_set else 5 #셋업맨
             else:  # 9회
                 if 7 not in used_set:
                     return 7 #마무리 등판
@@ -507,11 +514,16 @@ class PureKboEngine:
                 
         elif score_diff == 0:
             if self.inning <= 6:
-                target = 2
+                target = 2 if 2 not in used_set else 3 
             elif self.inning <= 8:
-                target = 4
+                target = 4 if 4 not in used_set else 5 
             else:
-                target = 5
+                if 7 not in used_set:
+                    return 7
+                elif 6 not in used_set: 
+                    return 6
+                else: 
+                    target = 5
 
         else:  # 지고 있는 경우 (score_diff < 0)
             abs_diff = abs(score_diff)
@@ -529,16 +541,14 @@ class PureKboEngine:
         # 순서 및 사용 여부 검증 후 사용 가능한 가장 낮은 인덱스(추격조 우선) 순차 등판
         for idx in range(1, 8):
             if idx not in used_set and idx not in forbidden_indices:
-                return idx
+                return idx 
 
-        return -99 #투수 다 소진하면 야수 등판 
-
-        # 7회 이전 비상 상황 시 4, 3번 중 사용 가능한 투수 반환
-        for idx in (1, 6):
+        # forbidden_indices 때문에 못 뽑았다면 제한 풀고 남은 투수 찾기 
+        for idx in (1, 8):
             if idx not in used_set:
                 return idx
                 
-        return 1
+        return -99 #모든 투수 소진 때 야수등판 
 
         # 🔒 [무한 루프 방지 락] 만약 선택된 불펜 투수가 이미 이전에 등판해서 체력을 다 썼다면?
         # 차선책으로 다음 순번의 살아있는 불펜 투수를 찾거나, 다 뻗었다면 야수를 올립니다.
