@@ -461,27 +461,28 @@ class PureKboEngine:
         else:
             used_set = self.my_used_pitchers
 
-        target = 1
-        
         forbidden_indices = set()
         if self.inning < 8:
             forbidden_indices.add(7) #8회 미만 클로저 금지
         if self.inning < 7:
             forbidden_indices.add(6) #7회 미만 셋업맨 금지 
 
-        if not (1 <= score_diff <= 3):
+        if abs(score_diff) >= 4: #4점차 이상이면 클로저/셋업맨 제한 
             forbidden_indices.add(6)
             forbidden_indices.add(7)
             
         #연장전 (10회 이상)
         if self.inning >= 10:
-            candidate_list = [7, 6, 5, 4, 3, 2, 1] if (1 <= score_diff <= 3) else [5, 4, 3, 2, 1]
+            #동점이거나 3점차 내면 클로저/셋업맨 포함하여 사용 안 한 차례로 기용 
+            candidate_list = [7, 6, 5, 4, 3, 2, 1] if abs(score_diff) <= 3 else [5, 4, 3, 2, 1]
             for idx in candidate_list:
                 if idx not in used_set and idx not in forbidden_indices:
                     return idx
+                return -99 #불펜 전멸 시 야수 등판 
 
             return 1 
-                        
+
+        target = 1 
         # 정규 이닝 (9회 이하) 
         if 1 <= score_diff <= 3:  # 근소하게 이기고 있는 경우 (세이브/홀드)
             if self.inning <= 7:
@@ -529,6 +530,8 @@ class PureKboEngine:
         for idx in range(1, 8):
             if idx not in used_set and idx not in forbidden_indices:
                 return idx
+
+        return -99 #투수 다 소진하면 야수 등판 
 
         # 7회 이전 비상 상황 시 4, 3번 중 사용 가능한 투수 반환
         for idx in (1, 6):
