@@ -1879,7 +1879,7 @@ def main() -> None:
             "1": [display_away[0], display_home[0]], "2": [display_away[1], display_home[1]], "3": [display_away[2], display_home[2]],
             "4": [display_away[3], display_home[3]], "5": [display_away[4], display_home[4]], "6": [display_away[5], display_home[5]],
             "7": [display_away[6], display_home[6]], "8": [display_away[7], display_home[7]], "9": [display_away[8], display_home[8]],
-            "10": [display_away[9], display_home[9]], "11": [display_away[10], display_home[10]]
+            "10": [display_away[9], display_home[9]], "11": [display_away[10], display_home[10]],
             "R": [game.away_stats["R"], game.home_stats["R"]],
             "H": [game.away_stats["H"], game.home_stats["H"]],
             "E": [game.away_stats["E"], game.home_stats["E"]],
