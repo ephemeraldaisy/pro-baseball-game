@@ -282,60 +282,51 @@ class PureKboEngine:
     def get_home_score(self) -> int: return self.home_stats["R"]
 
     def setup_half_inning(self) -> None:
-        is_def = getattr(self, 'is_defense', True)
-        try: 
-            p_def = self.get_current_my_pitcher() if self.is_defense else self.get_current_enemy_pitcher()
-
-            if p_def.stamina <= 0:
-                next_idx = self.evaluate_pitcher_scenario(is_defense=self.is_def)
-                if self.is_def:
-                    self.my_pitcher_idx = next_idx
-                    self.my_used_pitchers.add(next_idx)
-                    p_new = self.get_current_my_pitcher()
-                    if p_new.stamina <= 0: p_new.stamina = 20
-                else:
-                    self.enemy_pitcher_idx = next_idx
-                    self.enemy_used_pitchers.add(next_idx)
-                    p_new = self.get_current_enemy_pitcher()
-                    if new_p.stamina <= 0: new_p.stamina = 20
-                    self.game_log.append(f"🔄 [상대 벤치] 지친 투수가 내려가고 {p_new.name}(이)가 마운드를 받칩니다.")
-        except Exception:
-            pass 
         if self.game_over: return
+
+        # 1️⃣ 이닝 스코어보드 배열 초기화 (11회 연장 지원)
         idx = self.inning - 1
-        if idx < 12:
+        if idx < 11:
             if self.away_inning_scores[idx] == "": self.away_inning_scores[idx] = 0
             if self.home_inning_scores[idx] == "": self.home_inning_scores[idx] = 0
 
-        if self.inning == 9 and self.phase == "말" and self.get_home_score() > self.get_away_score():
-            self.game_log.append("👍 9회초 종료. 홈팀 리드로 경기 종료.")
-            self.home_inning_scores[8] = "X"
+        # 2️⃣ [9회 이상말 시작 전] 홈팀이 이기고 있다면 말 공격 없이 'X' 표기 후 승리 종료!
+        if self.inning >= 9 and self.phase == "말" and self.get_home_score() > self.get_away_score():
+            self.game_log.append(f"👍 {self.inning}회초 종료. 홈팀 리드로 경기 종료 ('X' 승리).")
+            if len(self.home_inning_scores) >= self.inning:
+                self.home_inning_scores[self.inning - 1] = "X"
             self.end_kbo_game()
             return
 
-        if self.inning > 9 and self.phase == "초":
-            if self.get_away_score() != self.get_home_score(): self.end_kbo_game(); return
-            elif self.inning > 12: self.inning = 12; self.phase = "말"; self.end_kbo_game(); return
-
+        # 3️⃣ 카운트 및 주자 초기화
         self.strike = 0; self.ball = 0; self.out_count = 0
         self.base1 = self.base2 = self.base3 = False
         self.hit_buff = 0.0
-        
+
+        # 4️⃣ [이닝 전환시 투수 교체 연산] 6회 이상부터 보직 및 상황에 맞춘 투수 교체 검사
         if self.inning >= 6:
+            # 현재 이닝이 우리 팀 수비인지 확인
             current_is_our_defense = (self.phase == "초" and not self.is_home_team) or (self.phase == "말" and self.is_home_team)
+            
             if current_is_our_defense:
                 t_idx = self.evaluate_pitcher_scenario(is_defense=True)
                 if t_idx != -99 and t_idx != self.my_pitcher_idx:
                     self.my_pitcher_idx = t_idx
                     self.my_used_pitchers.add(t_idx)
-                    self.game_log.append(f"🔄 [이닝 교체 공수전환] 벤치가 움직입니다. 새로운 이닝을 책임질 리드 맞춤형 [{self.get_current_my_pitcher().role}] 등판!")
+                    
+                    # 💡 딕셔너리 및 객체 안전 참조
+                    p_obj = self.get_current_my_pitcher()
+                    p_role = p_obj.get('role', 'RP') if isinstance(p_obj, dict) else getattr(p_obj, 'role', 'RP')
+                    self.game_log.append(f"🔄 [이닝 교체] 벤치가 움직입니다. 새로운 이닝을 책임질 맞춤형 [{p_role}] 등판!")
             else:
                 t_en_idx = self.evaluate_pitcher_scenario(is_defense=False)
                 if t_en_idx != -99 and t_en_idx != self.enemy_pitcher_idx:
                     self.enemy_pitcher_idx = t_en_idx
                     self.enemy_used_pitchers.add(t_en_idx)
-                    self.game_log.append(f"🔄 [이닝 교체 공수전환] 상대 팀이 이닝 시작과 동시에 투수를 바꿉니다. [{self.get_current_enemy_pitcher().role}] 등판!")
-
+                    
+                    p_obj = self.get_current_enemy_pitcher()
+                    p_role = p_obj.get('role', 'RP') if isinstance(p_obj, dict) else getattr(p_obj, 'role', 'RP')
+                    self.game_log.append(f"🔄 [상대 이닝 교체] 상대 팀이 이닝 시작과 동시에 투수를 바꿉니다. [{p_role}] 등판!")
     def update_live_scoreboard(self, run: int) -> None:
         idx = self.inning - 1
         if idx >= 12: return
@@ -402,17 +393,18 @@ class PureKboEngine:
         current_away = self.get_away_score()
         current_home = self.get_home_score()
 
-        if self.phase == "말":
-            if self.inning >= 9 and current_away != current_home:
-                self.end_kbo_game()
-                return
-            if self.inning == 12:
-                self.end_kbo_game()
-                return
-            
-        if self.phase == "초" and self.inning == 9: 
+        if self.phase == "초" and self.inning >= 9: 
             if current_home > current_away:
-                self.home_inning_scores[8] = "X"
+                if len(self.home_inning_scores) >= self.inning:
+                    self.home_inning_scores[self.inning - 1] = "X"
+                self.end_kbo_game()
+                return
+
+        if self.phase == "말":
+            if 9 <= self.inning < 11 and current_away != current_home:
+                self.end_kbo_game()
+                return
+            if self.inning == 11:
                 self.end_kbo_game()
                 return
 
@@ -429,7 +421,7 @@ class PureKboEngine:
         a, h = self.get_away_score(), self.get_home_score()
         
         if a == h: 
-            self.game_result_msg = f"🤝 [무승부] 12회 {a}:{h} DRAW 종료."
+            self.game_result_msg = f"🤝 [무승부] 11회 {a}:{h} DRAW 종료."
         else: 
             if self.our_score > self.enemy_score:
                 self.game_result_msg = f"🏆 [경기 종료] {self.our_score} 대 {self.enemy_score}(으)로 우리 팀 승리!"
@@ -827,10 +819,16 @@ class PureKboEngine:
                 else:
                     if self.strike < 2: self.strike += 1
                     self.game_log.append(log_prefix + b_ctx + "⚠️ 작전 미스! 빠지는 공을 타자가 간신히 걷어내며 파울을 만들었습니다.")
-
-        if self.inning >= 9 and self.phase == "말" and self.is_home_team and self.get_home_score() > self.get_away_score():
-            self.game_log.append(f"🎉 🎉 끝내기 역전!")
-            self.end_kbo_game()
+        #끝내기 
+        if self.inning >= 9 and self.phase == "말":
+            home_score = self.get_home_score()
+            away_score = self.get_away_score()
+            if home_score > away_score:
+                msg = "🎉 [끝내기 역전!] 홈팀이 극적인 역전 타구로 경기 마침표를 찍습니다!" if (home_score - gained_score) < away_score else "🎉 [끝내기!] 홈팀이 결승점을 뽑아내며 경기를 종료시킵니다!"
+        
+                self.game_log.append(msg)
+                self.end_kbo_game()
+                return
 
     def process_swing_result(self, res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone) -> None:
         match_msg = "🎯 [노림수 적중] " if is_zone_matched else ""
