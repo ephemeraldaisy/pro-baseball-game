@@ -1406,6 +1406,7 @@ class PureKboEngine:
             if gained > 0: self.update_live_scoreboard(gained)
             
         else:
+            #2스트라이크 이후 파울 커트 
             if roll > (hit_prob + hr_prob) and random.random() < 0.25:
                 if self.strike < 2: 
                     self.strike += 1
@@ -1414,12 +1415,20 @@ class PureKboEngine:
                     self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
 
+            #상대팀 실책 
             error_prob = 0.04 + (100 - my_stats["defense"]) * 0.001
             if p_my.stamina < (p_my.max_stamina * 0.3):
                 error_prob += 0.03
 
             if random.random() < error_prob:
-                self.enemy_batter_number = 1 if bat == 9 else bat + 1
+                #실책 출루 시 카운트 리셋 & 다음 타자로 교체 
+                if self.is_attack:
+                    bat = self.my_batter_number
+                    self.my_batter_number = 1 if bat == 9 else bat + 1
+                else: 
+                    bat = self.enemy_batter_number
+                    self.enemy_batter_number = 1 if bat == 9 else bat + 1
+                    
                 self.strike = 0
                 self.ball = 0
                 self.add_stat("E")
@@ -1440,15 +1449,25 @@ class PureKboEngine:
                 self.game_log.append(log_prefix + err_log + (f" (+{gained}점)" if gained > 0 else ""))
                 return
                 
-            self.enemy_batter_number = 1 if bat == 9 else bat + 1 
+            #스트라이크와 볼 초기화
             self.strike = 0
             self.ball = 0
-            
+
+            #타순 번호 가산 (공수 구분)
+            if self.is_attack:
+                bat = self.my_batter_number
+                self.my_batter_number = 1 if bat == 9 else bat + 1
+
+            else:
+                bat = self.enemy_batter_number
+                self.enemy_batter_number = 1 if bat == 9 else bat + 1
+                
+            #병살타 
             if self.base1 and self.out_count < 2 and random.random() < 0.25:
                 self.out_count += 2
                 self.base1 = False
                 self.game_log.append(log_prefix + "😱 우리 수비진의 환상적인 병살타 유도 성공!")
-            else:
+            else: #일반 범타 아웃 
                 self.out_count += 1
                 out_style = random.random()
                 if out_style < 0.40:
