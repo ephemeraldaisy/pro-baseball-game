@@ -335,7 +335,7 @@ class PureKboEngine:
         self.my_timeouts_left = 3 
         self.enemy_timeouts_left = 3 
 
-        self.is_attack = False 
+        self.update_is_attack()
         
         my_stats = TEAMS[my_team]
         enemy_stats = TEAMS[enemy_team]
@@ -383,6 +383,10 @@ class PureKboEngine:
         self.enemy_used_pitchers = {0}
         
         self.setup_half_inning()
+
+    def update_is_attack(self) -> None:
+        """현재 이닝과 홈/원정 여부에 맞춰 is_attack 동적 최신화"""
+        self.is_attack = (not self.is_home_team and self.phase == "초") or (self.is_home_team and self.phase == "말")
 
     def add_stat(self, stat: str, amt: int = 1):
         if self.phase == "초":
@@ -468,6 +472,7 @@ class PureKboEngine:
 
     def use_my_timeout(self) -> None:
         """아군 타임 요청 처리"""
+        self.update_is_attack()
         left_timeouts = getattr(self, 'my_timeouts_left', 3)
         if left_timeouts <= 0:
             self.game_log.append("⚠️ 이미 남은 타임을 모두 사용했습니다! (경기당 최대 3회)")
@@ -475,9 +480,9 @@ class PureKboEngine:
             
         self.my_timeouts_left = left_timeouts - 1 
         
-        if getattr(self, 'is_attack', False):
-            self.hit_buff = getattr(self, 'hit_buff', 0.5) + 0.05
-            self.game_log.append(f"⏱️ [아군 타임] 감독님이 타임을 요청하고 타자를 불러 조언을 전달합니다. (남은 타임: {self.my_timeouts_left}회)")
+        if self.is_attack:
+            self.hit_buff = getattr(self, 'hit_buff', 0.0) + 0.05
+            self.game_log.append(f"⏱️ [아군 타임] 감독님이 타임을 요청하고 타자를 불러 조언을 전달합니다. (타격 집중력 상승, 남은 타임: {self.my_timeouts_left}회)")
         else:
             p = self.get_current_my_pitcher()
             
@@ -494,17 +499,18 @@ class PureKboEngine:
                 
     def check_enemy_timeout(self, log_prefix: str) -> None:
         """적팀 AI가 위기 상황이나 흐름 전환을 위해 확률적으로 타임을 부르는 로직"""
+        self.update_is_attack()
         enemy_left = getattr(self, 'enemy_timeouts_left', 3)
         if enemy_left <= 0:
             return
     
         enemy_timeout_triggered = False
     
-        if getattr(self, 'is_attack', False) and (getattr(self, 'base2', False) or getattr(self, 'base3', False)) and getattr(self, 'out_count', 0) < 2:
+        if self.is_attack and (self.base2 or self.base3) and self.out_count < 2:
             if random.random() < 0.20:
                 enemy_timeout_triggered = True
                 
-        elif getattr(self, 'is_attack', False):
+        elif self.is_attack:
             p_enemy = self.get_current_enemy_pitcher()
             cur_st = p_enemy.get("stamina", 20) if isinstance(p_enemy, dict) else getattr(p_enemy, "stamina", 20)
             max_st = p_enemy.get("max_stamina", 35) if isinstance(p_enemy, dict) else getattr(p_enemy, "max_stamina", 35)
@@ -531,6 +537,7 @@ class PureKboEngine:
 
     def setup_half_inning(self) -> None:
         if self.game_over: return
+        self.update_is_attack()
 
         idx = self.inning - 1
         if idx < 11:
@@ -771,6 +778,7 @@ class PureKboEngine:
         return -99
 
     def check_pitch_clock_violation(self, log_prefix: str) -> bool:
+        self.update_is_attack()
         current_p = self.get_current_enemy_pitcher() if self.is_attack else self.get_current_my_pitcher()
         violation_rate = 0.02 + (0.03 if current_p.stamina <= 5 else 0.0)
         if random.random() < violation_rate:
@@ -791,6 +799,7 @@ class PureKboEngine:
 
     def play_defense_one_pitch(self, defense_choice: int) -> None:
         if self.game_over: return
+        self.update_is_attack()
         p_my = self.get_current_my_pitcher()
 
         if (p_my.stamina <= 0 or self.inning >= 6) and p_my.role != "야수등판":
@@ -807,7 +816,7 @@ class PureKboEngine:
                 self.my_pitcher_idx = target_idx
                 self.my_used_pitchers.add(target_idx)
                 p_my = self.get_current_my_pitcher()
-                self.game_log.append(f"🔄 [명장 전술 작전] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_my.role}] '{p_my.name}' 등판!")
+                self.game_log.append(f"🔄 [명장 전술 작전] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_role if 'p_role' in locals() else p_my.role}] '{p_my.name}' 등판!")
 
         if p_my.role == "야수등판":
             speed = random.randint(110, 125)
@@ -870,7 +879,6 @@ class PureKboEngine:
                     self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, True, True)
             else:
                 self.strike += 1
-                # 💡 [요구사항 반영] 스트라이크 지켜보고 3S가 되었을 때 루킹 삼진 처리
                 if self.strike >= 3:
                     self.process_strikeout(is_defense=True, is_looking=True)
                 else:
@@ -879,6 +887,7 @@ class PureKboEngine:
     def play_turn(self, user_choice: int) -> None:
         if self.game_over: 
             return
+        self.update_is_attack()
         p_en = self.get_current_enemy_pitcher()
         
         if (p_en.stamina <= 0 or self.inning >= 6) and p_en.role != "야수등판":
@@ -991,7 +1000,6 @@ class PureKboEngine:
                     return
             else:
                 self.strike += 1
-                # 💡 [요구사항 반영] 웨이팅 선택 중 3스트라이크 도달 시 루킹 삼진
                 if self.strike >= 3: 
                     self.process_strikeout(is_defense=False, is_looking=True)
                     return
@@ -1075,11 +1083,13 @@ class PureKboEngine:
                 res = "HIT"
 
             else:
+                self.strike = 0; self.ball = 0
+                bat = self.my_batter_number
+                self.my_batter_number = 1 if bat == 9 else bat + 1
+
                 if self.out_count < 2 and self.base1 and random.random() < 0.25:
                     self.out_count += 2
                     self.base1 = False
-                    self.strike = 0
-                    self.ball = 0
                     self.game_log.append("💥 [병살타!] 버프 투구였으나 뼈아픈 병살타로 이어집니다!")
                 else:
                     self.out_count += 1
@@ -1244,6 +1254,7 @@ class PureKboEngine:
                 self.check_three_out_change()
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
+        self.update_is_attack()
         bat = self.enemy_batter_number
         p_my = self.get_current_my_pitcher()
         if p_my.stamina <= (p_my.max_stamina * 0.3) and not getattr(p_my, 'warned_stamina', False):
@@ -1254,7 +1265,7 @@ class PureKboEngine:
         if self.out_count < 2 and self.base3:
             if random.random() < 0.25:
                 self.game_log.append(log_prefix + "⚡ [적팀 작전 발동] 상대 감독이 기습적인 스퀴즈 번트 지시를 내립니다!")
-                if pitch_zone != 0:
+                if pitch_zone != 0 if 'pitch_zone' in locals() else True:
                     if random.random() < 0.70:
                         self.out_count += 1
                         self.enemy_score += 1
@@ -1408,7 +1419,6 @@ class PureKboEngine:
             if gained > 0: self.update_live_scoreboard(gained)
             
         else:
-            #2스트라이크 이후 파울 커트 
             if roll > (hit_prob + hr_prob) and random.random() < 0.25:
                 if self.strike < 2: 
                     self.strike += 1
@@ -1417,13 +1427,11 @@ class PureKboEngine:
                     self.game_log.append(log_prefix + f"파울! 2스트라이크 이후 파울로 카운트는 계속 유지됩니다. 끈질깁니다! ({self.strike}S {self.ball}B)")
                 return
 
-            #상대팀 실책 
             error_prob = 0.04 + (100 - my_stats["defense"]) * 0.001
             if p_my.stamina < (p_my.max_stamina * 0.3):
                 error_prob += 0.03
 
             if random.random() < error_prob:
-                #실책 출루 시 카운트 리셋 & 다음 타자로 교체 
                 if self.is_attack:
                     bat = self.my_batter_number
                     self.my_batter_number = 1 if bat == 9 else bat + 1
@@ -1451,25 +1459,21 @@ class PureKboEngine:
                 self.game_log.append(log_prefix + err_log + (f" (+{gained}점)" if gained > 0 else ""))
                 return
                 
-            #스트라이크와 볼 초기화
             self.strike = 0
             self.ball = 0
 
-            #타순 번호 가산 (공수 구분)
             if self.is_attack:
                 bat = self.my_batter_number
                 self.my_batter_number = 1 if bat == 9 else bat + 1
-
             else:
                 bat = self.enemy_batter_number
                 self.enemy_batter_number = 1 if bat == 9 else bat + 1
                 
-            #병살타 
             if self.base1 and self.out_count < 2 and random.random() < 0.25:
                 self.out_count += 2
                 self.base1 = False
                 self.game_log.append(log_prefix + "😱 우리 수비진의 환상적인 병살타 유도 성공!")
-            else: #일반 범타 아웃 
+            else:
                 self.out_count += 1
                 out_style = random.random()
                 if out_style < 0.40:
@@ -1521,16 +1525,11 @@ class PureKboEngine:
             
         self.check_three_out_change()
 
-    # 💡 [요구사항 반영 수정 구역] 삼진 처리 전용 함수 (아웃 카운트 가산, 볼/스트라이크 초기화, 루킹 멘트 지원)
     def process_strikeout(self, is_defense: bool, is_looking: bool = False) -> None:
-        # 1. 스트라이크 / 볼 수치 리셋
         self.strike = 0
         self.ball = 0
-        
-        # 2. 아웃 카운트 상승
         self.out_count += 1
         
-        # 3. 루킹 삼진 및 헛스윙 삼진 멘트 구분 출력
         if is_defense:
             if is_looking:
                 self.game_log.append(f"👀 [루킹 삼진아웃!] 투수가 꽂아 넣은 꽉 찬 스트라이크를 타자가 바라만 보며 루킹 삼진으로 물러납니다!")
@@ -1546,7 +1545,6 @@ class PureKboEngine:
             bat = self.my_batter_number
             self.my_batter_number = 1 if bat == 9 else bat + 1
             
-        # 4. 공수전환 검사
         self.check_three_out_change()
 
     def check_three_out_change(self) -> None:
@@ -1953,7 +1951,7 @@ def main() -> None:
                     ax.text(0, -0.4, active_batter, color='#51cf66', fontsize=11, ha='center', va='center', 
                             weight='bold', bbox=dict(facecolor='#2b2b2b', edgecolor='#51cf66', boxstyle='round,pad=0.3', lw=1))
 
-                    st.pyplot(fig, width=False)
+                    st.pyplot(fig, width="stretch")
                     plt.close(fig)
                 st.info(HyperClovaX_AI.get_recommendation(game.pitch_history, game.base3, game.inning, current_is_our_turn))
 
