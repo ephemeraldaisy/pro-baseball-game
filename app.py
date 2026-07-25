@@ -1773,7 +1773,7 @@ def main() -> None:
         st.markdown("### 📊 상성 매트릭스 전체 열람")
         if st.button("상성 표 열람"):
             df_matrix = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=MATRIX_COLUMNS)
-            st.dataframe(df_matrix, width=stretch)
+            st.dataframe(df_matrix, width="stretch")
 
         st.divider()
         st.header("📖 구단 유니버스")
@@ -1813,7 +1813,7 @@ def main() -> None:
             except AttributeError:
                 styled_status = my_status.style.applymap(color_matchup_cells)
                 
-            st.dataframe(styled_status, width=stretch)
+            st.dataframe(styled_status, width="stretch")
       
         if st.button("⚾️ PLAY BALL!", type="primary"):
             st.session_state.full_kbo_engine = PureKboEngine(st.session_state.my_team, random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team]))
@@ -1833,7 +1833,7 @@ def main() -> None:
             except AttributeError:
                 styled_status = my_status.style.applymap(color_matchup_cells)
                 
-            st.dataframe(styled_status, width=stretch)
+            st.dataframe(styled_status, width="stretch")
 
         c1, c2, c3 = st.columns([2, 1, 2])
         with c1:
@@ -1985,7 +1985,7 @@ def main() -> None:
                             st.rerun()
 
                     with b4:
-                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width=stretch):
+                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width="stretch"):
                             game.use_my_timeout()
                             st.rerun()
                             
@@ -1999,7 +1999,7 @@ def main() -> None:
                     with d3:
                         if st.button("🔮 제구 위주"): game.play_defense_one_pitch(3); st.rerun()
                     with d4:
-                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width=stretch):
+                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width="stretch"):
                             game.use_my_timeout()
                             st.rerun()
 
