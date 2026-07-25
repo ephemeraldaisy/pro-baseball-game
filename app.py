@@ -484,31 +484,31 @@ class PureKboEngine:
     def check_enemy_timeout(self, log_prefix: str) -> None:
     """적팀 AI가 위기 상황이나 흐름 전환을 위해 확률적으로 타임을 부르는 로직"""
     # 경기당 적팀도 최대 3회까지만 사용
-    if getattr(self, 'enemy_timeouts_left', 3) <= 0:
-        return
-
-    enemy_timeout_triggered = False
-
-    # 💡 [조건 A] 적팀 수비 중 득점권 위기 (2, 3루 주자 있음 & 2아웃 이하)
-    if self.is_attack and (self.base2 or self.base3) and self.out_count < 2:
-        if random.random() < 0.20: # 20% 확률로 타임 요청
-            enemy_timeout_triggered = True
-            
-    # 💡 [조건 B] 적팀 투수 체력이 30% 이하로 떨어졌을 때 (교체 전 마운드 방문)
-    elif self.is_attack:
-        p_enemy = self.get_current_enemy_pitcher()
-        if p_enemy.stamina <= (p_enemy.max_stamina * 0.3):
-            if random.random() < 0.25: # 25% 확률로 타임
+        if getattr(self, 'enemy_timeouts_left', 3) <= 0:
+            return
+    
+        enemy_timeout_triggered = False
+    
+        # 💡 [조건 A] 적팀 수비 중 득점권 위기 (2, 3루 주자 있음 & 2아웃 이하)
+        if self.is_attack and (self.base2 or self.base3) and self.out_count < 2:
+            if random.random() < 0.20: # 20% 확률로 타임 요청
                 enemy_timeout_triggered = True
-
-    if enemy_timeout_triggered:
-        self.enemy_timeouts_left = getattr(self, 'enemy_timeouts_left', 3) - 1
-        p_enemy = self.get_current_enemy_pitcher()
-        p_enemy.stamina = min(p_enemy.max_stamina, p_enemy.stamina + 2) # 상대 투수 체력 +2 회복
-        
-        self.game_log.append(
-            log_prefix + f"⏱️ [적팀 타임] 상대 감독이 마운드로 이동해 투수와 포수를 불러 모읍니다! 흐름을 끊으려는 의도입니다. (상대 투수 체력 +2)"
-        )
+                
+        # 💡 [조건 B] 적팀 투수 체력이 30% 이하로 떨어졌을 때 (교체 전 마운드 방문)
+        elif self.is_attack:
+            p_enemy = self.get_current_enemy_pitcher()
+            if p_enemy.stamina <= (p_enemy.max_stamina * 0.3):
+                if random.random() < 0.25: # 25% 확률로 타임
+                    enemy_timeout_triggered = True
+    
+        if enemy_timeout_triggered:
+            self.enemy_timeouts_left = getattr(self, 'enemy_timeouts_left', 3) - 1
+            p_enemy = self.get_current_enemy_pitcher()
+            p_enemy.stamina = min(p_enemy.max_stamina, p_enemy.stamina + 2) # 상대 투수 체력 +2 회복
+            
+            self.game_log.append(
+                log_prefix + f"⏱️ [적팀 타임] 상대 감독이 마운드로 이동해 투수와 포수를 불러 모읍니다! 흐름을 끊으려는 의도입니다. (상대 투수 체력 +2)"
+            )
 
     def get_away_score(self) -> int: return self.away_stats["R"]
     def get_home_score(self) -> int: return self.home_stats["R"]
