@@ -94,6 +94,7 @@ class PitcherDomain:
         self.max_stamina = max_stamina
         self.stamina = max_stamina
         self.pitches_thrown = 0
+        self.my_timeouts_left = 3 
 
     def consume(self, amt: int = 1) -> None:
         self.pitches_thrown += amt
@@ -276,7 +277,53 @@ class PureKboEngine:
                 self.game_log.append(f"🔄 [상대 투수 교체] 수동 조절: {p.role} '{p.name}' 등판")
                 return True
         return False
+
+    def use_my_timeout(self) -> None:
+        """아군 타임 요청 처리"""
+    if self.my_timeouts_left <= 0:
+        self.game_log.append("⚠️ 이미 남은 타임을 모두 사용했습니다! (경기당 최대 3회)")
+        return
         
+    self.my_timeouts_left -= 1
+    
+    if self.is_attack:
+        # 공격 시: 타자 집중력 강화 (멘탈 정리)
+        self.game_log.append(f"⏱️ [아군 타임] 감독님이 타임을 요청하고 타자를 불러 조언을 전달합니다. (남은 타임: {self.my_timeouts_left}회)")
+        # 💡 예: 다음 타격 시 1회성 긍정 버프 부여 로직 연동 가능
+    else:
+        # 수비 시: 마운드 방문 (투수 체력 소량 회복 및 흐름 끊기)
+        p = self.get_current_my_pitcher()
+        p.stamina = min(p.max_stamina, p.stamina + 3) # 체력 +3 회복
+        self.game_log.append(f"⏱️ [아군 타임] 마운드 방문! 투수를 다독이고 흐름을 끊어갑니다. (투수 체력 +3 회복, 남은 타임: {self.my_timeouts_left}회)")
+
+    def check_enemy_timeout(self, log_prefix: str) -> None:
+    """적팀 AI가 위기 상황이나 흐름 전환을 위해 확률적으로 타임을 부르는 로직"""
+    # 경기당 적팀도 최대 3회까지만 사용
+    if getattr(self, 'enemy_timeouts_left', 3) <= 0:
+        return
+
+    enemy_timeout_triggered = False
+
+    # 💡 [조건 A] 적팀 수비 중 득점권 위기 (2, 3루 주자 있음 & 2아웃 이하)
+    if self.is_attack and (self.base2 or self.base3) and self.out_count < 2:
+        if random.random() < 0.20: # 20% 확률로 타임 요청
+            enemy_timeout_triggered = True
+            
+    # 💡 [조건 B] 적팀 투수 체력이 30% 이하로 떨어졌을 때 (교체 전 마운드 방문)
+    elif self.is_attack:
+        p_enemy = self.get_current_enemy_pitcher()
+        if p_enemy.stamina <= (p_enemy.max_stamina * 0.3):
+            if random.random() < 0.25: # 25% 확률로 타임
+                enemy_timeout_triggered = True
+
+    if enemy_timeout_triggered:
+        self.enemy_timeouts_left = getattr(self, 'enemy_timeouts_left', 3) - 1
+        p_enemy = self.get_current_enemy_pitcher()
+        p_enemy.stamina = min(p_enemy.max_stamina, p_enemy.stamina + 2) # 상대 투수 체력 +2 회복
+        
+        self.game_log.append(
+            log_prefix + f"⏱️ [적팀 타임] 상대 감독이 마운드로 이동해 투수와 포수를 불러 모읍니다! 흐름을 끊으려는 의도입니다. (상대 투수 체력 +2)"
+        )
 
     def get_away_score(self) -> int: return self.away_stats["R"]
     def get_home_score(self) -> int: return self.home_stats["R"]
@@ -1063,6 +1110,31 @@ class PureKboEngine:
             self.game_log.append(f"⚠️ [벤치 비상] 마운드의 {p_my.name} 투수가 현저히 지쳤습니다! (남은 체력: {p_my.stamina}/{p_my.max_stamina})")
             self.game_log.append("💡 [감독 지시] 구위와 제구력이 크게 떨어져 실점 확률이 높아집니다. 불펜 교체를 고려하십시오!")
 
+        if self.out_count < 2 and self.base3:
+            if random.random() < 0.25:
+                self.game_log.append(log_prefix + "⚡ [적팀 작전 발동] 상대 감독이 기습적인 스퀴즈 번트 지시를 내립니다!")
+                if pitch_zone != 0:
+                    if random.random () < 0.70:
+                        self.out_count += 1
+                        self.enemy_score += 1 # 3루 주자 홈인 (+1점)
+                        self.base3 = False
+                        self.update_live_scoreboard(0) # 스코어보드 갱신
+                        self.game_log.append(log_prefix + "💥 [스퀴즈 성공!] 타자가 침착하게 번트를 대어 3루 주자를 홈으로 불러들입니다! (타자 아웃, +1점)")
+                        self.check_three_out_change()
+                        return
+                    else: # 번트 포수 플라이 아웃
+                        self.out_count += 1
+                        self.game_log.append(log_prefix + "⚠️ [스퀴즈 실패] 번트 타구가 뜬공이 되며 포수에게 바로 잡힙니다!")
+                        self.check_three_out_change()
+                        return
+
+                else: 
+                    self.out_count += 1
+                    self.base3 = False
+                    self.game_log.append(log_prefix + "😱 [작전 파탄!] 투구가 빠지는 공! 3루 주자가 스타트를 끊었으나 포수 태그아웃 처리됩니다!")
+                    self.check_three_out_change()
+                    return
+                    
         #상대 팀 도루와 아군의 도루 저지
         # 3루가 비어있고, 1루나 2루에 주자가 있을 때 도루 시도 조건 성립 (단, 3아웃 상황 제외)
         if (self.base1 or self.base2) and not self.base3 and self.out_count < 3:
@@ -1765,7 +1837,7 @@ def main() -> None:
                 if current_is_our_turn:
                     st.caption(f"🔍 구질 히스토리: {', '.join(game.pitch_history)}")
                     st.markdown("### 📢 공격 작전")
-                    b1, b2, b3 = st.columns(3)
+                    b1, b2, b3, b4 = st.columns(4)
                     
                     with b1:
                         if st.button("💥 강공 (풀스윙)", key="btn_swing_1"):
@@ -1788,15 +1860,25 @@ def main() -> None:
                         if st.button("🏃 도루", key="btn_steal"): 
                             game.trigger_steal()
                             st.rerun()
+
+                    with b4:
+                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", use_container_width=True):
+                            game.use_my_timeout()
+                            st.rerun()
+                            
                 else:
                     st.markdown("### 🛡️ 수비 볼배합")
-                    d1, d2, d3 = st.columns(3)
+                    d1, d2, d3, d4 = st.columns(4)
                     with d1:
                         if st.button("⚾ 정면 승부"): game.play_defense_one_pitch(1); st.rerun()
                     with d2:
                         if st.button("🥎 유인구"): game.play_defense_one_pitch(2); st.rerun()
                     with d3:
                         if st.button("🔮 제구 위주"): game.play_defense_one_pitch(3); st.rerun()
+                    with d4:
+                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", use_container_width=True):
+                            game.use_my_timeout()
+                            st.rerun()
 
                 st.divider()
                 st.markdown("### 📜 게임 로그")
