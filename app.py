@@ -334,6 +334,8 @@ class PureKboEngine:
 
         self.my_timeouts_left = 3 
         self.enemy_timeouts_left = 3 
+
+        self.is_attack = False 
         
         my_stats = TEAMS[my_team]
         enemy_stats = TEAMS[enemy_team]
