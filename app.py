@@ -37,6 +37,189 @@ MATCHUP_MATRIX: Dict[str, List[str]] = {
     "💖 핑크 돌핀스":  ["백중", "백중", "우세", "우세", "우세", "열세", "열세", "열세", "열세", "X"]
 }
 
+TEAM_ROSTERS = {
+    "🔴 레드 파이어스": {
+        "color": "영리함, 야비함, 눈야구, 기습 도루, 초전박살",
+        "pitchers": {
+            "선발(5)": ["강교대", "유인구", "신기루", "조지환", "서속임"],
+            "중계/불펜(5)": ["꼼수열", "변칙현", "도지훈", "민속임", "기습진"],
+            "셋업(2)": ["[Primary] 차눈치", "[Secondary] 임보크"],
+            "마무리(1)": ["독사철"]
+        },
+        "batters": {
+            "포수(1)": ["도볼배"],
+            "내야(4)": ["[1B] 배볼넷", "[2B] 훔쳐라", "[3B] 위장번", "[SS] 기습주"],
+            "외야(3)": ["[LF] 눈야구", "[CF] 쏜살이", "[RF] 발빠름"],
+            "지명타자(1)": ["출루왕"],
+            "백업(4)": ["[C] 가짜미트", "[IF] 번트길", "[IF] 유도훈", "[OF] 잽싼이"]
+        }
+    },
+    "🔵 블루 웨이브스": {
+        "color": "침착함, 묵묵함, 만루 및 메가이닝 폭발력",
+        "pitchers": {
+            "선발(5)": ["해일성", "파도진", "심해묵", "우직한", "김수평"],
+            "중계/불펜(5)": ["잔잔한", "여울목", "고래울", "수심깊", "안개철"],
+            "셋업(2)": ["[Primary] 만조웅", "[Secondary] 해류혁"],
+            "마무리(1)": ["쓰나미"]
+        },
+        "batters": {
+            "포수(1)": ["대양건"],
+            "내야(4)": ["[1B] 장타만", "[2B] 만루찬", "[3B] 만루싹", "[SS] 연결고"],
+            "외야(3)": ["[LF] 빅이닝", "[CF] 바다샘", "[RF] 메가타"],
+            "지명타자(1)": ["파도타"],
+            "백업(4)": ["[C] 잠수함", "[IF] 징검다", "[IF] 정단단", "[OF] 닻올려"]
+        }
+    },
+    "🟢 그린 몬스터즈": {
+        "color": "원시적인 괴력, 무자비함, 오직 풀스윙",
+        "pitchers": {
+            "선발(5)": ["강속구", "몽둥이", "괴력만", "돌멩이", "대포한"],
+            "중계/불펜(5)": ["불기둥", "힘세찬", "강대함", "무쇠팔", "묵직해"],
+            "셋업(2)": ["[Primary] 괴물성", "[Secondary] 돌풍우"],
+            "마무리(1)": ["파괴왕"]
+        },
+        "batters": {
+            "포수(1)": ["바위돌"],
+            "내야(4)": ["[1B] 담장밖", "[2B] 분쇄기", "[3B] 장작패", "[SS] 돌도끼"],
+            "외야(3)": ["[LF] 풀스윙", "[CF] 천붕타", "[RF] 대파괴"],
+            "지명타자(1)": ["오우거"],
+            "백업(4)": ["[C] 통나무", "[IF] 대포알", "[IF] 무쇠벽", "[OF] 숲속길"]
+        }
+    },
+    "🟡 옐로우 타이거즈": {
+        "color": "야성미, 명문 자존심, 정면승부, 홈런과 도루의 하이브리드",
+        "pitchers": {
+            "선발(5)": ["호랑이", "용맹철", "정면승", "송곳니", "대륙호"],
+            "중계/불펜(5)": ["자존심", "기선제", "호효성", "범눈빛", "매서운"],
+            "셋업(2)": ["[Primary] 맹호웅", "[Secondary] 위풍당"],
+            "마무리(1)": ["포효진"]
+        },
+        "batters": {
+            "포수(1)": ["포효범"],
+            "내야(4)": ["[1B] 맹호타", "[2B] 훔치기", "[3B] 호쾌한", "[SS] 질주호"],
+            "외야(3)": ["[LF] 장타왕", "[CF] 맹수발", "[RF] 정면타"],
+            "지명타자(1)": ["명문가"],
+            "백업(4)": ["[C] 호가호", "[IF] 기선제", "[IF] 호랑발", "[OF] 매의눈"]
+        }
+    },
+    "🟣 퍼플 바이퍼스": {
+        "color": "독기, 끈질긴 눈야구, 말려 죽이기, 볼넷 마스터",
+        "pitchers": {
+            "선발(5)": ["독사형", "보라빛", "치명독", "집요한", "뱀눈빛"],
+            "중계/불펜(5)": ["서서히", "말려죽", "방전시", "서리독", "늪지대"],
+            "셋업(2)": ["[Primary] 독기찬", "[Secondary] 끈질겨"],
+            "마무리(1)": ["치사량"]
+        },
+        "batters": {
+            "포수(1)": ["방망이"],
+            "내야(4)": ["[1B] 밀어내", "[2B] 공볼래", "[3B] 서서히", "[SS] 끈질기"],
+            "외야(3)": ["[LF] 눈야구", "[CF] 참아라", "[RF] 안휘둘"],
+            "지명타자(1)": ["볼넷왕"],
+            "백업(4)": ["[C] 묵묵히", "[IF] 파울왕", "[IF] 차분한", "[OF] 느릿이"]
+        }
+    },
+    "🟠 오렌지 자이언츠": {
+        "color": "선 굵은 야구, 거대한 파괴력, 정면승부 강타",
+        "pitchers": {
+            "선발(5)": ["거인성", "대지진", "만성형", "묵직한", "웅장한"],
+            "중계/불펜(5)": ["바위산", "거대웅", "선굵은", "대기만", "묵직구"],
+            "셋업(2)": ["[Primary] 대지웅", "[Secondary] 통나무"],
+            "마무리(1)": ["거인탑"]
+        },
+        "batters": {
+            "포수(1)": ["큰바위"],
+            "내야(4)": ["[1B] 쪼개버", "[2B] 파괴타", "[3B] 장작패", "[SS] 거대타"],
+            "외야(3)": ["[LF] 묵직한", "[CF] 대지파", "[RF] 통나무"],
+            "지명타자(1)": ["대기만"],
+            "백업(4)": ["[C] 도루포", "[IF] 묵직해", "[IF] 대지벽", "[OF] 둔하지만"]
+        }
+    },
+    "🟤 브라운 베어스": {
+        "color": "허허실실, 내유외강, 위기관리 타짜, 희생플라이/작전 야구",
+        "pitchers": {
+            "선발(5)": ["반달곰", "허허실", "베테랑", "위기탈", "지리산"],
+            "중계/불펜(5)": ["꿀단지", "노련한", "잔뼈굵", "잠자는", "맹수본"],
+            "셋업(2)": ["[Primary] 타짜신", "[Secondary] 허허실"],
+            "마무리(1)": ["맹수눈"]
+        },
+        "batters": {
+            "포수(1)": ["꿀곰이"],
+            "내야(4)": ["[1B] 찬스강", "[2B] 희생타", "[3B] 밀어쳐", "[SS] 타짜노"],
+            "외야(3)": ["[LF] 노련한", "[CF] 반달곰", "[RF] 뜬공짱"],
+            "지명타자(1)": ["끝내기"],
+            "백업(4)": ["[C] 베테랑", "[IF] 득점짜", "[IF] 곰발바", "[OF] 순수한"]
+        }
+    },
+    "⚪ 화이트 이글스": {
+        "color": "고고함, 칼날 제구력, 신사적, 정교한 밀어치기",
+        "pitchers": {
+            "선발(5)": ["흰수리", "자로재", "칼날존", "하늘위", "고고한"],
+            "중계/불펜(5)": ["칼날구", "정교한", "낚아채", "사냥꾼", "제구왕"],
+            "셋업(2)": ["[Primary] 송골매", "[Secondary] 칼날제"],
+            "마무리(1)": ["신사적인"]
+        },
+        "batters": {
+            "포수(1)": ["정교한"],
+            "내야(4)": ["[1B] 밀어쳐", "[2B] 정교타", "[3B] 안타샤", "[SS] 번개수"],
+            "외야(3)": ["[LF] 낚아채", "[CF] 흰날개", "[RF] 칼날타"],
+            "지명타자(1)": ["안타왕"],
+            "백업(4)": ["[C] 깔끔한", "[IF] 툭툭쳐", "[IF] 번개발", "[OF] 슈퍼캐"]
+        }
+    },
+    "⚫ 블랙 나이츠": {
+        "color": "결사 항전, 철벽 육탄 방어, 늪야구, 패배 없는 투지",
+        "pitchers": {
+            "선발(5)": ["흑기사", "결사항", "육탄방", "패배모", "칠흑건"],
+            "중계/불펜(5)": ["방패막", "늪야구", "투지찬", "철벽성", "슬라이"],
+            "셋업(2)": ["[Primary] 칠흑벽", "[Secondary] 육탄전"],
+            "마무리(1)": ["수호신"]
+        },
+        "batters": {
+            "포수(1)": ["방패철"],
+            "내야(4)": ["[1B] 몸던져", "[2B] 슬라이", "[3B] 육탄방", "[SS] 늪야구"],
+            "외야(3)": ["[LF] 결사대", "[CF] 다이빙", "[RF] 철벽갑"],
+            "지명타자(1)": ["투지왕"],
+            "백업(4)": ["[C] 성벽건", "[IF] 1점짜", "[IF] 질식수", "[OF] 온몸던"]
+        }
+    },
+    "💖 핑크 돌핀스": {
+        "color": "유쾌함, 도파민 중독, 무지성 흥, 도깨비 팀, 분위기 메이커",
+        "pitchers": {
+            "선발(5)": ["핑크돌", "흥부자", "축제왕", "미친흥", "분홍바"],
+            "중계/불펜(5)": ["신난다", "도깨비", "예측불", "춤추는", "신기한"],
+            "셋업(2)": ["[Primary] 도파민", "[Secondary] 핑크빛"],
+            "마무리(1)": ["축제끝"]
+        },
+        "batters": {
+            "포수(1)": ["신난돌"],
+            "내야(4)": ["[1B] 무지성", "[2B] 훔쳐라", "[3B] 풀스윙", "[SS] 핑크빛"],
+            "외야(3)": ["[LF] 도파민", "[CF] 흥돌고", "[RF] 춤추자"],
+            "지명타자(1)": ["도깨비"],
+            "백업(4)": ["[C] 귀요미", "[IF] 무지성", "[IF] 흥신흥", "[OF] 날아라"]
+        }
+    }
+}
+def render_roster_viewer():
+    with st.sidebar.expander("📋 10개 구단 26인 로스터 열람"):
+        selected_team = st.selectbox("팀을 선택하세요", list(TEAM_ROSTERS.keys()))
+        team_info = TEAM_ROSTERS[selected_team]
+        
+        st.caption(f"**팀 컬러:** {team_info['color']}")
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### ⚾ 투수진 (13명)")
+            for role, players in team_info["pitchers"].items():
+                st.markdown(f"**{role}**")
+                st.text(", ".join(players))
+                
+        with col2:
+            st.markdown("### 🏏 타자진 (13명)")
+            for role, players in team_info["batters"].items():
+                st.markdown(f"**{role}**")
+                st.text(", ".join(players))
+
 # 데이터프레임 빌드 및 매퍼 스타일 정의
 teams_keys = list(MATCHUP_MATRIX.keys())
 df_matchup = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=teams_keys)
@@ -229,11 +412,11 @@ class PureKboEngine:
                 p.role = "야수등판"
                 p.max_stamina = 15
                 p.stamina = 15
-                self.game_log.append("🚨 [투수 교체] 8점 차 이상 대참사! 전술적으로 야수를 마운드에 올립니다.")
+                self.game_log.append("🚨 [투수 교체] 대참사! 전술적으로 야수를 마운드에 올립니다.")
                 return True
             return False
             
-        if target_idx != self.my_pitcher_idx:
+        if target_idx != self.my_pitcher_idx and target_idx not in self.my_used_pitchers:
             self.my_pitcher_idx = target_idx
             self.my_used_pitchers.add(target_idx)
             p = self.get_current_my_pitcher()
@@ -241,12 +424,13 @@ class PureKboEngine:
             return True
         else:
             # 만약 시나리오상 다음 투수가 현재 투수와 같다면 차선책으로 강제 한 칸 이동
-            if self.my_pitcher_idx < len(self.my_pitchers) - 1:
-                self.my_pitcher_idx += 1
-                self.my_used_pitchers.add(self.my_pitcher_idx)
-                p = self.get_current_my_pitcher()
-                self.game_log.append(f"🔄 [투수 교체] 수동 조절: {p.role} '{p.name}' 등판")
-                return True
+            for alt_idx in range(1, len(self.my_pitchers)):
+                if alt_idx not in self.my_used_pitchers:
+                    self.my_pitcher_idx = alt_idx
+                    self.my_used_pitchers.add(alt_idx)
+                    p = self.get_current_my_pitcher()
+                    self.game_log.append(f"🔄 [투수 교체] 불펜 가동: {p.role} '{p.name}' 등판")
+                    return True
         return False
 
     def change_enemy_pitcher(self) -> bool:
@@ -263,19 +447,20 @@ class PureKboEngine:
                 return True
             return False
 
-        if target_en_idx != self.enemy_pitcher_idx:
+        if target_en_idx != self.enemy_pitcher_idx and target_en_idx not in self.enemy_used_pitchers:
             self.enemy_pitcher_idx = target_en_idx
             self.enemy_used_pitchers.add(target_en_idx)
             p = self.get_current_enemy_pitcher()
             self.game_log.append(f"🔄 [상대 투수 교체] 시나리오 적용: 상대 불펜 가동: {p.role} '{p.name}' 등판")
             return True
         else:
-            if self.enemy_pitcher_idx < len(self.enemy_pitchers) - 1:
-                self.enemy_pitcher_idx += 1
-                self.enemy_used_pitchers.add(self.enemy_pitcher_idx)
-                p = self.get_current_enemy_pitcher()
-                self.game_log.append(f"🔄 [상대 투수 교체] 수동 조절: {p.role} '{p.name}' 등판")
-                return True
+            for alt_idx in range(1, len(self.enemy_pitchers)):
+                if alt_idx not in self.enemy_used_pitchers:
+                    self.enemy_pitcher_idx = alt_idx
+                    self.enemy_used_pitchers.add(alt_idx)
+                    p = self.get_current_enemy_pitcher()
+                    self.game_log.append(f"🔄 [상대 투수 교체] 상대 불펜 가동: {p.role} '{p.name}' 등판")
+                    return True
         return False
 
     def use_my_timeout(self) -> None:
@@ -499,21 +684,18 @@ class PureKboEngine:
 
         forbidden_indices = set()
         if self.inning < 8:
-            forbidden_indices.add(7) #8회 미만 클로저 금지
+            forbidden_indices.add(6) #8회 미만 클로저 금지
         if self.inning < 7:
-            forbidden_indices.add(6) #7회 미만 셋업맨 금지 
+            forbidden_indices.add(5) #7회 미만 셋업맨 금지 
 
         if abs(score_diff) >= 4: #4점차 이상이면 클로저/셋업맨 제한 
+            forbidden_indices.add(5)
             forbidden_indices.add(6)
-            forbidden_indices.add(7)
             
         #연장전 (10회 이상)
         if self.inning >= 10:
             #동점이거나 3점차 내면 클로저/셋업맨 포함하여 사용 안 한 차례로 기용 
-            if abs(score_diff) <= 3:
-                candidate_list = [7, 6, 5, 4, 3, 2, 1]
-            else:
-                candidate_list = [5, 4, 3, 2, 1]
+            candidate_list = [6, 5, 4, 3, 2, 1] if abs(score_diff) <= 3 else [4, 3, 2, 1]
 
             #남은 투수 중 최우선 순위 
             for idx in candidate_list:
@@ -521,7 +703,7 @@ class PureKboEngine:
                     return idx 
 
             #남은 투수 중 최우선 순위 
-            for idx in range(1, 8):
+            for idx in range(1, 7):
                 if idx not in used_set:
                     return idx
 
@@ -532,16 +714,16 @@ class PureKboEngine:
         # 정규 이닝 (9회 이하) 
         if 1 <= score_diff <= 3:  # 근소하게 이기고 있는 경우 (세이브/홀드)
             if self.inning <= 7:
-                target = 5 #필승조 1번
+                target = 4 #필승조 1번
             elif self.inning == 8:
-                target = 6 if 6 not in used_set else 5 #셋업맨
+                target = 5 if 5 not in used_set else 4 #셋업맨
             else:  # 9회
-                if 7 not in used_set:
-                    return 7 #마무리 등판
-                elif 6 not in used_set:
-                    return 6 #마무리 쓰면 셋업맨
+                if 6 not in used_set:
+                    return 6 #마무리 등판
+                elif 5 not in used_set:
+                    return 5 #마무리 쓰면 셋업맨
                 else:
-                    target = 5
+                    target = 4
                 
         elif score_diff >= 4:  # 큰 차이로 이기는 경우
             if self.inning <= 6:
@@ -549,27 +731,24 @@ class PureKboEngine:
             elif self.inning <= 8:
                 target = 2 if 2 not in used_set else 3
             else:
-                target = 4 if 4 not in used_set else 5
+                target = 4 if 4 not in used_set else 3
                 
         elif score_diff == 0:
             if self.inning <= 6:
                 target = 2 if 2 not in used_set else 3 
             elif self.inning <= 8:
-                target = 4 if 4 not in used_set else 5 
-            else:
-                if 7 not in used_set:
-                    return 7
-                elif 6 not in used_set: 
-                    return 6
-                else: 
-                    target = 5
+                target = 4 if 4 not in used_set else 3 
+            else:  # 9회 동점!
+                if 6 not in used_set: return 6  # 마무리(6) 등판
+                elif 5 not in used_set: return 5  # 셋업맨(5)
+                else: target = 4
 
         else:  # 지고 있는 경우 (score_diff < 0)
             abs_diff = abs(score_diff)
             if self.inning >= 7 and abs_diff >= 8:
                 return -99  # 야수등판으로 패전처리 
             elif abs_diff >= 4:
-                target = 3 if 3 not in used_set else 4
+                target = 3 if 3 not in used_set else 2
             else:
                 target = 1 if 1 not in used_set else 2
 
@@ -578,12 +757,12 @@ class PureKboEngine:
             return target
 
         # 순서 및 사용 여부 검증 후 사용 가능한 가장 낮은 인덱스(추격조 우선) 순차 등판
-        for idx in range(1, 8):
+        for idx in range(1, 7):
             if idx not in used_set and idx not in forbidden_indices:
                 return idx 
 
         # forbidden_indices 때문에 못 뽑았다면 제한 풀고 남은 투수 찾기 
-        for idx in (1, 8):
+        for idx in (1, 7):
             if idx not in used_set:
                 return idx
                 
