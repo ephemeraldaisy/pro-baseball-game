@@ -557,6 +557,26 @@ class PureKboEngine:
 
         return next_idx
 
+    def check_pitch_clock_violation(self, log_prefix: str) -> bool:
+        #피치클락 위반 
+        current_p = self.get_current_enemy_pitcher() if self.is_attack else self.get_current_my_pitcher()
+        violation_rate = 0.02 + (0.03 if current_p.stamina <= 5 else 0.0)
+        if random.random() < violation_rate:
+            if random.random () < 0.70:
+                self.ball += 1
+                self.game_log.append(log_prefix + f"⏱️ [피치클락 위반] 투수가 제한 시간을 초과했습니다! (자동 볼 1개 부여 -> {self.strike}S {self.ball}B)")
+                if self.ball >= 4:
+                    self.process_walk(is_defense=not self.is_attack)
+                return True
+            else:
+                self.strike += 1
+                self.game_log.append(log_prefix + f"⏱️ [피치클락 위반] 타자가 타석 복귀 시간을 지키지 않았습니다! (자동 스트라이크 1개 부여 -> {self.strike}S {self.ball}B)")
+                if self.strike >= 3:
+                    self.process_strikeout(is_defense=not self.is_attack)
+                return True
+
+        return False 
+
     def play_defense_one_pitch(self, defense_choice: int) -> None:
         if self.game_over: return
         p_my = self.get_current_my_pitcher()
