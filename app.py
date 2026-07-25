@@ -465,24 +465,24 @@ class PureKboEngine:
 
     def use_my_timeout(self) -> None:
         """아군 타임 요청 처리"""
-    if self.my_timeouts_left <= 0:
-        self.game_log.append("⚠️ 이미 남은 타임을 모두 사용했습니다! (경기당 최대 3회)")
-        return
+        if self.my_timeouts_left <= 0:
+            self.game_log.append("⚠️ 이미 남은 타임을 모두 사용했습니다! (경기당 최대 3회)")
+            return
+            
+        self.my_timeouts_left -= 1
         
-    self.my_timeouts_left -= 1
-    
-    if self.is_attack:
-        # 공격 시: 타자 집중력 강화 (멘탈 정리)
-        self.game_log.append(f"⏱️ [아군 타임] 감독님이 타임을 요청하고 타자를 불러 조언을 전달합니다. (남은 타임: {self.my_timeouts_left}회)")
-        # 💡 예: 다음 타격 시 1회성 긍정 버프 부여 로직 연동 가능
-    else:
-        # 수비 시: 마운드 방문 (투수 체력 소량 회복 및 흐름 끊기)
-        p = self.get_current_my_pitcher()
-        p.stamina = min(p.max_stamina, p.stamina + 3) # 체력 +3 회복
-        self.game_log.append(f"⏱️ [아군 타임] 마운드 방문! 투수를 다독이고 흐름을 끊어갑니다. (투수 체력 +3 회복, 남은 타임: {self.my_timeouts_left}회)")
+        if self.is_attack:
+            # 공격 시: 타자 집중력 강화 (멘탈 정리)
+            self.game_log.append(f"⏱️ [아군 타임] 감독님이 타임을 요청하고 타자를 불러 조언을 전달합니다. (남은 타임: {self.my_timeouts_left}회)")
+            # 💡 예: 다음 타격 시 1회성 긍정 버프 부여 로직 연동 가능
+        else:
+            # 수비 시: 마운드 방문 (투수 체력 소량 회복 및 흐름 끊기)
+            p = self.get_current_my_pitcher()
+            p.stamina = min(p.max_stamina, p.stamina + 3) # 체력 +3 회복
+            self.game_log.append(f"⏱️ [아군 타임] 마운드 방문! 투수를 다독이고 흐름을 끊어갑니다. (투수 체력 +3 회복, 남은 타임: {self.my_timeouts_left}회)")
 
     def check_enemy_timeout(self, log_prefix: str) -> None:
-    """적팀 AI가 위기 상황이나 흐름 전환을 위해 확률적으로 타임을 부르는 로직"""
+        """적팀 AI가 위기 상황이나 흐름 전환을 위해 확률적으로 타임을 부르는 로직"""
     # 경기당 적팀도 최대 3회까지만 사용
         if getattr(self, 'enemy_timeouts_left', 3) <= 0:
             return
