@@ -1836,7 +1836,7 @@ def main() -> None:
         c1, c2, c3 = st.columns([2, 1, 2])
         with c1:
             st.metric(label=f"우리 팀 {game.my_emoji}", value=f"{game.our_score} 점")
-            st.caption(f"🔋 {p_my.name} | 체력: [{p_my.stamina}/{p_my.max_stamina}] | {game.our_total_pitches}구")
+            st.caption(f"🔋 {p_my.name} | 체력: [{p_my.stamina}/{p_my.max_stamina}] | 총 {game.our_total_pitches}구")
             if not game.game_over and p_my.role != "마무리" and st.button("🔄 불펜 교체"): game.change_my_pitcher(); st.rerun()
         with c2:
             if game.game_over:
@@ -1847,7 +1847,7 @@ def main() -> None:
                 st.markdown(f"<p style='text-align: center; font-size:12px;'>{'[공격 턴]' if current_is_our_turn else '[수비 턴]'}</p>", unsafe_allow_html=True)
         with c3:
             st.metric(label=f"상대 팀 {game.enemy_emoji}", value=f"{game.enemy_score} 점")
-            st.caption(f"🥎 {p_en.name} | 체력: [{p_en.stamina}/{p_en.max_stamina}] | {game.enemy_total_pitches}구")
+            st.caption(f"🥎 {p_en.name} | 체력: [{p_en.stamina}/{p_en.max_stamina}] | 총 {game.enemy_total_pitches}구")
 
         away_name = game.enemy_team if game.is_home_team else game.my_team
         home_name = game.my_team if game.is_home_team else game.enemy_team
@@ -1944,9 +1944,9 @@ def main() -> None:
 
                     current_is_our_turn = (not game.is_home_team and game.phase == "초") or (game.is_home_team and game.phase == "말")
                     if current_is_our_turn:
-                        active_batter = f"👉 OUR BATTER: {game.my_batter_number}"
+                        active_batter = f"OUR BATTER: {game.my_batter_number}"
                     else:
-                        active_batter = f"🔥 ENEMY BATTER {game.enemy_batter_number}"
+                        active_batter = f"ENEMY BATTER {game.enemy_batter_number}"
 
                     ax.text(0, -0.4, active_batter, color='#51cf66', fontsize=11, ha='center', va='center', 
                             weight='bold', bbox=dict(facecolor='#2b2b2b', edgecolor='#51cf66', boxstyle='round,pad=0.3', lw=1))
