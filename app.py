@@ -1859,6 +1859,15 @@ def main() -> None:
                     st.text_area("공식 가이드", value=f.read(), height=200, disabled=True)
             else: st.error("⚠️ assets/game_tips.txt 파일 누락.")
 
+        st.divider()
+        st.header("👤 선수 로스터")
+        if st.button("이번 시즌 선수단"):
+            if os.path.exists("assets/team-roster.txt"):
+                with open("assets/team-roster.txt", "r", encoding="utf-8") as f:
+                    st.text_area("팀별 로스터", value=f.read(), height=200, disabled=True)
+            else:
+                st.error("⚠️ assets/team-roster.txt 파일 누락.")
+
     # =====================================================================
     # ⚡ [2번 수정 구역] MAIN: 메인 화면에는 선택한 '우리 팀'의 깔끔한 1줄 상성 요약만 출력
     # =====================================================================
