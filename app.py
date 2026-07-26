@@ -2154,6 +2154,10 @@ def main() -> None:
                     ax.set_ylim(-0.5, 2.8)
                     ax.axis('off')
 
+                    inning_text = f"TOP {game.inning}" if game.phase == "초" else f"BOT {game.inning}"
+                    ax.text(0, 2.7, inning_text, color='#ff922b', fontsize=12, ha='center', va='center', 
+                            weight='bold', bbox=dict(facecolor='#2b2b2b', edgecolor='#ff922b', boxstyle='round,pad=0.4', lw=1.5))
+
                     base_coords = {
                         "home": (0, 0),
                         "base1": (1, 1),
@@ -2193,7 +2197,7 @@ def main() -> None:
                     if current_is_our_turn:
                         active_batter = f"OUR BATTER: {game.my_batter_number}"
                     else:
-                        active_batter = f"ENEMY BATTER {game.enemy_batter_number}"
+                        active_batter = f"ENEMY BATTER: {game.enemy_batter_number}"
 
                     ax.text(0, -0.4, active_batter, color='#51cf66', fontsize=11, ha='center', va='center', 
                             weight='bold', bbox=dict(facecolor='#2b2b2b', edgecolor='#51cf66', boxstyle='round,pad=0.3', lw=1))
