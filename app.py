@@ -220,7 +220,6 @@ def render_roster_viewer():
                 st.markdown(f"**{role}**")
                 st.text(", ".join(players))
 
-# 데이터프레임 빌드 및 매퍼 스타일 정의
 teams_keys = list(MATCHUP_MATRIX.keys())
 df_matchup = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=teams_keys)
 
@@ -236,7 +235,6 @@ def color_matchup_cells(val):
         return f"{base_style} background-color: #f2f2f2; color: #bfbfbf; font-style: italic;"
     return base_style
 
-# Pandas Styler 안전 정의
 try:
     styled_df = df_matchup.style.map(color_matchup_cells)
 except AttributeError:
@@ -335,12 +333,12 @@ class PureKboEngine:
         self.my_timeouts_left = 3 
         self.enemy_timeouts_left = 3 
 
+        self.manager_ejected = False  # 감독 퇴장 여부 플래그
         self.update_is_attack()
         
         my_stats = TEAMS[my_team]
         enemy_stats = TEAMS[enemy_team]
         
-        # 아군 5선발 로테이션 및 불펜 구축
         my_sp_pool = [
             PitcherDomain("1선발(에이스)", "선발", my_stats["stamina"]),
             PitcherDomain("2선발", "선발", int(my_stats["stamina"] * 0.95)),
@@ -361,7 +359,6 @@ class PureKboEngine:
         self.my_pitcher_idx = 0
         self.my_used_pitchers = {0}
 
-        # 적군 5선발 로테이션 및 불펜 구축
         enemy_sp_pool = [
             PitcherDomain("상대 에이스", "선발", enemy_stats["stamina"]),
             PitcherDomain("상대 2선발", "선발", int(enemy_stats["stamina"] * 0.95)),
@@ -385,8 +382,78 @@ class PureKboEngine:
         self.setup_half_inning()
 
     def update_is_attack(self) -> None:
-        """현재 이닝과 홈/원정 여부에 맞춰 is_attack 동적 최신화"""
         self.is_attack = (not self.is_home_team and self.phase == "초") or (self.is_home_team and self.phase == "말")
+
+    def trigger_special_chat(self, custom_chats: List[str]) -> None:
+        """특수 희귀/이벤트 발생 시 치지직 관중 채팅 주입 연출"""
+        users = ["야구천재", "방구석펩", "침착한스트리머", "9회말2아웃", "KBO정신병자", "용규놀이터", "류뿡", "야잘알김동구"]
+        for msg in custom_chats:
+            self.chzzk_chats.append(f"💬 **{random.choice(users)}**: {msg}")
+        if len(self.chzzk_chats) > 10:
+            self.chzzk_chats = self.chzzk_chats[-10:]
+
+    def eject_manager(self, reason: str) -> None:
+        """감독 퇴장 트리거 및 수석코치 AI 전환"""
+        if self.manager_ejected: return
+        self.manager_ejected = True
+        self.game_log.append(f"🟥 [감독 퇴장] 감독님이 {reason} 주심에게 격렬하게 항의하다 즉시 퇴장 명령을 받았습니다!")
+        self.game_log.append("👔 [수석코치 대행] 이제부터 수석코치가 남은 경기를 자동 전술 지휘합니다.")
+        
+        eject_chats = [
+            "아니 감독 쫓겨나니까 경기 더 잘 풀리는데??? ㅋㅋㅋㅋ",
+            "명장 수석코치님 평생 감독해 주세요 ㅋㅋㅋ",
+            "퇴장당하고 라커룸에서 족발 먹는 중 ㅋㅋㅋ",
+            "수석코치 AI 등판 ㄷㄷㄷ 오히려 좋아 ㅋㅋㅋ"
+        ]
+        self.trigger_special_chat(eject_chats)
+
+    def trigger_bench_clearing(self, reason: str, log_prefix: str = "") -> None:
+        """벤치클리어링(벤클) 트리거 엔진"""
+        self.game_log.append(log_prefix + f"🔥 [🚨 벤치클리어링 발동!] {reason} 양 팀 덕아웃과 불펜에서 선수들이 그라운드로 총출동합니다! 심한 언쟁과 몸싸움 발생!!! 😱")
+        
+        # 벤클 발생 시 20% 확률로 감독 같이 뛰어나왔다가 퇴장 처리!
+        if random.random() < 0.20 and not self.manager_ejected:
+            self.eject_manager("벤치클리어링 충돌 중 상대 감독 및 주심과의 물리적 마찰로")
+        else:
+            self.game_log.append("👨‍⚖️ [심판진 중재] 심판진이 긴급 수습에 나섭니다. 양 팀 벤치에 엄중 경고를 부여하고 경기를 재개합니다.")
+
+        bc_chats = [
+            "ㅋㅋㅋㅋㅋㅋㅋㅋ 벤클 떴다 🍿🍿🍿🍿🍿",
+            "어어 밀지 마라 ㅋㅋㅋ 주먹 나가냐???",
+            "아니 팝콘 가져와라 ㅋㅋㅋ 꿀잼 직관!!",
+            "감독님 벤치에서 제일 먼저 뛰어나가는 거 보소 ㅋㅋㅋㅋ",
+            "이게 KBO지 ㅋㅋㅋㅋ 낭만 야구 미쳤다"
+        ]
+        self.trigger_special_chat(bc_chats)
+
+    def advance_all_runners(self, bases: int = 1) -> None:
+        gained = 0
+        for _ in range(bases):
+            if self.base3: gained += 1; self.base3 = False
+            if self.base2: self.base3 = True; self.base2 = False
+            if self.base1: self.base2 = True; self.base1 = False
+        if gained > 0:
+            self.update_live_scoreboard(gained)
+
+    def trigger_wild_pitch_or_passed_ball(self, log_prefix: str, pitch_zone: int) -> bool:
+        if not (self.base1 or self.base2 or self.base3):
+            return False
+            
+        wp_prob = 0.020 if pitch_zone == 0 else 0.008
+        if random.random() < wp_prob:
+            self.ball += 1
+            self.game_log.append(log_prefix + f"💥 [원바운드 폭투!] 투수의 손가락이 빠지며 공이 바운드되어 튑니다! 주자 전원 진루! ({self.strike}S {self.ball}B)")
+            self.advance_all_runners(1)
+            if self.ball >= 4:
+                self.process_walk(is_defense=not self.is_attack)
+            return True
+            
+        if random.random() < 0.015:
+            self.game_log.append(log_prefix + f"⚠️ [포수 포일!] 포수가 투구를 미트에서 놓치며 공이 뒤로 튑니다! 주자 한 베이스씩 진루! ({self.strike}S {self.ball}B)")
+            self.advance_all_runners(1)
+            return True
+            
+        return False
 
     def add_stat(self, stat: str, amt: int = 1):
         if self.phase == "초":
@@ -471,7 +538,6 @@ class PureKboEngine:
         return False
 
     def use_my_timeout(self) -> None:
-        """아군 타임 요청 처리"""
         self.update_is_attack()
         left_timeouts = getattr(self, 'my_timeouts_left', 3)
         if left_timeouts <= 0:
@@ -498,7 +564,6 @@ class PureKboEngine:
             self.game_log.append(f"⏱️ [아군 타임] 마운드 방문! 투수를 다독이고 흐름을 끊어갑니다. (투수 체력 +3 회복, 남은 타임: {self.my_timeouts_left}회)")
                 
     def check_enemy_timeout(self, log_prefix: str) -> None:
-        """적팀 AI가 위기 상황이나 흐름 전환을 위해 확률적으로 타임을 부르는 로직"""
         self.update_is_attack()
         enemy_left = getattr(self, 'enemy_timeouts_left', 3)
         if enemy_left <= 0:
@@ -598,6 +663,12 @@ class PureKboEngine:
         if not (self.base1 or self.base2 or self.base3):
             st.warning("루상에 주자가 없습니다.")
             return
+
+        # 💡 [벤클 트리거 2] 6점 차 이상 대승 시 도루 불문율 위반
+        score_diff = self.our_score - self.enemy_score if self.is_attack else self.enemy_score - self.our_score
+        if score_diff >= 6 and random.random() < 0.40:
+            self.trigger_bench_clearing("6점 차 이상 큰 격차 상황에서 기습 도루를 감행하여 불문율을 위반했습니다!")
+
         p_en = self.get_current_enemy_pitcher()
         if p_en.stamina <= (p_en.max_stamina * 0.3) and not getattr(p_en, 'warned_stamina', False):
             p_en.warned_stamina = True
@@ -816,7 +887,7 @@ class PureKboEngine:
                 self.my_pitcher_idx = target_idx
                 self.my_used_pitchers.add(target_idx)
                 p_my = self.get_current_my_pitcher()
-                self.game_log.append(f"🔄 [명장 전술 작전] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_role if 'p_role' in locals() else p_my.role}] '{p_my.name}' 등판!")
+                self.game_log.append(f"🔄 [명장 전술 작전] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_my.role}] '{p_my.name}' 등판!")
 
         if p_my.role == "야수등판":
             speed = random.randint(110, 125)
@@ -847,6 +918,9 @@ class PureKboEngine:
             matchup_mod -= 0.05
 
         log_prefix = f"🥎 [{p_my.name} {speed}km/h {pitch_type}] -> "
+
+        if self.trigger_wild_pitch_or_passed_ball(log_prefix, pitch_zone):
+            return
 
         if pitch_zone == 0:
             roll_zone0 = random.random()
@@ -879,10 +953,19 @@ class PureKboEngine:
                     self.process_pitch_hit_or_out(my_stats, enemy_stats, penalty, matchup_mod, log_prefix, True, True)
             else:
                 self.strike += 1
+                is_looking_strike = random.random() < 0.60
+                
+                # 💡 스트라이크 판정에 불복하여 확률적으로 감독 퇴장 트리거 (약 1.5% 확률)
+                if random.random() < 0.015 and not self.manager_ejected:
+                    self.eject_manager("볼/스트라이크 판정에 대해 더그아웃에서 거칠게 언쟁을 벌이다가")
+
                 if self.strike >= 3:
-                    self.process_strikeout(is_defense=True, is_looking=True)
+                    self.process_strikeout(is_defense=True, is_looking=is_looking_strike)
                 else:
-                    self.game_log.append(log_prefix + f"스트라이크! 루킹 스트라이크를 잡아냅니다. ({self.strike}S {self.ball}B)")
+                    if is_looking_strike:
+                        self.game_log.append(log_prefix + f"👀 스트라이크! 루킹 스트라이크를 잡아냅니다. ({self.strike}S {self.ball}B)")
+                    else:
+                        self.game_log.append(log_prefix + f"💨 헛스윙! 타자의 방망이가 허공을 찌릅니다. ({self.strike}S {self.ball}B)")
 
     def play_turn(self, user_choice: int) -> None:
         if self.game_over: 
@@ -946,6 +1029,9 @@ class PureKboEngine:
         log_prefix = f"🔮 [상대 {speed}km/h {pitch_type}] -> "
         b_ctx = f"[{self.my_batter_number}번 타자] "
 
+        if self.trigger_wild_pitch_or_passed_ball(log_prefix, pitch_zone):
+            return
+
         pinch_hit_buff = 0.0
         if self.inning >= 6:
             score_diff = self.our_score - self.enemy_score
@@ -964,23 +1050,11 @@ class PureKboEngine:
             hbp_probability -= 0.003
 
         if pitch_zone == 0 and random.random() < hbp_probability:
-            if random.random() < 0.10:
-                self.game_log.append(f"🚨 [헤드샷 퇴장] 콰쾅! 상대 투수의 {speed}km/h 속구가 우리 타자의 뚝배기(헬멧)를 직격했습니다!!! 😱")
-                self.game_log.append(f"👨‍⚖️ 주심 주먹을 치켜들며 즉시 퇴장 명령! 상대 투수가 마운드에서 쫓겨납니다!")
-                self.process_walk(is_defense=False)
-                if self.enemy_pitcher_idx < len(self.enemy_pitchers) - 1:
-                    self.enemy_pitcher_idx += 1
-                    next_p = self.get_current_enemy_pitcher()
-                    self.game_log.append(f"🔄 급하게 상대 불펜에서 {next_p.name}(이)가 마운드를 구원하러 올라옵니다.")
-                else:
-                    p_en.name = "⚠️ 야수(상대패전처리)"
-                    p_en.role = "야수등판"
-                    p_en.max_stamina = 15
-                    p_en.stamina = 15
-                    self.game_log.append("🚨 [상대팀 비상] 상대 불펜 전원 방전! 상대 팀도 어쩔 수 없이 야수를 마운드에 올립니다!!")
+            if random.random() < 0.15: # 💡 [벤클 트리거 1] 헤드샷 및 강한 사구 시 벤클 발동
+                self.trigger_bench_clearing("상대 투수의 위험천만한 실투가 타자의 위협 부위를 직격했습니다!", log_prefix)
             else:
                 self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 강타합니다! 몸에 맞는 공으로 출루!")
-                self.process_walk(is_defense=False)
+            self.process_walk(is_defense=False)
             return
         
         if user_choice == 1:
@@ -991,7 +1065,7 @@ class PureKboEngine:
             res = random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[520, 180, 200, 100] if is_zone_matched else [320, 330, 200, 150])[0] if pitch_zone != 0 else random.choices(["HIT", "OUT", "FOUL", "MISS"], weights=[80, 350, 200, 370])[0]
             self.process_swing_result(res, log_prefix, b_ctx, my_stats, enemy_stats, penalty, is_zone_matched, total_buff, pitch_zone)
        
-        elif user_choice == 3: # 웨이팅 (공을 봄)
+        elif user_choice == 3: # 웨이팅
             if pitch_zone == 0 or random.random() < 0.25:
                 self.ball += 1
                 self.game_log.append(log_prefix + b_ctx + f"👀 예리한 선구안! 공을 골라냅니다. ({self.strike}S {self.ball}B)")
@@ -1006,10 +1080,16 @@ class PureKboEngine:
                 else:
                     self.game_log.append(log_prefix + b_ctx + f"👀 스트라이크 지켜봄. ({self.strike}S {self.ball}B)")
                 
-        elif user_choice == 4:
+        elif user_choice == 4: # 스퀴즈 번트
             if not self.base3:
                 st.warning("3루에 주자가 없어 스퀴즈 번트가 불가능합니다.")
                 return
+
+            # 💡 [벤클 트리거 2] 6점 차 이상 대승 시 스퀴즈 번트 불문율 위반
+            score_diff = self.our_score - self.enemy_score
+            if score_diff >= 6 and random.random() < 0.35:
+                self.trigger_bench_clearing("6점 차 이상 대승 중 기습 스퀴즈 번트를 시도하여 상대 마운드를 자극했습니다!")
+
             bunt_success_rate = max(0.30, min(0.75, 0.55 - (enemy_stats["defense"] - my_stats["hit"]) * 0.002))
             self.strike = 0; self.ball = 0
             bat = self.my_batter_number
@@ -1083,6 +1163,14 @@ class PureKboEngine:
                 res = "HIT"
 
             else:
+                if self.out_count == 0 and self.base1 and self.base2 and random.random() < 0.002:
+                    self.strike = 0; self.ball = 0
+                    self.out_count = 3
+                    self.base1 = self.base2 = self.base3 = False
+                    self.game_log.append(log_prefix + b_ctx + "😱 [대참사! 삼중살(트리플 플레이)!] 날카로운 직선타가 내야수 글러브로 흡수된 뒤, 2루, 1루 주자까지 모조리 태그아웃! 순식간에 쓰리아웃 체인지!!")
+                    self.check_three_out_change()
+                    return
+
                 self.strike = 0; self.ball = 0
                 bat = self.my_batter_number
                 self.my_batter_number = 1 if bat == 9 else bat + 1
@@ -1153,12 +1241,28 @@ class PureKboEngine:
             if res == "HIT" and is_power_hitter and random.random() < 0.20:
                 res = "HR"
             
+            # 💡 [레어] 인사이드 더 파크 홈런 (그라운드 홈런)
+            if res == "HIT" and random.random() < 0.005:
+                self.add_stat("H")
+                pts = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0) + 1
+                self.base1 = self.base2 = self.base3 = False
+                self.update_live_scoreboard(pts)
+                self.game_log.append(log_prefix + match_msg + f"🏃‍♂️💨 [인사이드 더 파크 홈런!!] {b_ctx} 외야수가 펜스에 크게 부딪히며 공을 더듬는 사이! 타자 주자가 미친 전력 질주로 홈까지 훔쳐냅니다!!! (+{pts}점)")
+                return
+
             if res == "HR":
                 self.add_stat("H")
                 pts = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0) + 1
                 self.base1 = self.base2 = self.base3 = False
                 self.update_live_scoreboard(pts)
+                
+                # 💡 [벤클 트리거 3] 6점 차 이상 대승 중 과도한 배트 플립 및 홈런 세리머니
+                score_diff = self.our_score - self.enemy_score if self.is_attack else self.enemy_score - self.our_score
+                if score_diff >= 6 and random.random() < 0.25:
+                    self.trigger_bench_clearing("큰 점수 차에서 타자가 화려한 빠던과 과도한 승리 세리머니를 선보여 상대 벤치를 자극했습니다!")
+
                 self.game_log.append(log_prefix + match_msg + f"🔥 {b_ctx} 홈런!! (+{pts}점)")
+
             elif res == "HIT":             
                 self.add_stat("H")
                 gained = 0
@@ -1220,6 +1324,15 @@ class PureKboEngine:
                     self.game_log.append(log_prefix + b_ctx + match_msg + enemy_err_log + (f" (+{gained}점)" if gained > 0 else ""))
                     return
 
+                # 💡 [레어] 삼중살 (트리플 플레이)
+                if self.out_count == 0 and self.base1 and self.base2 and random.random() < 0.002:
+                    self.strike = 0; self.ball = 0
+                    self.out_count = 3
+                    self.base1 = self.base2 = self.base3 = False
+                    self.game_log.append(log_prefix + b_ctx + "😱 [대참사! 삼중살(트리플 플레이)!] 병살 타구가 나오며 2루, 1루 주자 및 타자 주자까지 모조리 잡힙니다! 순식간에 쓰리아웃 체인지!!")
+                    self.check_three_out_change()
+                    return
+
                 self.strike = 0
                 self.ball = 0 
 
@@ -1229,12 +1342,22 @@ class PureKboEngine:
                 if self.out_count < 2 and self.base1 and random.random() < 0.25:
                     self.out_count += 2
                     self.base1 = False
-                    self.game_log.append(log_prefix + "💥 2루수-1루수 이어지는 뼈아픈 병살타 아웃!")
+                    
+                    # 💡 [벤클 트리거 4/5] 거친 플레이 및 트래시 토크 
+                    if random.random() < 0.03:
+                        self.trigger_bench_clearing("2루 태그 과정에서 주자와 내야수가 과도하게 부딪히며 신경전이 벌어졌습니다!")
+                    else:
+                        self.game_log.append(log_prefix + "💥 2루수-1루수 이어지는 뼈아픈 병살타 아웃!")
                 elif self.out_count < 2 and self.base3 and random.random() < 0.45:
                     self.out_count += 1
                     self.base3 = False
                     self.update_live_scoreboard(1)
-                    self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 3루 주자 홈인, 희생플라이 타점!") 
+                    
+                    # 💡 [벤클 트리거 5] 홈 슬라이딩 충돌 거친 플레이
+                    if random.random() < 0.04:
+                        self.trigger_bench_clearing("홈 쇄도 중 주자와 포수의 격렬한 충돌이 터졌습니다!")
+                    else:
+                        self.game_log.append(log_prefix + "🕊️ 깊숙한 외야 플라이! 3루 주자 홈인, 희생플라이 타점!") 
                          
                 else:
                     self.out_count += 1
@@ -1265,6 +1388,11 @@ class PureKboEngine:
         if self.out_count < 2 and self.base3:
             if random.random() < 0.25:
                 self.game_log.append(log_prefix + "⚡ [적팀 작전 발동] 상대 감독이 기습적인 스퀴즈 번트 지시를 내립니다!")
+                
+                score_diff = self.enemy_score - self.our_score
+                if score_diff >= 6 and random.random() < 0.35:
+                    self.trigger_bench_clearing("상대 팀이 6점 차 이상 대승 중에 스퀴즈 번트를 대어 불문율을 위반했습니다!")
+
                 if pitch_zone != 0 if 'pitch_zone' in locals() else True:
                     if random.random() < 0.70:
                         self.out_count += 1
@@ -1293,6 +1421,10 @@ class PureKboEngine:
                 steal_attempt_prob += 0.05
                 
             if random.random() < steal_attempt_prob:
+                score_diff = self.enemy_score - self.our_score
+                if score_diff >= 6 and random.random() < 0.40:
+                    self.trigger_bench_clearing("상대 팀이 6점 차 이상으로 이기고 있는 상황에서 도루를 감행했습니다!")
+
                 if self.base3 and random.random() < 0.01:
                     self.game_log.append(log_prefix + "🔥 [🚨 비상사태!! 홈스틸 시도] 투수가 와인드업에 들어간 순간, 3루 주자가 홈으로 무모하게 몸을 던졌습니다!!! 전 관중 기립!!!")
                     
@@ -1345,23 +1477,11 @@ class PureKboEngine:
             hbp_probability += 0.02
             
         if not is_strike_context and random.random() < hbp_probability:
-            if random.random() < 0.10:
-                self.game_log.append(f"🚨 [헤드샷 퇴장] 퍽! 우리 투수의 실투가 상대 타자의 머리를 강타했습니다!!! 😱")
-                self.game_log.append(f"👨‍⚖️ [경고] KBO 헤드샷 즉시 퇴장 룰 적용! {p_my.name} 투수가 강제 퇴장당합니다!")
-                self.process_walk(is_defense=True)
-                if self.my_pitcher_idx < len(self.my_pitchers) - 1:
-                    self.my_pitcher_idx += 1
-                    next_p = self.get_current_my_pitcher()
-                    self.game_log.append(f"🔄 벤치가 발칵 뒤집혔습니다! 급하게 불펜에서 {next_p.name}(이)가 구원 등판합니다!")
-                else:
-                    p_my.name = "⚠️ 야수(패전처리)"
-                    p_my.role = "야수등판"
-                    p_my.max_stamina = 15
-                    p_my.stamina = 15
-                    self.game_log.append("🚨 [비상사태] 남은 불펜 투수가 없습니다!!! 어쩔 수 없이 야수를 급하게 마운드에 올립니다!!")
+            if random.random() < 0.15: # 💡 [벤클 트리거 1] 수비 중 사구 벤클
+                self.trigger_bench_clearing("우리 투수의 빠른 공이 상대 타자 위협 부위를 강타했습니다!", log_prefix)
             else: 
                 self.game_log.append(log_prefix + "💥 아웃사이드 실투! 투수가 던진 빠른 공이 상대 타자의 몸에 맞았습니다. 사구 허용.")
-                self.process_walk(is_defense=True)
+            self.process_walk(is_defense=True)
             return
 
         enemy_hit_base = enemy_stats["hit"] * 0.0020
@@ -1526,6 +1646,16 @@ class PureKboEngine:
         self.check_three_out_change()
 
     def process_strikeout(self, is_defense: bool, is_looking: bool = False) -> None:
+        # 💡 [레어] 스트라이크아웃 낫아웃
+        if not is_looking and (not self.base1 or self.out_count == 2) and random.random() < 0.03:
+            if random.random() < 0.70:
+                self.strike = 0; self.ball = 0
+                self.base1 = True
+                self.game_log.append("⚡ [낫아웃 폭투 출루!] 포수가 3스트라이크 공을 뒤로 흘렸습니다! 타자 주자가 1루로 전력 질주하여 살아나갑니다!")
+                return
+            else:
+                self.game_log.append("⚡ [낫아웃 송구 아웃] 포수가 빠뜨린 공을 재빠르게 주워 1루에 송구하며 가까스로 삼진 아웃 처리합니다.")
+
         self.strike = 0
         self.ball = 0
         self.out_count += 1
@@ -1690,6 +1820,7 @@ def main() -> None:
                     "pitch_history": game.pitch_history,
                     "chzzk_chats": game.chzzk_chats,
                     "hit_buff": game.hit_buff,
+                    "manager_ejected": game.manager_ejected,
                     "my_pitcher_idx": game.my_pitcher_idx,
                     "my_used_pitchers": list(game.my_used_pitchers),
                     "my_pitchers": my_pitchers_data,
@@ -1739,6 +1870,7 @@ def main() -> None:
                         loaded_game.pitch_history = data["pitch_history"]
                         loaded_game.chzzk_chats = data["chzzk_chats"]
                         loaded_game.hit_buff = data["hit_buff"]
+                        loaded_game.manager_ejected = data.get("manager_ejected", False)
 
                         loaded_game.my_pitcher_idx = data["my_pitcher_idx"]
                         loaded_game.my_used_pitchers = set(data["my_used_pitchers"])
@@ -1955,7 +2087,17 @@ def main() -> None:
                     plt.close(fig)
                 st.info(HyperClovaX_AI.get_recommendation(game.pitch_history, game.base3, game.inning, current_is_our_turn))
 
-                if current_is_our_turn:
+                # 💡 감독 퇴장 여부 체크하여 수석코치 AI 자동 지휘로 분기
+                if game.manager_ejected:
+                    st.error("🟥 감독 퇴장 상태입니다! 수석코치 AI가 전술을 위임받아 진행합니다.")
+                    if st.button("🤖 [수석코치 AI] 다음 구 진행", type="primary", key="btn_coach_ai", width="stretch"):
+                        if current_is_our_turn:
+                            game.play_turn(random.choice([1, 2, 3])) # AI 공격 작전
+                        else:
+                            game.play_defense_one_pitch(random.choice([1, 2, 3])) # AI 수비 볼배합
+                        st.rerun()
+
+                elif current_is_our_turn:
                     st.caption(f"🔍 구질 히스토리: {', '.join(game.pitch_history)}")
                     st.markdown("### 📢 공격 작전")
                     b1, b2, b3, b4 = st.columns(4)
