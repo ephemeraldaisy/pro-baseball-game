@@ -1055,9 +1055,9 @@ class PureKboEngine:
                 p_en = self.get_current_enemy_pitcher()
                 self.game_log.append(f"🔄 [상대 벤치 움직임] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_en.role}] '{p_en.name}' 등판!")
 
-        if p.en_role == "야수등판":
+        if p_en.role == "야수등판":
             speed = random.randint(110, 125)
-            pitch_type = andom.choice(["아리랑볼", "직구인척하는볼"])
+            pitch_type = random.choice(["아리랑볼", "직구인척하는볼"])
             p_en.consume(1)
         else:
             pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
