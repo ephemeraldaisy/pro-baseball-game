@@ -353,7 +353,8 @@ class PureKboEngine:
             PitcherDomain("추격조 3번(좌완)", "추격조", 35),
             PitcherDomain("추격조 4번(추격)", "추격조", 35),
             PitcherDomain("필승조 1번(마당쇠)", "필승조", 35),
-            PitcherDomain("셋업맨", "필승조", 30),
+            PitcherDomain("셋업맨 1", "필승조", 30),
+            PitcherDomain("셋업맨 2", "필승조", 30),
             PitcherDomain("클로저(마무리)", "마무리", 20)
         ]
         self.my_pitcher_idx = 0
@@ -373,7 +374,8 @@ class PureKboEngine:
             PitcherDomain("상대 추격조 3번", "추격조", 35),
             PitcherDomain("상대 추격조 4번", "추격조", 35),
             PitcherDomain("상대 필승조 1번", "필승조", 35),
-            PitcherDomain("상대 셋업맨", "필승조", 30),
+            PitcherDomain("상대 셋업맨 1", "필승조", 30),
+            PitcherDomain("상대 셋업맨 2", "필승조", 30),
             PitcherDomain("상대 클로저", "마무리", 20)
         ]
         self.enemy_pitcher_idx = 0
@@ -812,22 +814,25 @@ class PureKboEngine:
 
         forbidden_indices = set()
         if self.inning < 8:
-            forbidden_indices.add(6)
+            forbidden_indices.add(8) #클로저 8회 이전 등판 금지 
         if self.inning < 7:
-            forbidden_indices.add(5)
+            forbidden_indices.add(6)
+            forbidden_indices.add(7)#셋업맨 7회 이전 등판 금지 
 
         if abs(score_diff) >= 4:
             forbidden_indices.add(5)
             forbidden_indices.add(6)
+            forbidden_indices.add(7)
+            forbidden_indices.add(8)
             
         if self.inning >= 10:
-            candidate_list = [6, 5, 4, 3, 2, 1] if abs(score_diff) <= 3 else [4, 3, 2, 1]
+            candidate_list = [8, 7, 6, 5, 4, 3, 2, 1] if abs(score_diff) <= 3 else [4, 3, 2, 1]
 
             for idx in candidate_list:
                 if idx not in used_set and idx not in forbidden_indices:
                     return idx 
 
-            for idx in range(1, 7):
+            for idx in range(1, 9):
                 if idx not in used_set:
                     return idx
 
@@ -836,17 +841,21 @@ class PureKboEngine:
         target = 1 
         
         if 1 <= score_diff <= 3:
-            if self.inning <= 7:
-                target = 4
+            if self.inning <= 6:
+                target = 5
+            elif self.inning == 7:
+                target = 6 if 6 not in used_set else 5
             elif self.inning == 8:
-                target = 5 if 5 not in used_set else 4
+                target = 7 if 7 not in used_set else (6 if 6 not in used_Set else 5)
             else:
-                if 6 not in used_set:
+                if 8 not in used_set:
+                    return 8
+                elif 7 not in used_set:
+                    return 7
+                elif 6 not in used_set:
                     return 6
-                elif 5 not in used_set:
-                    return 5
                 else:
-                    target = 4
+                    target = 5
                 
         elif score_diff >= 4:
             if self.inning <= 6:
@@ -859,12 +868,15 @@ class PureKboEngine:
         elif score_diff == 0:
             if self.inning <= 6:
                 target = 2 if 2 not in used_set else 3 
+            elif self.inning <= 7:
+                target = 5 if 5 not in used_Set else 4
             elif self.inning <= 8:
-                target = 4 if 4 not in used_set else 3 
+                target = 6 if 6 not in used_set else 5
             else:
-                if 6 not in used_set: return 6
-                elif 5 not in used_set: return 5
-                else: target = 4
+                if 8 not in used_set: return 8
+                elif 7 not in used_set: return 7
+                elif 6 not in used_set: return 6
+                else: target = 5
 
         else:
             abs_diff = abs(score_diff)
@@ -878,11 +890,11 @@ class PureKboEngine:
         if target not in used_set and target not in forbidden_indices:
             return target
 
-        for idx in range(1, 7):
+        for idx in range(1, 9):
             if idx not in used_set and idx not in forbidden_indices:
                 return idx 
 
-        for idx in (1, 7):
+        for idx in (1, 8):
             if idx not in used_set:
                 return idx
                 
@@ -1036,6 +1048,11 @@ class PureKboEngine:
 
         strike_probability = 0.70
         mental_penalty = 0.0
+
+        if (self.base3 or (self.base2 and self.base3)) and self.out_count < 2 and random.random() < 0.08:
+            self.game_log.append(log_prefix + "🛑 [상대 벤치 작전] 득점권 위기를 맞은 상대 벤치가 고의사구 사인을 냅니다. 타자를 1루로 거릅니다.")
+            self.process_walk(is_defense=False)
+            return
 
         if self.base2 or self.base3:
             if runners_count >= 2:
