@@ -476,6 +476,20 @@ class PureKboEngine:
         except ValueError: pass
         return 0.0
 
+    def manual_change_my_pitcher(self, selected_idx: int) -> bool:
+        """감독이 직접 지정한 인덱스의 투수로 수동 교체"""
+        if selected_idx != self.my_pitcher_idx and selected_idx not in self.my_used_pitchers:
+            self.my_pitcher_idx = selected_idx
+            self.my_used_pitchers.add(selected_idx)
+            p = self.get_current_my_pytcher() if hasattr(self, 'get_current_my_pytcher') else self.get_current_my_pitcher()
+            self.game_log.append(f"🔄 [감독 직접 교체] 벤치의 지시로 마운드 교체! [{p.role}] '{p.name}' 등판!")
+            return True
+        elif selected_idx == self.my_pitcher_idx:
+            st.warning("현재 이미 던지고 있는 투수입니다!")
+        else:
+            st.warning("이미 경기에 등판했던 투수는 재등판할 수 없습니다!")
+        return False
+        
     def get_current_my_pitcher(self) -> PitcherDomain: return self.my_pitchers[self.my_pitcher_idx]
     def get_current_enemy_pitcher(self) -> PitcherDomain: return self.enemy_pitchers[self.enemy_pitcher_idx]
 
@@ -2045,7 +2059,26 @@ def main() -> None:
         with c1:
             st.metric(label=f"우리 팀 {game.my_emoji}", value=f"{game.our_score} 점")
             st.caption(f"🔋 {p_my.name} | 체력: [{p_my.stamina}/{p_my.max_stamina}] | 총 {game.our_total_pitches}구")
-            if not game.game_over and p_my.role != "마무리" and st.button("🔄 불펜 교체"): game.change_my_pitcher(); st.rerun()
+            if not game.game_over and p_my.role != "마무리":
+                with st.expander("🔄 투수 수동 교체 (드롭다운)"):
+                    # 아직 등판하지 않은 투수들(또는 전체 투수 중 선택 가능하게 매핑)
+                    available_pitchers = {
+                        f"{i}: {p.name} ({p.role}) - 체력 {p.stamina}/{p.max_stamina}": i 
+                        for i, p in enumerate(game.my_pitchers) 
+                        if i not in game.my_used_pitchers and i != game.my_pitcher_idx
+                    }
+                    if available_pitchers:
+                        chosen_label = st.selectbox("올릴 투수를 선택하세요", list(available_pitchers.keys()), key="manual_pitcher_select")
+                        if st.button("마운드 지명 교체", key="btn_confirm_manual_pitcher"):
+                            target_idx = available_pitchers[chosen_label]
+                            game.my_pitcher_idx = target_idx
+                            game.my_used_pitchers.add(target_idx)
+                            new_p = game.get_current_my_pitcher()
+                            game.game_log.append(f"🔄 [감독 직접 교체] 벤치의 지시로 마운드 교체! [{new_p.role}] '{new_p.name}' 등판!")
+                            st.rerun()
+
+                    else:
+                        st.caption("🚨 더 이상 교체 가능한 대기 투수가 없습니다!")
         with c2:
             if game.game_over:
                 st.markdown("<h3 style='text-align: center; color: #9E9E9E;'>경기 종료</h3>", unsafe_allow_html=True)
