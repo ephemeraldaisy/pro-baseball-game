@@ -2198,11 +2198,11 @@ def main() -> None:
                     with d3:
                         if st.button("🔮 제구 위주"): game.play_defense_one_pitch(3); st.rerun()
                     with d4:
-                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width="stretch"):
+                        if st.button("🛑 고의사구"): game.play_intentional_walk(); st.rerun()
+                    with d5: 
+                        if st.button(f"⏱️ 타임 (잔여 {game.my_timeouts_left}회)", width="stretch"):
                             game.use_my_timeout()
                             st.rerun()
-                    with d5: 
-                        if st.button("🛑 고의사구"): game.play_intentional_walk(); st.rerun()
 
                 st.divider()
                 st.markdown("### 📜 게임 로그")
