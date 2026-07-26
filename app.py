@@ -2244,7 +2244,7 @@ def main() -> None:
                             st.rerun()
 
                     with b4:
-                        if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width="stretch"):
+                        if st.button(f"⏱️ 타임 (잔여 {game.my_timeouts_left}회)", width="stretch"):
                             game.use_my_timeout()
                             st.rerun()
                             
