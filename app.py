@@ -1037,6 +1037,7 @@ class PureKboEngine:
         if self.game_over: 
             return
         self.update_is_attack()
+        log_prefix = f"[{self.inning}회 {'초' if self.phase == '초' else '말'}] "
         p_en = self.get_current_enemy_pitcher()
         
         if (p_en.stamina <= 0 or self.inning >= 6) and p_en.role != "야수등판":
