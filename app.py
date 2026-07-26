@@ -1054,10 +1054,15 @@ class PureKboEngine:
                 self.enemy_used_pitchers.add(target_en_idx)
                 p_en = self.get_current_enemy_pitcher()
                 self.game_log.append(f"🔄 [상대 벤치 움직임] 시나리오 조건에 의거하여 투수를 교체합니다. [{p_en.role}] '{p_en.name}' 등판!")
-        
-        pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
-        speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
-        
+
+        if p.en_role == "야수등판":
+            speed = random.randint(110, 125)
+            pitch_type = andom.choice(["아리랑볼", "직구인척하는볼"])
+            p_en.consume(1)
+        else:
+            pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
+            speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
+
         runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
 
         strike_probability = 0.70
