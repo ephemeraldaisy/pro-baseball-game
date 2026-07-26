@@ -1150,15 +1150,17 @@ class PureKboEngine:
             self.base1 = self.base2 = self.base3 = False
             self.update_live_scoreboard(pts)
                 
-            # 💡 [신규 추가] 확률적 장외 홈런 멘트 분기 (약 30% 확률)
-            if random.random() < 0.30:
+            # 💡 [신규 추가] 확률적 장외 홈런 멘트 분기 (약 1% 확률)
+            if random.random() < 0.01:
                 hr_msg = f"🚀💥 [장외 대형 홈런!!] {b_ctx} 타구가 야구장 장외로 까마득하게 넘어갑니다! 엄청난 비거리! (+{pts}점)"
             else:
                 hr_msg = f"🔥 {b_ctx} 홈런!! (+{pts}점)"
 
-            # 6점 차 이상 대승 중 과도한 세리머니 벤클 트리거 검사
-            score_diff = self.our_score - self.enemy_score if self.is_attack else self.enemy_score - self.our_score
-            if score_diff >= 6 and random.random() < 0.25:
+            #실제 점수차 계산 
+            current_score_diff = self.our_score - self.enemy_score 
+
+            #대승할 때만 트리거 
+            if abs_current_score_diff >= 6 and random.random() < 0.25:
                 self.trigger_bench_clearing("큰 점수 차에서 타자가 화려한 빠던과 과도한 승리 세리머니를 선보여 상대 벤치를 자극했습니다!")
 
             self.game_log.append(log_prefix + match_msg + hr_msg)
@@ -1526,7 +1528,7 @@ class PureKboEngine:
             self.base1 = self.base2 = self.base3 = False
             self.update_live_scoreboard(pts)
 
-            if random.random() < 0.30:
+            if random.random() < 0.01:
                 self.game_log.append(log_prefix + f"🚀💥 [장외 홈런 피안타!] 관중석을 완전히 넘어가는 무자비한 장외 홈런 허용! (+{pts}점)")
             else:     
                 self.game_log.append(log_prefix + f"💥 실투 실점! {pts}점 홈런 허용.")
