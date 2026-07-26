@@ -597,6 +597,46 @@ class PureKboEngine:
                 log_prefix + f"⏱️ [적팀 타임] 상대 감독이 마운드로 이동해 투수와 포수를 불러 모읍니다! 흐름을 끊으려는 의도입니다. (상대 투수 체력 +2, 남은 타임: {self.enemy_timeouts_left}회)"
             )
 
+    def play_intentional_walk(self) -> None:
+        """고의사구(Intentional Walk) 지시 처리"""
+        if self.game_over: return
+        self.update_is_attack()
+        
+        # 공격 턴일 때는 고의사구 지시 불가
+        if self.is_attack:
+            st.warning("공격 턴에는 고의사구 작전을 지시할 수 없습니다.")
+            return
+
+        p_my = self.get_current_my_pitcher()
+        p_my.consume(1) # 투구수 1구 추가
+        self.our_total_pitches += 1
+
+        self.strike = 0
+        self.ball = 0
+        
+        gained = 0
+        if self.base1 and self.base2 and self.base3:
+            gained = 1
+        elif self.base1 and self.base2:
+            self.base3 = True
+        elif self.base1:
+            self.base2 = True
+        else:
+            self.base1 = True
+            
+        if gained > 0:
+            self.update_live_scoreboard(gained)
+            self.game_log.append(f"🛑 [고의사구 지시] 벤치에서 고의사구 사인을 냅니다. 만루 밀어내기 득점 허용! (+1점)")
+        else:
+            self.game_log.append(f"🛑 [고의사구 지시] 투수가 스트라이크존 바깥으로 공을 빼며 안전하게 타자를 1루로 걸러냅니다.")
+            
+        # 다음 타순으로 교체
+        bat = self.enemy_batter_number
+        self.enemy_batter_number = 1 if bat == 9 else bat + 1
+        
+        self.check_three_out_change()
+        
+
     def get_away_score(self) -> int: return self.away_stats["R"]
     def get_home_score(self) -> int: return self.home_stats["R"]
 
@@ -2150,7 +2190,7 @@ def main() -> None:
                             
                 else:
                     st.markdown("### 🛡️ 수비 볼배합")
-                    d1, d2, d3, d4 = st.columns(4)
+                    d1, d2, d3, d4, d5 = st.columns(5)
                     with d1:
                         if st.button("⚾ 정면 승부"): game.play_defense_one_pitch(1); st.rerun()
                     with d2:
@@ -2161,6 +2201,8 @@ def main() -> None:
                         if st.button(f"⏱️ 타임 ({game.my_timeouts_left}회)", width="stretch"):
                             game.use_my_timeout()
                             st.rerun()
+                    with d5: 
+                        if st.button("🛑 고의사구"): game.play_intentional_walk(); st.rerun()
 
                 st.divider()
                 st.markdown("### 📜 게임 로그")
