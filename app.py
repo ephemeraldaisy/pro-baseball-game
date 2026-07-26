@@ -643,8 +643,8 @@ class PureKboEngine:
                     self.game_log.append(f"🔄 [상대 이닝 교체] 상대 팀이 이닝 시작과 동시에 투수를 바꿉니다. [{p_role}] 등판!")
 
     def update_live_scoreboard(self, run: int) -> None:
-        idx = self.inning - 1
-        if idx >= 12: return
+        idx = min(11, max(0, self.inning - 1))
+        
         if self.phase == "초":
             base = 0 if self.away_inning_scores[idx] in ["", "X"] else int(self.away_inning_scores[idx])
             self.away_inning_scores[idx] = base + run
@@ -655,9 +655,9 @@ class PureKboEngine:
             self.home_stats["R"] += run
             
         if (self.is_home_team and self.phase == "말") or (not self.is_home_team and self.phase == "초"):
-            self.our_score += run
+            self.our_score = self.home_stats["R"] if self.is_home_team else self.away_stats["R"]
         else:
-            self.enemy_score += run
+            self.enemy_score = self.away_stats["R"] if self.is_home_team else self.home_stats["R"]
 
     def trigger_steal(self) -> None:
         if not (self.base1 or self.base2 or self.base3):
