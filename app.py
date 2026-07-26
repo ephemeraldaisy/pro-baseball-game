@@ -1156,6 +1156,8 @@ class PureKboEngine:
             else:
                 hr_msg = f"🔥 {b_ctx} 홈런!! (+{pts}점)"
 
+            self.game_log.append(log_prefix + match_msg + hr_msg)
+
             #실제 점수차 계산 
             current_score_diff = self.our_score - self.enemy_score 
 
@@ -1163,7 +1165,7 @@ class PureKboEngine:
             if current_score_diff >= 6 and random.random() < 0.25:
                 self.trigger_bench_clearing("큰 점수 차에서 타자가 화려한 빠던과 과도한 승리 세리머니를 선보여 상대 벤치를 자극했습니다!")
 
-            self.game_log.append(log_prefix + match_msg + hr_msg)
+            return
 
         elif res == "HIT" and total_buff < 0 and random.random() < 0.20:
             res = "OUT" 
