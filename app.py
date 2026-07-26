@@ -1160,7 +1160,7 @@ class PureKboEngine:
             current_score_diff = self.our_score - self.enemy_score 
 
             #대승할 때만 트리거 
-            if abs_current_score_diff >= 6 and random.random() < 0.25:
+            if current_score_diff >= 6 and random.random() < 0.25:
                 self.trigger_bench_clearing("큰 점수 차에서 타자가 화려한 빠던과 과도한 승리 세리머니를 선보여 상대 벤치를 자극했습니다!")
 
             self.game_log.append(log_prefix + match_msg + hr_msg)
