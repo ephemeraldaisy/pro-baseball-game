@@ -1122,7 +1122,7 @@ class PureKboEngine:
 
         if pitch_zone == 0 and random.random() < hbp_probability:
             if random.random() < 0.15: # 💡 [벤클 트리거 1] 헤드샷 및 강한 사구 시 벤클 발동
-                self.trigger_bench_clearing("상대 투수의 위험천만한 실투가 타자의 위협 부위를 직격했습니다!", log_prefix)
+                self.trigger_bench_clearing("상대 투수의 위험천만한 실투가 타자의 위협 부위(머리)를 직격했습니다!", log_prefix)
             else:
                 self.game_log.append(log_prefix + b_ctx + "💥 악! 투수가 던진 실투가 타자의 몸을 강타합니다! 몸에 맞는 공으로 출루!")
             self.process_walk(is_defense=False)
