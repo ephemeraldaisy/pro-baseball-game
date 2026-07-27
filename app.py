@@ -661,7 +661,7 @@ class PureKboEngine:
         self.update_is_attack()
 
         idx = self.inning - 1
-        if idx < 11:
+        if idx < 12:
             if self.away_inning_scores[idx] == "": self.away_inning_scores[idx] = 0
             if self.home_inning_scores[idx] == "": self.home_inning_scores[idx] = 0
 
@@ -1776,9 +1776,13 @@ class PureKboEngine:
     def check_three_out_change(self) -> None:
         if self.out_count >= 3:
             self.game_log.append("📢 쓰리아웃 체인지!")
-            if self.inning >= 9 and self.phase == "초" and self.get_away_score() < self.get_home_score():
+            
+            if self.inning >= 9 and self.phase == "초" and self.get_home_score() > self.get_away_score():
+                if len(self.home_inning_scores) >= self.inning:
+                    self.home_inning_scores[self.inning - 1] = "X"
                 self.end_kbo_game()
                 return
+            
             self.next_phase()
 
 
