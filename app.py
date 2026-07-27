@@ -2214,10 +2214,31 @@ def main() -> None:
                 if game.manager_ejected:
                     st.error("🟥 감독 퇴장 상태입니다! 수석코치 AI가 전술을 위임받아 진행합니다.")
                     if st.button("🤖 [수석코치 AI] 다음 구 진행", type="primary", key="btn_coach_ai", width="stretch"):
-                        if current_is_our_turn:
-                            game.play_turn(random.choice([1, 2, 3])) # AI 공격 작전
+                        if current_is_our_turn: #AI 공격 작전
+                            #아무 상황에서는 1, 2, 3 
+                            valid_choices = [1, 2, 3]
+                            #주자가 한 명이라도 있을 때 
+                            has_runner = game.base1 or game.base2 or game.base3
+                            if has_runner:
+                                valid_choices.append(5)
+                            #스퀴즈 번트는 3루 주자가 있을 때만  
+                            if game.base3:
+                                valid_choices.append(4)
+
+                            ai_choice = random.choice(valid_choices)
+                            #도루 확률 10%
+                            if has_runner and random.random < 0.10:
+                                game.trigger_steal()
+
+                            else: game.play_turn(ai_choice)
+
                         else:
-                            game.play_defense_one_pitch(random.choice([1, 2, 3])) # AI 수비 볼배합
+                            choice = random.choice([1, 2, 3, 4])
+                            # AI 수비 볼배합
+                            if choice == 4:
+                                game.play_intentional_walk()
+                            else:
+                                game.play_defense_one_pitch(choice) 
                         st.rerun()
 
                 elif current_is_our_turn:
