@@ -2214,31 +2214,41 @@ def main() -> None:
                 if game.manager_ejected:
                     st.error("🟥 감독 퇴장 상태입니다! 수석코치 AI가 전술을 위임받아 진행합니다.")
                     if st.button("🤖 [수석코치 AI] 다음 구 진행", type="primary", key="btn_coach_ai", width="stretch"):
-                        if current_is_our_turn: #AI 공격 작전
-                            #아무 상황에서는 1, 2, 3 
-                            valid_choices = [1, 2, 3]
-                            #주자가 한 명이라도 있을 때 
-                            has_runner = game.base1 or game.base2 or game.base3
-                            if has_runner:
-                                valid_choices.append(5)
-                            #스퀴즈 번트는 3루 주자가 있을 때만  
-                            if game.base3:
-                                valid_choices.append(4)
-
-                            ai_choice = random.choice(valid_choices)
-                            #도루 확률 10%
-                            if has_runner and random.random < 0.10:
-                                game.trigger_steal()
-
-                            else: game.play_turn(ai_choice)
-
+                        # ⏱️ [수석코치 AI 타임 판단 로직]
+                        my_p = game.get_current_my_pitcher()
+                        has_timeout = game.my_timeouts_left > 0
+                        
+                        # 조건 1) 수비 턴인데 투수 체력이 30% 이하로 떨어져 비상일 때
+                        # 조건 2) 공격 턴인데 득점권(2루/3루) 찬스에서 20% 확률로 흐름 끊기
+                        should_use_timeout = False
+                        if has_timeout:
+                            if not current_is_our_turn and my_p.stamina <= (my_p.max_stamina * 0.3):
+                                should_use_timeout = True
+                            elif current_is_our_turn and (game.base2 or game.base3) and random.random() < 0.20:
+                                should_use_timeout = True
+                
+                        if should_use_timeout:
+                            game.use_my_timeout() # ⏱️ 수석코치 AI의 전술 타임 발동!
                         else:
-                            choice = random.choice([1, 2, 3, 4])
-                            # AI 수비 볼배합
-                            if choice == 4:
-                                game.play_intentional_walk()
+                            # ⚾ 기존 피칭/타격 작전 수행
+                            if current_is_our_turn:
+                                valid_choices = [1, 2, 3]
+                                has_runner = game.base1 or game.base2 or game.base3
+                                if has_runner: valid_choices.append(5) # 런앤히트
+                                if game.base3: valid_choices.append(4)  # 스퀴즈 번트
+                                
+                                ai_choice = random.choice(valid_choices)
+                                if has_runner and random.random() < 0.10:
+                                    game.trigger_steal()
+                                else:
+                                    game.play_turn(ai_choice)
                             else:
-                                game.play_defense_one_pitch(choice) 
+                                choice = random.choice([1, 2, 3, 4])
+                                if choice == 4:
+                                    game.play_intentional_walk()
+                                else:
+                                    game.play_defense_one_pitch(choice)
+                                    
                         st.rerun()
 
                 elif current_is_our_turn:
