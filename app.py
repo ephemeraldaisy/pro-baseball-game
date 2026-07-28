@@ -651,6 +651,23 @@ class PureKboEngine:
         self.enemy_batter_number = 1 if bat == 9 else bat + 1
         
         self.check_three_out_change()
+
+    def check_weather_events() -> bool:
+        # 5회 이전 무작위 폭우 (노게임)
+        if self.inning < 5 and random.random() < 0.008:
+            self.game_log.append("🚨 [🌧️ 폭우 기습] 갑작스러운 게릴라성 호우로 경기가 중단되었습니다!")
+            self.game_log.append("❌ [노게임 선언] 5이닝 미만 진행으로 경기가 무효 처리됩니다.")
+            self.game_over = True
+            return True
+
+        # 5회 이후 무작위 폭우 (강우 콜드)
+        elif self.inning >= 5 and random.random() < 0.015:
+            self.game_log.append("🚨 [☔ 억수 같은 폭우] 마운드와 타석이 물에 잠겨 경기가 지속 불가능합니다!")
+            self.game_log.append("🏆 [강우 콜드게임] 정식 경기 요건을 충족하여 현 시점 스코어로 승패를 확정합니다.")
+            self.end_kbo_game()
+            return True
+
+        return False
         
 
     def get_away_score(self) -> int: return self.away_stats["R"]
@@ -1302,21 +1319,34 @@ class PureKboEngine:
                 
         elif res == "FOUL":
             foul_decision = True
-            
-            if is_power_hitter and self.strike == 2 and random.random() < 0.45:
+            #2스트라이크 이후 컨택 능력 높을수록 파울 커트 확률 상승
+            if self.strike == 2:
+                foul_cut_bonus = 0.20 + (my_stats.get("hit", 50) * 0.003)
+
+                #용규형 타자 보정
+                if is_contact_pest:
+                    foul_cut_bonus += 0.15
+
+                #파울 커트
+                if random.random() < foul_cut_bonus:
+                    foul_decision = True
+
+            if is_power_hitter and self.strike == 2 and random.random() < 0.30:
                 res = "MISS"
-                foul_decision = False
-                
-            elif is_contact_pest and self.strike == 2:
-                pass 
+                foul_decision = False 
                 
             if foul_decision:
                 if self.strike < 2: 
                     self.strike += 1
                     self.game_log.append(log_prefix + b_ctx + f"파울. ({self.strike}S {self.ball}B)")
                 else:
-                    if is_contact_pest:
-                        self.game_log.append(log_prefix + b_ctx + f"⚡ 용규놀이 발동! 2스트라이크 이후 끈질기게 커트하며 기존 카운트를 유지합니다! ({self.strike}S {self.ball}B)")
+                    if is_contact_pest or random.random() < 0.40:
+                        cut_logs = [
+                            f"⚡ [용규놀이 발동!] 2스트라이크 이후 끈질기게 공을 커트해내며 투수의 투구수를 늘립니다! ({self.strike}S {self.ball}B)",
+                            f"🛡️ [지독한 커트] 꽉 찬 공을 어떻게든 방망이에 맞혀 파울을 만듭니다! 끈질긴 볼배합 싸움! ({self.strike}S {self.ball}B)",
+                            f"⚾ 파울볼! 벼랑 끝에서 배트를 커트해내며 2스트라이크 볼카운트를 계속 유지합니다! ({self.strike}S {self.ball}B)"
+                        ]
+                        self.game_log.append(log_prefix + b_ctx + random.choice(cut_logs))
                     else:
                         self.game_log.append(log_prefix + b_ctx + f"파울볼! 2스트라이크 이후 파울로 기존 볼 카운트가 정교하게 유지됩니다. ({self.strike}S {self.ball}B)")
                 return
@@ -1635,7 +1665,10 @@ class PureKboEngine:
             if gained > 0: self.update_live_scoreboard(gained)
             
         else:
-            if roll > (hit_prob + hr_prob) and random.random() < 0.25:
+            is_two_strikes = (self.strike == 2)
+            foul_cut_prob = 0.38 if is_two_strikes else 0.22
+            
+            if roll > (hit_prob + hr_prob) and random.random() < foul_cut_prob:
                 if self.strike < 2: 
                     self.strike += 1
                     self.game_log.append(log_prefix + f"파울! 타자가 날카롭게 커트해 냅니다. ({self.strike}S {self.ball}B)")
