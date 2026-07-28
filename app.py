@@ -251,6 +251,19 @@ PITCH_SPECS = {
     "싱커": {"speed_min": 133, "speed_max": 144}
 }
 
+def get_default_lineup(team_name: str) -> List[str]:
+    """팀 타자 명단 중 선발 9명을 추출하여 1~9번 자동 세팅하는 헬퍼"""
+    b_dict = TEAM_ROSTERS[team_name]["batters"]
+    primary = []
+    for k in ["외야(3)", "내야(4)", "포수(1)", "지명타자(1)"]:
+        if k in b_dict:
+            primary.extend(b_dict[k])
+    
+    # 9명 부족 시 백업에서 채움
+    if len(primary) < 9 and "백업(4)" in b_dict:
+        primary.extend(b_dict["백업(4)"])
+    return primary[:9]
+
 # =====================================================================
 # [NAVER INFRASTRUCTURE LAYER]
 # =====================================================================
@@ -299,6 +312,9 @@ class PureKboEngine:
         self.my_emoji = my_team[:2]
         self.enemy_emoji = enemy_team[:2]
         self.is_home_team = random.choice([True, False])
+
+        self.my_lineup = my_lineup if my_lineup else get_default_lineup(my_team)
+        self.enemy_lineup = get_default_lineup(enemy_team)
         
         self.our_score = 0
         self.enemy_score = 0
@@ -338,6 +354,10 @@ class PureKboEngine:
         
         my_stats = TEAMS[my_team]
         enemy_stats = TEAMS[enemy_team]
+
+        my_sp = TEAM_ROSTERS[my_team]["pitchers"]["선발(5)"]
+        my_rp = TEAM_ROSTERS[my_team]["pitchers"]["중계/불펜(5)"]
+        my_cl = TEAM_ROSTERS[my_team]["pitchers"]["마무리(1)"]
         
         my_sp_pool = [
             PitcherDomain("1선발(에이스)", "선발", my_stats["stamina"]),
@@ -353,12 +373,16 @@ class PureKboEngine:
             PitcherDomain("추격조 3번(좌완)", "추격조", 35),
             PitcherDomain("추격조 4번(추격)", "추격조", 35),
             PitcherDomain("필승조 1번(마당쇠)", "필승조", 35),
-            PitcherDomain("셋업맨 1", "필승조", 30),
-            PitcherDomain("셋업맨 2", "필승조", 30),
+            PitcherDomain("셋업맨 1번 (필승조)", "필승조", 30),
+            PitcherDomain("셋업맨 2번 (필승조)", "필승조", 30),
             PitcherDomain("클로저(마무리)", "마무리", 20)
         ]
         self.my_pitcher_idx = 0
         self.my_used_pitchers = {0}
+
+        en_sp = TEAM_ROSTERS[enemy_team]["pitchers"]["선발(5)"]
+        en_rp = TEAM_ROSTERS[enemy_team]["pitchers"]["중계/불펜(5)"]
+        en_cl = TEAM_ROSTERS[enemy_team]["pitchers"]["마무리(1)"]
 
         enemy_sp_pool = [
             PitcherDomain("상대 에이스", "선발", enemy_stats["stamina"]),
@@ -374,8 +398,8 @@ class PureKboEngine:
             PitcherDomain("상대 추격조 3번", "추격조", 35),
             PitcherDomain("상대 추격조 4번", "추격조", 35),
             PitcherDomain("상대 필승조 1번", "필승조", 35),
-            PitcherDomain("상대 셋업맨 1", "필승조", 30),
-            PitcherDomain("상대 셋업맨 2", "필승조", 30),
+            PitcherDomain("상대 셋업맨 1번", "필승조", 30),
+            PitcherDomain("상대 셋업맨 2번", "필승조", 30),
             PitcherDomain("상대 클로저", "마무리", 20)
         ]
         self.enemy_pitcher_idx = 0
