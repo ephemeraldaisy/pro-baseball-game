@@ -251,6 +251,7 @@ PITCH_SPECS = {
     "싱커": {"speed_min": 133, "speed_max": 144}
 }
 
+# 💡 [신규 추가 1] 기본 선발 라인업 추출 헬퍼 함수
 def get_default_lineup(team_name: str) -> List[str]:
     """팀 타자 명단 중 선발 9명을 추출하여 1~9번 자동 세팅하는 헬퍼"""
     b_dict = TEAM_ROSTERS[team_name]["batters"]
@@ -259,7 +260,6 @@ def get_default_lineup(team_name: str) -> List[str]:
         if k in b_dict:
             primary.extend(b_dict[k])
     
-    # 9명 부족 시 백업에서 채움
     if len(primary) < 9 and "백업(4)" in b_dict:
         primary.extend(b_dict["백업(4)"])
     return primary[:9]
@@ -306,13 +306,15 @@ class PitcherDomain:
 # [CORE ENGINE] R H E B Tracking Engine
 # =====================================================================
 class PureKboEngine:
-    def __init__(self, my_team: str, enemy_team: str, my_lineup: List[str]) -> None:
+    # 💡 [신규 추가 2] my_lineup 매개변수 선언 추가 및 라인업 인스턴스 저장
+    def __init__(self, my_team: str, enemy_team: str, my_lineup: List[str] = None) -> None:
         self.my_team = my_team
         self.enemy_team = enemy_team
         self.my_emoji = my_team[:2]
         self.enemy_emoji = enemy_team[:2]
         self.is_home_team = random.choice([True, False])
 
+        # 💡 [신규 추가 3] 타순 등록 (전달된 값 없으면 자동 세팅)
         self.my_lineup = my_lineup if my_lineup else get_default_lineup(my_team)
         self.enemy_lineup = get_default_lineup(enemy_team)
         
@@ -676,7 +678,7 @@ class PureKboEngine:
         
         self.check_three_out_change()
 
-    def check_weather_events() -> bool:
+    def check_weather_events(self) -> bool:
         # 5회 이전 무작위 폭우 (노게임)
         if self.inning < 5 and random.random() < 0.008:
             self.game_log.append("🚨 [🌧️ 폭우 기습] 갑작스러운 게릴라성 호우로 경기가 중단되었습니다!")
@@ -2089,6 +2091,9 @@ def main() -> None:
             else:
                 st.error("⚠️ assets/team-roster.txt 파일 누락.")
 
+    # -----------------------------------------------------------------
+    # 1. 경기 개시 전 팀 선택 및 라인업 커스텀 설정 영역
+    # -----------------------------------------------------------------
     if st.session_state.full_kbo_engine is None:
         st.session_state.my_team = st.selectbox("우리 팀 선택:", list(TEAMS.keys()), index=list(TEAMS.keys()).index(st.session_state.my_team))
         
@@ -2101,16 +2106,68 @@ def main() -> None:
                 styled_status = my_status.style.applymap(color_matchup_cells)
                 
             st.dataframe(styled_status, width="stretch")
+
+        # 💡 [신규 추가 4] 오늘의 선발 라인업 (1~9번 타순 수동 커스텀 UI)
+        default_lineup = get_default_lineup(st.session_state.my_team)
+        with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
+            st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
+            
+            all_batters = []
+            for p_list in TEAM_ROSTERS[st.session_state.my_team]["batters"].values():
+                all_batters.extend(p_list)
+                
+            custom_lineup = []
+            col_l1, col_l2 = st.columns(2)
+            
+            for idx in range(9):
+                target_col = col_l1 if idx < 5 else col_l2
+                with target_col:
+                    default_player = default_lineup[idx] if idx < len(default_lineup) else all_batters[idx % len(all_batters)]
+                    d_idx = all_batters.index(default_player) if default_player in all_batters else 0
+                    
+                    sel = st.selectbox(
+                        f"**{idx+1}번 타자**",
+                        options=all_batters,
+                        index=d_idx,
+                        key=f"start_lineup_select_{idx}"
+                    )
+                    custom_lineup.append(sel)
+                    
+        st.info(f"📋 **확정 선발 라인업**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
       
         if st.button("⚾️ PLAY BALL!", type="primary"):
-            st.session_state.full_kbo_engine = PureKboEngine(st.session_state.my_team, random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team]), my_lineup)
+            enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
+            st.session_state.full_kbo_engine = PureKboEngine(
+                my_team=st.session_state.my_team, 
+                enemy_team=enemy_team, 
+                my_lineup=custom_lineup
+            )
             st.rerun()
-            
+
+    # -----------------------------------------------------------------
+    # 2. 경기 진행 중 메인 화면
+    # -----------------------------------------------------------------
     else:
         game: PureKboEngine = st.session_state.full_kbo_engine
         st.session_state.my_team = game.my_team
         p_my = game.get_current_my_pitcher()
         p_en = game.get_current_enemy_pitcher()
+
+        # 💡 [신규 추가 5] 화면 상단 오늘의 양 팀 선발 라인업 및 실시간 타순 열람 UI
+        with st.expander("📋 오늘의 양 팀 선발 라인업 및 실시간 타순 열람", expanded=False):
+            col_u1, col_u2 = st.columns(2)
+            with col_u1:
+                st.markdown(f"#### 🏠 {game.my_team} 선발 타순")
+                for i, batter in enumerate(game.my_lineup):
+                    is_current = (game.is_attack and game.my_batter_number == (i+1))
+                    marker = " 👈 [현재 타석]" if is_current else ""
+                    st.write(f"**{i+1}번 타자**: {batter}{marker}")
+            with col_u2:
+                st.markdown(f"#### 🚌 {game.enemy_team} 선발 타순")
+                for i, batter in enumerate(game.enemy_lineup):
+                    is_current = (not game.is_attack and game.enemy_batter_number == (i+1))
+                    marker = " 👈 [현재 타석]" if is_current else ""
+                    st.write(f"**{i+1}번 타자**: {batter}{marker}")
 
         st.markdown(f"##### 📊 실시간 상성 파트너: {game.my_team} vs {game.enemy_team}")
         if game.my_team in df_matchup.index:
