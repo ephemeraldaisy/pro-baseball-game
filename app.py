@@ -2103,7 +2103,7 @@ def main() -> None:
             st.dataframe(styled_status, width="stretch")
       
         if st.button("⚾️ PLAY BALL!", type="primary"):
-            st.session_state.full_kbo_engine = PureKboEngine(st.session_state.my_team, random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team]))
+            st.session_state.full_kbo_engine = PureKboEngine(st.session_state.my_team, random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team]), my_lineup)
             st.rerun()
             
     else:
