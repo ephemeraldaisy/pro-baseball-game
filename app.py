@@ -306,7 +306,7 @@ class PitcherDomain:
 # [CORE ENGINE] R H E B Tracking Engine
 # =====================================================================
 class PureKboEngine:
-    def __init__(self, my_team: str, enemy_team: str) -> None:
+    def __init__(self, my_team: str, enemy_team: str, my_lineup: List[str]) -> None:
         self.my_team = my_team
         self.enemy_team = enemy_team
         self.my_emoji = my_team[:2]
