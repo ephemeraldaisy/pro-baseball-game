@@ -741,6 +741,27 @@ class PureKboEngine:
                     p_role = p_obj.get('role', 'RP') if isinstance(p_obj, dict) else getattr(p_obj, 'role', 'RP')
                     self.game_log.append(f"🔄 [상대 이닝 교체] 상대 팀이 이닝 시작과 동시에 투수를 바꿉니다. [{p_role}] 등판!")
 
+    def check_defensive_replacement_event(self) -> None: 
+        """8회~9회 리드 중 대수비 강화 투입"""
+        current_is_our_defense = (self.phase == "초" and not self.is_home_team) or (self.phase == "말" and self.is_home_team)
+        
+        if current_is_our_defense and self.inning >= 8:
+            score_diff = self.our_score - self.enemy_score
+            if 1 <= score_diff <= 3 and random.random() < 0.30: # 1~3점 차 리드 시 30% 확률
+                backup_list = TEAM_ROSTERS[self.my_team]["batters"].get("백업(4)", [])
+                sub_def = next((p for p in backup_list if "대수비" in p or "미트" in p or "성벽" in p), backup_list[0] if backup_list else "대수비 요원")
+                
+                self.game_log.append(
+                    f"🛡️ [대수비 교체] 벤치가 승리를 지키기 위해 철벽 수비 요원 '{sub_def}'(을)를 내야/포수 수비로 긴급 투입합니다! (실책 확률 대폭 감소)"
+                )
+                
+                def_chats = [
+                    f"지키는 야구 가자! {sub_def} 대수비 출격 🛡️",
+                    "수비 안정감 든든하다 ㅋㅋㅋ 승리 굳히기 들어감",
+                    "오늘 1점 차 승부 미쳤네 대수비 열일하자!"
+                ]
+                self.trigger_special_chat(def_chats)
+                
     def update_live_scoreboard(self, run: int) -> None:
         idx = min(11, max(0, self.inning - 1))
         
@@ -1741,6 +1762,27 @@ class PureKboEngine:
         if self.inning >= 9 and self.phase == "말" and not self.is_home_team and self.get_home_score() > self.get_away_score():
             self.game_log.append("❌ 이닝 끝내기 패배.")
             self.end_kbo_game()
+
+    def check_pinch_runner_event(self, base_type: str, log_prefix: str) -> None: 
+        """7회 이후 박빙 상황 시 확률적 대주자 투입"""
+        if self.inning >= 7 and abs(self.our_score - self.enemy_score) <= 2:
+            if random.random() < 0.25: # 25% 확률로 대주자 투입
+                # 백업 명단에서 대주자 요원 추출
+                backup_list = TEAM_ROSTERS[self.my_team]["batters"].get("백업(4)", [])
+                pr_player = next((p for p in backup_list if "대주자" in p or "잽싼" in p or "발" in p), backup_list[-1] if backup_list else "대주자 요원")
+                
+                # 대주자 버프 부여 (도루 버프 가산)
+                self.hit_buff += 0.03 # 주루 플레이로 인한 마운드 압박
+                self.game_log.append(
+                    log_prefix + f"🏃‍♂️💨 [대주자 투입] ⚡ 승부처! 벤치에서 발 빠른 대주자 '{pr_player}'(을)를 {base_type}에 대주자로 전격 투입합니다! (도루/진루 보너스 가산)"
+                )
+                
+                pr_chats = [
+                    f"와 {pr_player} 대주자 나왔다 ㅋㅋㅋ 뛸 생각만 하고 있네",
+                    "대주자 발 미쳤음 ㅋㅋㅋ 무조건 도루 가자!",
+                    "투수 견제구 계속 던지겠네 ㅋㅋㅋ 쫄렸다"
+                ]
+                self.trigger_special_chat(pr_chats)
 
     def process_walk(self, is_defense: bool) -> None:
         self.add_stat("B", 1)
