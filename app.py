@@ -2205,18 +2205,8 @@ def main() -> None:
             st.session_state.full_kbo_engine = PureKboEngine(
                 my_team=st.session_state.my_team, 
                 enemy_team=enemy_team, 
-                my_lineup=custom_lineup
-            )
-            st.rerun()
-                    
-        st.info(f"📋 **확정 선발 라인업**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
-      
-        if st.button("⚾️ PLAY BALL!", type="primary"):
-            enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
-            st.session_state.full_kbo_engine = PureKboEngine(
-                my_team=st.session_state.my_team, 
-                enemy_team=enemy_team, 
-                my_lineup=custom_lineup
+                my_lineup=custom_lineup,
+                starting_pitcher_idx=selected_sp_idx 
             )
             st.rerun()
 
