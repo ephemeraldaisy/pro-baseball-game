@@ -332,6 +332,8 @@ class PureKboEngine:
         self.our_total_pitches = 0
         self.enemy_total_pitches = 0
         
+        self.starting_pitcher_idx = 0 
+        
         self.strike = 0
         self.ball = 0
         self.out_count = 0
