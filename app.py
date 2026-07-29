@@ -2178,7 +2178,7 @@ def main() -> None:
             #라인업 저장/불러오기
             b_col1, b_col2 = st.columns(2)
             with b_col1:
-                if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key="btn_save_lineup"):
+                if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key=f"btn_save_lineup_{st.session_state.my_team}"):
                     st.session_state[saved_key] = custom_lineup
                     st.toast(f"✅ {st.session_state.my_team}의 선발 타순이 저장되었습니다!", icon="💾")
             with b_col2:
@@ -2198,8 +2198,9 @@ def main() -> None:
         else:
             st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
                 f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
+        
         # 🛑 중복이 있으면 버튼 비활성화 (disabled=has_duplicates)
-        if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates):
+        if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates, key="btn_play_ball_main"):
             enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
             st.session_state.full_kbo_engine = PureKboEngine(
                 my_team=st.session_state.my_team, 
