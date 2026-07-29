@@ -2117,7 +2117,7 @@ def main() -> None:
         st.header("팀별 디폴트 타순")
         if st.button("기본 선발 라인업과 선발투수"):
             if os.path.exists("assets/default-lineup.txt", "r", encoding="utf-8") as f:
-                with open"assets/default-lineup.txt", "r", encoding="utf-8") as f:
+                with open("assets/default-lineup.txt", "r", encoding="utf-8") as f:
                     st.text_area("팀별 주전", value=f.read(), height=200, disabled=True)
             else:
                 st.error("⚠️ assets/default-lineup.txt 파일 누락.")
