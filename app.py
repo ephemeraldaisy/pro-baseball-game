@@ -891,7 +891,7 @@ class PureKboEngine:
                 score_diff = self.enemy_score - self.our_score
 
         used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
-        pitchers_list = self.my_pitchers if is_defene else self.enemy_pitchers 
+        pitchers_list = self.my_pitchers if is_defense else self.enemy_pitchers 
         
         forbidden_indices = set()
         if self.inning < 8:
