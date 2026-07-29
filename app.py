@@ -360,6 +360,8 @@ class PureKboEngine:
         my_sp = TEAM_ROSTERS[my_team]["pitchers"]["선발(5)"]
         my_rp = TEAM_ROSTERS[my_team]["pitchers"]["중계/불펜(5)"]
         my_cl = TEAM_ROSTERS[my_team]["pitchers"]["마무리(1)"]
+
+        chosen_sp_name = my_sp[starting_pitcher_idx] if 0 <= starting_pitcher_idx < len(my_sp) else my_sp[0]
         
         my_sp_pool = [
             PitcherDomain("1선발(에이스)", "선발", my_stats["stamina"]),
@@ -2116,6 +2118,13 @@ def main() -> None:
     # -----------------------------------------------------------------
     if st.session_state.full_kbo_engine is None:
         st.session_state.my_team = st.selectbox("우리 팀 선택:", list(TEAMS.keys()), index=list(TEAMS.keys()).index(st.session_state.my_team))
+
+        sp_list = TEAM_ROSTERS[st.session_state.my_team]["pitchers"]["선발(5)"]
+        selected_sp_idx = st.selectbox("⚾ **오늘의 선발 투수 지명**",
+            options=list(range(len(sp_list))),
+            format_func=lambda x: f"{x+1}선발: {sp_list[x]} (체력: {TEAMS[st.session_state.my_team]['stamina']})",
+            key=f"select_sp_{st.session_state.my_team}"
+        )
         
         st.markdown(f"#### 📊 {st.session_state.my_team}의 구단별 상성표 요약")
         if st.session_state.my_team in df_matchup.index:
@@ -2178,8 +2187,8 @@ def main() -> None:
             dup_names = ", ".join(duplicates)
             st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 라인업을 완성해 주세요.")
         else:
-            st.info(f"📋 **확정 선발 라인업**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
-
+            st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
+                f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
         # 🛑 중복이 있으면 버튼 비활성화 (disabled=has_duplicates)
         if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates):
             enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
@@ -2214,13 +2223,17 @@ def main() -> None:
         with st.expander("📋 오늘의 양 팀 선발 라인업 및 실시간 타순 열람", expanded=False):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
-                st.markdown(f"#### 🏠 {game.my_team} 선발 타순")
+                st.markdown(f"#### 🏠 {game.my_team} 선발 라인업")
+                st.write(f"⚾ **선발 투수**: {p_my.name}")
+                st.markdown("---")
                 for i, batter in enumerate(game.my_lineup):
                     is_current = (game.is_attack and game.my_batter_number == (i+1))
                     marker = " 👈 [현재 타석]" if is_current else ""
                     st.write(f"**{i+1}번 타자**: {batter}{marker}")
             with col_u2:
-                st.markdown(f"#### 🚌 {game.enemy_team} 선발 타순")
+                st.markdown(f"#### 🚌 {game.enemy_team} 선발 라인업")
+                st.write(f"⚾ **선발 투수**: {p_en.name}")
+                st.markdown("---")
                 for i, batter in enumerate(game.enemy_lineup):
                     is_current = (not game.is_attack and game.enemy_batter_number == (i+1))
                     marker = " 👈 [현재 타석]" if is_current else ""
