@@ -307,7 +307,7 @@ class PitcherDomain:
 # =====================================================================
 class PureKboEngine:
     # 💡 [신규 추가 2] my_lineup 매개변수 선언 추가 및 라인업 인스턴스 저장
-    def __init__(self, my_team: str, enemy_team: str, my_lineup: List[str] = None) -> None:
+    def __init__(self, my_team: str, enemy_team: str, my_lineup: List[str] = None, starting_pitcher_idx: int = 0) -> None:
         self.my_team = my_team
         self.enemy_team = enemy_team
         self.my_emoji = my_team[:2]
@@ -331,8 +331,6 @@ class PureKboEngine:
         self.enemy_batter_number = 1
         self.our_total_pitches = 0
         self.enemy_total_pitches = 0
-        
-        self.starting_pitcher_idx = 0 
         
         self.strike = 0
         self.ball = 0
