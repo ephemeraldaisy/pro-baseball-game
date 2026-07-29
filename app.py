@@ -867,8 +867,9 @@ class PureKboEngine:
             else:
                 score_diff = self.enemy_score - self.our_score
 
-        used_set = self.enemy_used_pitchers if is_defense else self.my_used_pitchers
-
+        used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
+        pitchers_list = self.my_pitchers if is_defene else self.enemy_pitchers 
+        
         forbidden_indices = set()
         if self.inning < 8:
             forbidden_indices.add(8) #클로저 8회 이전 등판 금지 
@@ -881,77 +882,54 @@ class PureKboEngine:
             forbidden_indices.add(6)
             forbidden_indices.add(7)
             forbidden_indices.add(8)
-            
-        if self.inning >= 10:
-            candidate_list = [8, 7, 6, 5, 4, 3, 2, 1] if abs(score_diff) <= 3 else [4, 3, 2, 1]
 
-            for idx in candidate_list:
-                if idx not in used_set and idx not in forbidden_indices:
-                    return idx 
-
-            for idx in range(1, 9):
-                if idx not in used_set:
-                    return idx
-
-            return -99
-
-        target = 1 
+        target = -1
         
         if 1 <= score_diff <= 3:
             if self.inning <= 6:
                 target = 5
             elif self.inning == 7:
-                target = 6 if 6 not in used_set else 5
+                target = 6 
             elif self.inning == 8:
-                target = 7 if 7 not in used_set else (6 if 6 not in used_Set else 5)
+                target = 7 
             else:
-                if 8 not in used_set:
-                    return 8
-                elif 7 not in used_set:
-                    return 7
-                elif 6 not in used_set:
-                    return 6
-                else:
-                    target = 5
+                target = 8 
                 
         elif score_diff >= 4:
             if self.inning <= 6:
                 target = 1
             elif self.inning <= 8:
-                target = 2 if 2 not in used_set else 3
+                target = 2 
             else:
-                target = 4 if 4 not in used_set else 3
+                target = 3
                 
         elif score_diff == 0:
             if self.inning <= 6:
-                target = 2 if 2 not in used_set else 3 
+                target = 2 
             elif self.inning <= 7:
-                target = 5 if 5 not in used_Set else 4
+                target = 5 
             elif self.inning <= 8:
-                target = 6 if 6 not in used_set else 5
+                target = 6 
             else:
-                if 8 not in used_set: return 8
-                elif 7 not in used_set: return 7
-                elif 6 not in used_set: return 6
-                else: target = 5
-
+                target = 8 
         else:
             abs_diff = abs(score_diff)
             if self.inning >= 7 and abs_diff >= 8:
                 return -99
             elif abs_diff >= 4:
-                target = 3 if 3 not in used_set else 2
+                target = 3 
             else:
-                target = 1 if 1 not in used_set else 2
+                target = 1
 
-        if target not in used_set and target not in forbidden_indices:
+        if target != -1 and target not in used_set and target not in forbidden_indices:
             return target
 
-        for idx in range(1, 9):
-            if idx not in used_set and idx not in forbidden_indices:
-                return idx 
+        search_candidates = [5, 6, 7, 8, 1, 2, 3, 4] if score_diff >= 0 else [1, 2, 3, 4, 5, 6, 7, 8]
+        for idx in search_candidates:
+            if idx not in used_set and idx not in forbidden_indices and idx < len(pitchers_list): 
+                return idx
 
-        for idx in (1, 8):
+        for idx in range(1, len(pitchers_list)):
             if idx not in used_set:
                 return idx
                 
@@ -2108,7 +2086,10 @@ def main() -> None:
             st.dataframe(styled_status, width="stretch")
 
         # 💡 [신규 추가 4] 오늘의 선발 라인업 (1~9번 타순 수동 커스텀 UI)
+        saved_key = f"saved_lineup_{st.session_state.my_team}"
         default_lineup = get_default_lineup(st.session_state.my_team)
+        initial_lineup = st.session_state.get(saved_key, default_lineup) 
+        
         with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
             st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
             
@@ -2132,6 +2113,40 @@ def main() -> None:
                         key=f"start_lineup_select_{idx}"
                     )
                     custom_lineup.append(sel)
+
+            st.markdown("---")
+            #라인업 저장/불러오기
+            b_col1, b_col2 = st.columns(2)
+            with b_col1:
+                if st.button"💾 현재 타순을 이 팀의 기본 오더로 저장", key="btn_save_lineup"):
+                    st.session_state[saved_key] = custom_lineup
+                    st.toast(f"✅ {st.session_state.my_team}의 선발 타순이 저장되었습니다!", icon="💾")
+            with b_col2:
+                if st.button("🔄 기본 추천 타순으로 초기화", key="btn_reset_lineup"):
+                    if saved_key in st.session_state:
+                        del st.session_state[saved_key]
+                    st.toast("🔄 추천 타순으로 초기화되었습니다.", icon="🧹")
+                    st.rerun()
+        
+        has_duplicates = len(set(custom_lineup)) != len(custom_lineup)
+        if has_duplicates:
+            # 중복된 선수명 추출
+            seen = set()
+            duplicates = set(p for p in custom_lineup if p in seen or seen.add(p))
+            dup_names = ", ".join(duplicates)
+            st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 라인업을 완성해 주세요.")
+        else:
+            st.info(f"📋 **확정 선발 라인업**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
+
+        # 🛑 중복이 있으면 버튼 비활성화 (disabled=has_duplicates)
+        if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates):
+            enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
+            st.session_state.full_kbo_engine = PureKboEngine(
+                my_team=st.session_state.my_team, 
+                enemy_team=enemy_team, 
+                my_lineup=custom_lineup
+            )
+            st.rerun()
                     
         st.info(f"📋 **확정 선발 라인업**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
       
