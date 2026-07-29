@@ -2113,6 +2113,15 @@ def main() -> None:
             else:
                 st.error("⚠️ assets/team-roster.txt 파일 누락.")
 
+        st.divider()
+        st.header("팀별 디폴트 타순")
+        if st.button("기본 선발 라인업과 선발투수"):
+            if os.path.exists("assets/default-lineup.txt", "r", encoding="utf-8") as f:
+                with open"assets/default-lineup.txt", "r", encoding="utf-8") as f:
+                    st.text_area("팀별 주전", value=f.read(), height=200, disabled=True)
+            else:
+                st.error("⚠️ assets/default-lineup.txt 파일 누락.")
+
     # -----------------------------------------------------------------
     # 1. 경기 개시 전 팀 선택 및 라인업 커스텀 설정 영역
     # -----------------------------------------------------------------
@@ -2169,7 +2178,7 @@ def main() -> None:
             #라인업 저장/불러오기
             b_col1, b_col2 = st.columns(2)
             with b_col1:
-                if st.button"💾 현재 타순을 이 팀의 기본 오더로 저장", key="btn_save_lineup"):
+                if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key="btn_save_lineup"):
                     st.session_state[saved_key] = custom_lineup
                     st.toast(f"✅ {st.session_state.my_team}의 선발 타순이 저장되었습니다!", icon="💾")
             with b_col2:
