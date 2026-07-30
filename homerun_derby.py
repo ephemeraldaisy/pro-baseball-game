@@ -3,21 +3,24 @@ import time
 import streamlit as st
 
 # =====================================================================
-# 🚀 스페셜 미니게임: 홈런 더비 (Home Run Derby) Engine & UI
+# 🚀 스페셜 미니게임: 챌린지 홈런 더비 (Home Run Derby) Engine & UI
 # =====================================================================
 class HomerunDerbyEngine:
     def __init__(self, total_pitches: int = 10):
         self.total_pitches = total_pitches
         self.current_pitch = 0
         self.homeruns = 0
+        self.long_homeruns = 0  # 138m 이상 대형 장외 홈런 카운트
         self.out_count = 0
         self.total_distance = 0
         self.max_distance = 0
+        
         self.earned_diamonds = 0
+        self.tier_name = ""
         self.game_over = False
         self.result_msg = ""
         self.game_log = [
-            f"🏟️ [홈런 더비 개시!] 총 {self.total_pitches}구의 투구가 주어집니다. 담장을 넘겨 다이아를 쓸어담으세요!"
+            f"🏟️ [홈런 더비 개시!] 총 {self.total_pitches}구의 기회가 주어집니다. 10구 후 최종 티어 보상을 쟁취하세요!"
         ]
 
     def process_swing(self, swing_type: str) -> None:
@@ -37,7 +40,7 @@ class HomerunDerbyEngine:
 
         log_prefix = f"[{self.current_pitch}/{self.total_pitches}구] 투수 {speed}km/h {pitch} 투구 ➔ "
 
-        # 스윙 유형 및 투구 구질에 따른 홈런 및 비거리 성공률 연산
+        # 스윙 유형별 성공 확률 및 비거리 범위
         hr_prob = 0.50
         max_dist_range = (115, 135)
 
@@ -61,21 +64,18 @@ class HomerunDerbyEngine:
             if distance > self.max_distance:
                 self.max_distance = distance
 
-            # 장외 대형 홈런 연출 (138m 이상)
+            # 138m 이상 대형 장외 홈런 카운트
             if distance >= 138:
-                reward = 50
-                self.earned_diamonds += reward
+                self.long_homeruns += 1
                 self.game_log.append(
-                    log_prefix + f"🚀💥 [장외 대형 홈런!!] 비거리 {distance}m! 관중석을 완전히 넘겼습니다! (+{reward} 💎)"
+                    log_prefix + f"🚀💥 [대형 장외 홈런!!] 비거리 {distance}m! 관중석을 완전히 넘겼습니다! (장외 #{self.long_homeruns})"
                 )
             else:
-                reward = 15
-                self.earned_diamonds += reward
                 self.game_log.append(
-                    log_prefix + f"🔥 [홈런!] 깡!! 비거리 {distance}m 담장을 뛰어넘습니다! (+{reward} 💎)"
+                    log_prefix + f"🔥 [홈런!] 깡!! 비거리 {distance}m 담장을 뛰어넘습니다!"
                 )
 
-        # 2. 담장 맞고 나오는 펜스 직격 타구 (아쉽게 홈런 실패)
+        # 2. 펜스 직격 (아쉽게 아웃)
         elif roll < hr_prob + 0.25:
             self.out_count += 1
             distance = random.randint(100, 114)
@@ -93,26 +93,44 @@ class HomerunDerbyEngine:
             ]
             self.game_log.append(log_prefix + f"❌ {random.choice(out_logs)} (아웃)")
 
-        # 종료 조건 체크
+        # 10구 종료 시 최종 가중치 정산 및 티어 부여
         if self.current_pitch >= self.total_pitches:
-            self.game_over = True
-            
-            # 퍼펙트 / 우수 성적 보너스 다이아
-            bonus = 0
-            if self.homeruns >= 8:
-                bonus = 300
-                bonus_msg = f"🏆 [퍼펙트 더비!] {self.homeruns}홈런 달성 보너스 +{bonus} 💎"
-            elif self.homeruns >= 5:
-                bonus = 100
-                bonus_msg = f"🌟 [우수 타자!] {self.homeruns}홈런 달성 보너스 +{bonus} 💎"
-            else:
-                bonus_msg = ""
+            self._evaluate_final_tier()
 
-            self.earned_diamonds += bonus
-            self.result_msg = (
-                f"🎉 [홈런 더비 종료] 총 {self.homeruns}홈런 | 최대 비거리: {self.max_distance}m | "
-                f"총 획득 상금: +{self.earned_diamonds} 💎 {bonus_msg}"
-            )
+    def _evaluate_final_tier(self) -> None:
+        """10구 종료 후 최종 홈런 수 및 장외 홈런 수 기반 가중치 정산"""
+        self.game_over = True
+
+        # SSS급: 8홈런 이상 + 장외 2개 이상 (+500 💎)
+        if self.homeruns >= 8 and self.long_homeruns >= 2:
+            self.tier_name = "SSS급 [신(God)의 영역]"
+            self.earned_diamonds = 500
+
+        # SS급: 8홈런 이상 (일반 홈런 위주) (+350 💎)
+        elif self.homeruns >= 8:
+            self.tier_name = "SS급 [전설의 거포]"
+            self.earned_diamonds = 350
+
+        # S급: 5~7홈런 달성 (+200 💎)
+        elif self.homeruns >= 5:
+            self.tier_name = "S급 [클러치 슬러거]"
+            self.earned_diamonds = 200
+
+        # A급: 3~4홈런 달성 (+80 💎)
+        elif self.homeruns >= 3:
+            self.tier_name = "A급 [준수한 담장 넘기기]"
+            self.earned_diamonds = 80
+
+        # B급: 1~2홈런 이하 (+20 💎)
+        else:
+            self.tier_name = "B급 [아쉬운 타격감]"
+            self.earned_diamonds = 20
+
+        self.result_msg = (
+            f"🎉 [홈런 더비 완료] 달성 티어: **{self.tier_name}** | "
+            f"기록: {self.homeruns}홈런 (장외 {self.long_homeruns}개) | "
+            f"최대 비거리: {self.max_distance}m ➔ 보상: **+{self.earned_diamonds} 💎**"
+        )
 
 
 # =====================================================================
@@ -123,19 +141,17 @@ def render_homerun_derby_ui():
 
     # 세션 내 게임 인스턴스 초기화
     if "homerun_derby_instance" not in st.session_state or st.session_state.homerun_derby_instance is None:
-        st.info("💡 주어진 10구의 기회 동안 담장을 넘겨 다이아 💎 보상을 획득하세요!")
+        st.info("💡 주어진 10구 동안 담장을 넘겨 성적에 맞는 최종 티어 다이아 💎 보상을 획득하세요!")
         
-        c_i1, c_i2 = st.columns(2)
-        with c_i1:
-            st.markdown("""
-            **🎟️ 보상 안내**
-            - 일반 홈런: **+15 💎**
-            - 138m 이상 장외 대형 홈런: **+50 💎**
-            - 5홈런 이상 보너스: **+100 💎**
-            - 8홈런 이상 퍼펙트 보너스: **+300 💎**
-            """)
-        with c_i2:
-            st.metric("현재 보유 다이아", f"{st.session_state.nc_diamonds} 💎")
+        st.markdown("""
+        | 티어 명칭 | 달성 조건 | 최종 정산 보상 |
+        | :--- | :--- | :--- |
+        | **SSS급 [신(God)의 영역]** | 10구 중 **8홈런 이상** + **대형 장외 홈런 2개 이상** | **+500 💎** |
+        | **SS급 [전설의 거포]** | 10구 중 **8홈런 이상** (일반 홈런 위주) | **+350 💎** |
+        | **S급 [클러치 슬러거]** | 10구 중 **5~7홈런** 달성 | **+200 💎** |
+        | **A급 [준수한 담장 넘기기]** | 10구 중 **3~4홈런** 달성 | **+80 💎** |
+        | **B급 [아쉬운 타격감]** | 10구 중 **1~2홈런 이하** | **+20 💎** |
+        """)
 
         if st.button("🚀 홈런 더비 참가 (입장료 50 💎)", type="primary", key="btn_start_hr_derby"):
             if st.session_state.nc_diamonds >= 50:
@@ -151,13 +167,13 @@ def render_homerun_derby_ui():
     # 실시간 현황 스코어보드
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("남은 기회", f"{game.total_pitches - game.current_pitch} / {game.total_pitches}구")
-    m2.metric("홈런 개수", f"🔥 {game.homeruns} 개")
+    m2.metric("홈런 (장외)", f"🔥 {game.homeruns} 개 ({game.long_homeruns}장외)")
     m3.metric("최대 비거리", f"📏 {game.max_distance} m")
-    m4.metric("획득 다이아", f"💎 +{game.earned_diamonds}")
+    m4.metric("현재 보유 다이아", f"{st.session_state.nc_diamonds} 💎")
 
     st.divider()
 
-    # 게임 완료 시 결과 처리
+    # 게임 완료 시 결과 정산
     if game.game_over:
         st.success(game.result_msg)
 
@@ -165,7 +181,7 @@ def render_homerun_derby_ui():
         if not getattr(game, 'reward_claimed', False):
             st.session_state.nc_diamonds += game.earned_diamonds
             game.reward_claimed = True
-            st.toast(f"🎉 총 +{game.earned_diamonds} 💎 가 지갑에 추가되었습니다!", icon="💎")
+            st.toast(f"🎉 {game.tier_name} 달성! +{game.earned_diamonds} 💎 지급 완료!", icon="💎")
 
         if st.button("메인 모드로 돌아가기", key="btn_exit_hr_derby"):
             st.session_state.homerun_derby_instance = None
