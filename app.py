@@ -603,9 +603,9 @@ def main() -> None:
                 with st.expander("🏆 실시간 KBO 페넌트레이스 리그 순위표", expanded=True):
                     st.dataframe(get_league_standings_df(), width="stretch")
         
-                        if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
-                            st.session_state.full_kbo_engine = None
-                            st.rerun()
+                    if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
+                        st.session_state.full_kbo_engine = None
+                        st.rerun()
             else:
                 col_main, col_chat = st.columns([3, 1])
                 
