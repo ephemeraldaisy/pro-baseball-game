@@ -88,7 +88,7 @@ def main() -> None:
     # =================================================================
     if not st.session_state.main_screen_passed:
         st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>⚾ 순수한 야구 시뮬레이터 PRO</h1>", unsafe_allow_html=True)
-        st.markdown("<h4 style='text-align: center;'>KBO 10대 구단 하이퍼 매니지먼트 & 리세마라</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align: center;'>KBO 스타일 10대 구단 하이퍼 매니지먼트 & 리세마라</h4>", unsafe_allow_html=True)
         st.divider()
 
         #ID & PW 입력
@@ -207,7 +207,7 @@ def main() -> None:
     # =================================================================
     with st.sidebar:
         st.markdown("---")
-        st.markdown("### 🏆 KBO 리그 순위표")
+        st.markdown("### 🏆 PBS 리그 순위표")
         if st.button("📊 실시간 구단 순위 열람", key="btn_sb_standings"):
             st.dataframe(get_league_standings_df(), width="stretch")
 
@@ -670,7 +670,7 @@ def main() -> None:
                             st.write(res_text)
         
                 # 📊 실시간 리그 순위표 표시
-                with st.expander("🏆 실시간 KBO 페넌트레이스 리그 순위표", expanded=True):
+                with st.expander("🏆 실시간 PBS 페넌트레이스 리그 순위표", expanded=True):
                     st.dataframe(get_league_standings_df(), width="stretch")
         
                     if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
@@ -809,7 +809,7 @@ def main() -> None:
             "🎮 플레이할 미니게임을 선택하세요",
             ["🚀 챌린지 홈런 더비 (입장료 50💎)", 
              "⚡ 9회말 2아웃 만루 클러치 히터 (입장료 50💎)", 
-             "🎯 킹 오브 스트라이크아웃 (입장료 30💎)"],
+             "🎯 오늘은 삼진왕 (입장료 30💎)"],
             key="select_mini_game_type"
         )
         st.markdown("---")
@@ -818,7 +818,7 @@ def main() -> None:
             render_homerun_derby_ui()
         elif "⚡ 9회말 2아웃 만루 클러치 히터" in selected_mini_game:
             render_homerun_game_ui()
-        elif "🎯 킹 오브 스트라이크아웃" in selected_mini_game:
+        elif "🎯 오늘은 삼진왕" in selected_mini_game:
             render_king_of_strikeout_ui()
 
 
