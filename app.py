@@ -17,7 +17,48 @@ from homerun_derby import render_homerun_derby_ui
 from bottom_of_the_ninth import render_homerun_game_ui
 from king_of_strikeout import render_king_of_strikeout_ui
 
+#리그 순위표 연산
+def get_league_standings_df() -> pd.DataFrame:
+    if "league_records" not in st.session_state:
+        st.session_state.league_records = {team: {"W": 0, "L": 0, "D": 0} for team in TEAMS.keys()}
 
+    records = st.session_state.league_records
+    data = []
+
+    for team, stat in records.items():
+        w, l, d = stat["W"], stat["L"], stat["D"]
+        total_games = w + l
+        win_rate = w / total_games if total_games > 0 else 0.000
+        data.append({"구단": team, "경기수": w + l + d, "승": w, "패": l, "무": d, "승률": round(win_rate, 3)})
+
+    df = pd.DataFrame(data).sort_values(by=["승률", "승"], ascending=[False, False]).reset_index(drop=True)
+    
+    top_w, top_l = df.loc[0, "승"], df.loc[0, "패"]
+    df["승차"] = [f"{((top_w - row['승']) + (row['패'] - top_l)) / 2.0:.1f}" if i > 0 else "-" for i, row in df.iterrows()]
+    df.index = df.index + 1
+    return df
+
+#타 구단 8개 팀 무작위 시뮬레이션 
+def simulate_other_teams_matches(my_team: str, enemy_team: str) -> list:
+    if "league_records" not in st.session_state:
+        get_league_standings_df()
+
+    other_teams = [t for t in TEAMS.keys() if t not in [my_team, enemy_team]]
+    random.shuffle(other_teams)
+    results_log = []
+
+    for i in range(0, 8, 2):
+        t1, t2 = other_teams[i], other_teams[i+1]
+        s1, s2 = random.randint(0, 9), random.randint(0, 9)
+        if s1 == s2: s1 += 1  # 무승부 방지 승부
+        
+        winner, loser = (t1, t2) if s1 > s2 else (t2, t1)
+        st.session_state.league_records[winner]["W"] += 1
+        st.session_state.league_records[loser]["L"] += 1
+        results_log.append(f"🏟️ {t1} {s1} : {s2} {t2} ➔ ({winner[:2]} 승리)")
+
+    return results_log
+    
 def main() -> None:
     st.set_page_config(layout="wide")
     st.markdown("<style>.stButton>button { width: 100%; font-size: 14px !important; font-weight: bold; }</style>", unsafe_allow_html=True)
@@ -95,6 +136,27 @@ def main() -> None:
     # 🛠️ 사이드바 (상점 / 세이브·로드 / 설정 열람)
     # =================================================================
     with st.sidebar:
+        st.markdown("---")
+        st.markdown("### 🏆 KBO 리그 순위표")
+        if st.button("📊 실시간 구단 순위 열람", key="btn_sb_standings"):
+            st.dataframe(get_league_standings_df(), width="stretch")
+
+        st.markdown("---")
+        st.markdown("### 🚨 감독 계약 관리")
+        if st.button("💸 구단 감독 사임하기 (위약금 3,000💎)", key="btn_resign_manager"):
+            if st.session_state.nc_diamonds >= 3000:
+                st.session_state.nc_diamonds -= 3000
+                old_team = st.session_state.contract_team
+                st.session_state.contract_team = None
+                st.session_state.full_kbo_engine = None
+                st.session_state.pennant_game_count = 1
+                st.session_state.pennant_wins = 0
+                st.session_state.pennant_loses = 0
+                st.toast(f"🚨 위약금 3,000💎을 지불하고 {old_team} 감독직에서 사임했습니다.", icon="💸")
+                st.rerun()
+            else:
+                st.sidebar.error("❌ 보유 다이아가 부족하여 위약금(3,000💎)을 낼 수 없습니다!")
+                
         st.header("💎 비밀 상점 (P2W)")
         st.write(f"보유 다이아: {st.session_state.nc_diamonds} 💎")
         
@@ -515,13 +577,35 @@ def main() -> None:
                 # 📊 페넌트레이스 경기 수 및 승패 기록 연동
                 if not getattr(game, 'pennant_recorded', False):
                     st.session_state.pennant_game_count += 1
-                    if game.our_score > game.enemy_score: st.session_state.pennant_wins += 1
-                    elif game.our_score < game.enemy_score: st.session_state.pennant_loses += 1
+                    if "league_records" not in st.session_state: get_league_standings_df()
+
+                    if game.our_score > game.enemy_score: 
+                        st.session_state.pennant_wins += 1
+                        st.session_state.league_records[game.my_team]["W"] += 1
+                        st.session_state.league_records[game.enemy_team]["L"] += 1
+                    elif game.our_score < game.enemy_score: 
+                        st.session_state.pennant_loses += 1
+                        st.session_state.league_records[game.my_team]["L"] += 1
+                        st.session_state.league_records[game.enemy_team]["W"] += 1
+                    else:
+                        st.session_state.league_records[game.my_team]["D"] += 1
+                        st.session_state.league_records[game.enemy_team]["D"] += 1
+
+                    game.other_results_cache = simulate_other_teams_matches(game.my_team, game.enemy_team)
                     game.pennant_recorded = True
 
-                if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
-                    st.session_state.full_kbo_engine = None
-                    st.rerun()
+                if hasattr(game, 'other_results_cache'):
+                    with st.expander("📺 오늘 자 KBO 타 구단 경기 결과 (4경기)", expanded=True):
+                        for res_text in game.other_results_cache:
+                            st.write(res_text)
+        
+                # 📊 실시간 리그 순위표 표시
+                with st.expander("🏆 실시간 KBO 페넌트레이스 리그 순위표", expanded=True):
+                    st.dataframe(get_league_standings_df(), width="stretch")
+        
+                        if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
+                            st.session_state.full_kbo_engine = None
+                            st.rerun()
             else:
                 col_main, col_chat = st.columns([3, 1])
                 
