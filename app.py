@@ -183,10 +183,25 @@ def main() -> None:
                         st.session_state.nc_diamonds = data.get("diamonds", 1000)
                         st.session_state.my_team = data.get("my_team", "💖 핑크 돌핀스")
                         st.session_state.contract_team = data.get("contract_team", data.get("my_team", "💖 핑크 돌핀스"))
+                        
                         st.session_state.pennant_game_count = data.get("pennant_game_count", 1)
                         st.session_state.pennant_wins = data.get("pennant_wins", 0)
                         st.session_state.pennant_loses = data.get("pennant_loses", 0)
-                        
+
+                        if "league_records" in data:
+                            st.session_state.league_records = data["league_records"]
+
+                        if st.session_state.get("logged_in") and st.session_state.user_id in st.session_state.user_accounts:
+                            user_acc = st.session_state.user_accounts[st.session_state.user_id]
+                            user_acc["diamonds"] = st.session_state.nc_diamonds
+                            user_acc["pennant_game_count"] = st.session_state.pennant_game_count
+                            user_acc["pennant_wins"] = st.session_state.pennant_wins
+                            user_acc["pennant_loses"] = st.session_state.pennant_loses
+                            user_acc["my_team"] = st.session_state.my_team
+                            user_acc["contract_team"] = st.session_state.contract_team
+                            if "league_records" in st.session_state:
+                                user_acc["league_records"] = st.session_state.league_records
+                    
                         st.session_state.main_screen_passed = True
                         st.toast("🎉 데이터 복구 완료! 페넌트레이스를 이어갑니다.", icon="💾")
                         st.rerun()
@@ -304,7 +319,8 @@ def main() -> None:
                 "contract_team": st.session_state.contract_team,
                 "pennant_game_count": st.session_state.pennant_game_count,
                 "pennant_wins": st.session_state.pennant_wins,
-                "pennant_loses": st.session_state.pennant_loses
+                "pennant_loses": st.session_state.pennant_loses,
+                "league_records": st.session_state.get("league_records", {})
             }
             if st.session_state.full_kbo_engine:
                 game = st.session_state.full_kbo_engine
