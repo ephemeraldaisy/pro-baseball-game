@@ -76,6 +76,11 @@ def main() -> None:
     if "nc_diamonds" not in st.session_state: st.session_state.nc_diamonds = 1000
     if "full_kbo_engine" not in st.session_state: st.session_state.full_kbo_engine = None
 
+    #로그인 상태 
+    if "logged_in" not in st.session_state: st.session_state.logged_in = False
+    if "user_id" not in st.session_state: st.session_state.user_id = ""
+    if "user_accounts" not in st.session_state: st.session_state.user_accounts = {} # 간단한 로컬 계정 저장소
+
     df_matchup = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=list(MATCHUP_MATRIX.keys()))
 
     # =================================================================
@@ -86,6 +91,64 @@ def main() -> None:
         st.markdown("<h4 style='text-align: center;'>KBO 10대 구단 하이퍼 매니지먼트 & 리세마라</h4>", unsafe_allow_html=True)
         st.divider()
 
+        #ID & PW 입력
+        if not st.session_state.logged_in:
+            st.subheader("🔑 감독 계정 로그인 / 회원가입") 
+            st.caption("사용하실 아이디와 비밀번호를 직접 입력해 주세요. (최초 입력 시 자동 가입됩니다)")
+            l_col1, l_col2 = st.columns(2)
+            with l_col1:
+                input_id = st.text_input("감독 아이디 (ID)", key="input_login_id", placeholder="예: baseball_pro99")
+            with l_col2:
+                input_pw = st.text_input("비밀번호 (PW)", type="password", key="input_login_pw", placeholder="비밀번호 입력")
+
+            b_col1, b_col2 = st.columns(2)
+            with b_col1:
+                if st.button("🚀 로그인 / 시작하기", type="primary", key="btn_do_login"):
+                    if input_id.strip() and input_pw.strip():
+                        accounts = st.session_state.user_accounts
+                        if input_id in accounts:
+                            # 기존 계정 PW 검증
+                            if accounts[input_id]["pw"] == input_pw:
+                                st.session_state.logged_in = True
+                                st.session_state.user_id = input_id
+                                # 계정에 저장된 다이아 및 데이터 복구
+                                user_data = accounts[input_id]
+                                st.session_state.nc_diamonds = user_data.get("diamonds", 1000)
+                                st.session_state.my_team = user_data.get("my_team", "💖 핑크 돌핀스")
+                                st.session_state.contract_team = user_data.get("contract_team", "💖 핑크 돌핀스")
+                                st.session_state.pennant_game_count = user_data.get("pennant_game_count", 1)
+                                st.session_state.pennant_wins = user_data.get("pennant_wins", 0)
+                                st.session_state.pennant_loses = user_data.get("pennant_loses", 0)
+                                if "league_records" in user_data:
+                                    st.session_state.league_records = user_data["league_records"]
+                                
+                                st.toast(f"환영합니다, {input_id} 감독님! 로그인이 완료되었습니다.", icon="🎉")
+                                st.rerun()
+                            else:
+                                st.error("❌ 비밀번호가 일치하지 않습니다!")
+                        else:
+                            # 신규 계정 자동 가입 처리
+                            accounts[input_id] = {
+                                "pw": input_pw,
+                                "diamonds": 1000,
+                                "my_team": "💖 핑크 돌핀스",
+                                "contract_team": "💖 핑크 돌핀스",
+                                "pennant_game_count": 1,
+                                "pennant_wins": 0,
+                                "pennant_loses": 0
+                            }
+                            st.session_state.logged_in = True
+                            st.session_state.user_id = input_id
+                            st.session_state.nc_diamonds = 1000
+                            st.toast(f"✨ 신규 감독({input_id}) 등록 완료! 기본 지원금이 지급됩니다.", icon="💎")
+                            st.rerun()
+                    else:
+                        st.warning("아이디와 비밀번호를 모두 입력해 주세요!")
+            st.stop() # 로그인 전에는 아래 화면 차단
+
+        st.success(f"👤 현재 접속 중인 감독 계정: **{st.session_state.user_id}**님 (보유 다이아: {st.session_state.nc_diamonds} 💎)")
+        st.markdown("---")
+        
         m_col1, m_col2 = st.columns(2)
 
         with m_col1:
@@ -97,6 +160,8 @@ def main() -> None:
             with c_btn1:
                 if st.button("🎲 다이아 리세마라 (재뽑기)", key="btn_gacha_re"):
                     st.session_state.nc_diamonds = random.randint(1000, 5000)
+                    if st.session_state.user_id in st.session_state.user_accounts:
+                        st.session_state.user_accounts[st.session_state.user_id]["diamonds"] = st.session_state.nc_diamonds
                     st.toast(f"🎉 리세마라 결과: {st.session_state.nc_diamonds} 다이아 획득!", icon="💎")
                     st.rerun()
             with c_btn2:
@@ -129,6 +194,11 @@ def main() -> None:
                         st.error("❌ 유효하지 않은 암호 코드입니다.")
                 else:
                     st.warning("코드를 입력해 주세요!")
+
+        if st.button("🔒 로그아웃 (다른 계정으로 전환)", key="btn_do_logout"):
+            st.session_state.logged_in = False
+            st.session_state.user_id = ""
+            st.rerun()
 
         st.stop() # 메인 스크린에서는 진입 전까지 하단 렌더링을 차단합니다.
 
