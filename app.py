@@ -602,9 +602,21 @@ def main() -> None:
             
         with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
             st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
+
+            current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
+
+            if "contract_team" in st.session_state and st.session_state.contract_team:
+                current_team = st.session_state.contract_team
+            
             all_batters = []
-            for p_list in TEAM_ROSTERS[st.session_state.my_team]["batters"].values():
-                all_batters.extend(p_list)
+            if current_team in TEAM_ROSTERS:
+                for p_list in TEAM_ROSTERS[st.session_state.my_team]["batters"].values():
+                    all_batters.extend(p_list)
+
+            else:
+                first_team = list(TEAM_ROSTERS.keys())[0]
+                for p_list in TEAM_ROSTERS[first_team]["batters"].values():
+                    all_batters.extend(p_list)
                 
             custom_lineup = []
             col_l1, col_l2 = st.columns(2)
