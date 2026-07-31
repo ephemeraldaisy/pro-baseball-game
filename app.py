@@ -575,10 +575,12 @@ def main() -> None:
                 1: "1선발 (ACE)",
                 2: "2선발",
                 3: "3선발",
-                4: "4선발"
+                4: "4선발", 
+                5: "5선발"
             }
-            cols = st.columns(4)
-            for i in range(1, 5):
+            
+            cols = st.columns(5)
+            for i in range(1, 6):
                 rem_days = rest_days.get(i, 0)
                 with cols[i - 1]:
                     if rem_days > 0:
@@ -595,7 +597,7 @@ def main() -> None:
                             delta="준비 완료"
                         )
 
-        st.caption("💡 **선발 투수(1~4번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수(5~8번)**는 상시 등판합니다.")
+        st.caption("💡 **선발 투수(1~5번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수**는 상시 등판합니다.")
         st.divider()
             
         with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
