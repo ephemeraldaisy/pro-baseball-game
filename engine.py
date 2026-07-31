@@ -725,7 +725,7 @@ class PureKboEngine:
         
         used_set.add(pitch_idx)
         # 1번~4번 투수(선발 로테이션)만 등판 후 5일 휴식 등록!
-        if 1 <= pitch_idx <= 4:
+        if 1 <= pitch_idx <= 5:
             rest_dict[pitch_idx] = 5
 
     @staticmethod 
