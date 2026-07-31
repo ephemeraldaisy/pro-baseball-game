@@ -607,6 +607,12 @@ def main() -> None:
             
         with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
             st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
+
+            current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
+
+            # 계약 팀이 별도로 존재하는 경우 안전하게 덮어쓰기
+            if "contract_team" in st.session_state and st.session_state.contract_team:
+                current_team = st.session_state.contract_team
             
             all_batters = []
             if current_team in TEAM_ROSTERS:
