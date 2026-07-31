@@ -1,4 +1,5 @@
 import os
+import zlib 
 import json
 import base64
 import random
@@ -58,6 +59,66 @@ def simulate_other_teams_matches(my_team: str, enemy_team: str) -> list:
         results_log.append(f"🏟️ {t1} {s1} : {s2} {t2} ➔ ({winner[:2]} 승리)")
 
     return results_log
+
+def generate_compressed_save_code() -> str:
+    """세션 데이터를 zlib으로 경량 압축하여 짧은 암호화 코드로 변환"""
+    save_data = {
+        "d": st.session_state.get("nc_diamonds", 1000),             # d = diamonds
+        "t": st.session_state.get("my_team", "💖 핑크 돌핀스"),       # t = my_team
+        "c": st.session_state.get("contract_team", "💖 핑크 돌핀스"), # c = contract_team
+        "g": st.session_state.get("pennant_game_count", 1),         # g = pennant_game_count
+        "w": st.session_state.get("pennant_wins", 0),               # w = pennant_wins
+        "l": st.session_state.get("pennant_loses", 0),              # l = pennant_loses
+        "r": st.session_state.get("league_records", {})             # r = league_records
+    }
+    
+    # 1. JSON 직렬화 ➔ 2. zlib 초고속 압축 ➔ 3. Base64 변환
+    json_bytes = json.dumps(save_data, ensure_ascii=False).encode('utf-8')
+    compressed_bytes = zlib.compress(json_bytes, level=9) # 최고 압축률
+    short_code = base64.b64encode(compressed_bytes).decode('utf-8')
+    return short_code
+
+def load_from_compressed_code(code_str: str) -> bool:
+    """초단축 세이브 코드를 복원 (구형 길었던 세이브 코드도 자동 하위호환)"""
+    try:
+        raw_bytes = base64.b64decode(code_str.strip().encode('utf-8'))
+        
+        # zlib 압축 풀기 시도
+        try:
+            decompressed = zlib.decompress(raw_bytes)
+            data = json.loads(decompressed.decode('utf-8'))
+        except Exception:
+            # zlib 압축이 안 된 옛날 길었던 코드일 경우 하위호환 처리
+            data = json.loads(raw_bytes.decode('utf-8'))
+
+        # 데이터 세션 주입 (축약키 & 기존키 모두 호환)
+        st.session_state.nc_diamonds = data.get("d", data.get("diamonds", 1000))
+        st.session_state.my_team = data.get("t", data.get("my_team", "💖 핑크 돌핀스"))
+        st.session_state.contract_team = data.get("c", data.get("contract_team", st.session_state.my_team))
+        st.session_state.pennant_game_count = data.get("g", data.get("pennant_game_count", 1))
+        st.session_state.pennant_wins = data.get("w", data.get("pennant_wins", 0))
+        st.session_state.pennant_loses = data.get("l", data.get("pennant_loses", 0))
+        
+        league_rec = data.get("r", data.get("league_records", None))
+        if league_rec:
+            st.session_state.league_records = league_rec
+
+        # 계정 데이터 동기화
+        current_id = st.session_state.get("user_id")
+        if current_id and "user_accounts" in st.session_state:
+            if current_id in st.session_state.user_accounts:
+                st.session_state.user_accounts[current_id].update({
+                    "diamonds": st.session_state.nc_diamonds,
+                    "my_team": st.session_state.my_team,
+                    "contract_team": st.session_state.contract_team,
+                    "pennant_game_count": st.session_state.pennant_game_count,
+                    "pennant_wins": st.session_state.pennant_wins,
+                    "pennant_loses": st.session_state.pennant_loses,
+                    "league_records": st.session_state.get("league_records", {})
+                })
+        return True
+    except Exception:
+        return False
     
 def main() -> None:
     st.set_page_config(layout="wide")
@@ -174,12 +235,20 @@ def main() -> None:
             st.subheader("📂 이어하기 (세이브 코드)")
             st.caption("발급받은 암호 코드를 입력하여 페넌트레이스 진행도 및 보유 다이아를 복구합니다.")
             input_code = st.text_input("세이브 코드 입력", key="main_save_input", placeholder="코드를 붙여넣으세요")
+            
             if st.button("🔓 코드 검증 및 로드", key="btn_main_load"):
                 if input_code.strip():
                     try:
-                        decoded_bytes = base64.b64decode(input_code.encode('utf-8'))
-                        data = json.loads(decoded_bytes.decode('utf-8'))
-                        
+                        #Base64 
+                        raw_bytes = base64.b64decode(input_code.strip().encode('utf-8'))
+                        #zlib
+                        try:
+                            decompressed = zlib.decompress(raw_bytes)
+                            data = json.loads(decompressed.decode('utf-8'))
+
+                        except Exception:
+                            data = json.loads(raw_bytes.decode('utf-8'))
+                  
                         st.session_state.nc_diamonds = data.get("diamonds", 1000)
                         st.session_state.my_team = data.get("my_team", "💖 핑크 돌핀스")
                         st.session_state.contract_team = data.get("contract_team", data.get("my_team", "💖 핑크 돌핀스"))
@@ -188,8 +257,10 @@ def main() -> None:
                         st.session_state.pennant_wins = data.get("pennant_wins", 0)
                         st.session_state.pennant_loses = data.get("pennant_loses", 0)
 
-                        if "league_records" in data:
-                            st.session_state.league_records = data["league_records"]
+                        league_rec = data.get("r", data.get("league_records", None))
+                        
+                        if league_rec:
+                            st.session_state.league_records = league_rec 
 
                         if st.session_state.get("logged_in") and st.session_state.user_id in st.session_state.user_accounts:
                             user_acc = st.session_state.user_accounts[st.session_state.user_id]
