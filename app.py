@@ -569,9 +569,9 @@ def main() -> None:
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
 
             if st.session_state.get("full_kbo_engine") is not None:
-                current_my_team = st.session_state.full_kbo_engine.my_team
+                current_team = st.session_state.full_kbo_engine.my_team
             else:
-                current_my_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
+                current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
 
             st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
 
