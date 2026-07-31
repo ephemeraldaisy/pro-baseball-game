@@ -622,20 +622,45 @@ class PureKboEngine:
 
         used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
         pitchers_list = self.my_pitchers if is_defense else self.enemy_pitchers 
+        current_pitcher = self.our_pitcher if is_defense else self.enemy_pitcher 
+
+        #체력 10 이하/ 한 이닝 5실점 이상 강제 교체
+        is_forced_change = False
+        if current_pitcher is not None: 
+            stamina = getattr(current_pitcher, 'stamina', 100)
+            inning_er = getattr(current_pitcher, 'inning_er', 0)
+            if stamina <= 10 or inning_er >= 5:
+                is_forced_change = True
+
+        if not is_forced_change and current_pitcher is not None:
+            current_idx = getattr(current_pitcher, 'index', -1)
+            if current_idx != -1:
+                return current_idx
         
         forbidden_indices = set()
+        #8회 전 마무리 금지, 7회 전 셋업맨 금지
         if self.inning < 8:
-            forbidden_indices.add(8) 
+            forbidden_indices.add(8) #마무리
         if self.inning < 7:
-            forbidden_indices.add(6)
+            forbidden_indices.add(6) #셋업맨 1, 2
             forbidden_indices.add(7)
 
+        #4점차 이상 큰 격차 시 필승조 금지 
         if abs(score_diff) >= 4:
             forbidden_indices.add(5)
             forbidden_indices.add(6)
             forbidden_indices.add(7)
             forbidden_indices.add(8)
 
+        rest_dict = (
+            st.session_state.my_pitcher_rest_days if is_defense 
+            else st.session_state.enemy_pitcher_rest_days
+        )
+        for p_idx, days in rest_dict.items():
+            if days > 0 and 1 <= p_idx <= 4:  # 선발 투수(1~4번)만 금지 적용
+                forbidden_indices.add(p_idx)
+            
+        #타깃 투수 산출
         target = -1
         
         if 1 <= score_diff <= 3:
@@ -675,18 +700,41 @@ class PureKboEngine:
                 target = 1
 
         if target != -1 and target not in used_set and target not in forbidden_indices:
+            self._check_and_apply_starter_rest(target, is_defense)
             return target
 
         search_candidates = [5, 6, 7, 8, 1, 2, 3, 4] if score_diff >= 0 else [1, 2, 3, 4, 5, 6, 7, 8]
         for idx in search_candidates:
             if idx not in used_set and idx not in forbidden_indices and idx < len(pitchers_list): 
+                self._check_and_apply_starter_rest(idx, is_defense)
                 return idx
 
         for idx in range(1, len(pitchers_list)):
             if idx not in used_set:
+                self._check_and_apply_starter_rest(idx, is_defense)
                 return idx
                 
         return -99
+
+    def _check_and_apply_starter_rest(self, pitch_idx: int, is_defense: bool) -> None:
+        used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
+        rest_dict = (
+            st.session_state.my_pitcher_rest_days if is_defense 
+            else st.session_state.enemy_pitcher_rest_days
+        )
+        
+        used_set.add(pitch_idx)
+        # 1번~4번 투수(선발 로테이션)만 등판 후 5일 휴식 등록!
+        if 1 <= pitch_idx <= 4:
+            rest_dict[pitch_idx] = 5
+
+    @staticmethod 
+    def advance_rest_days():
+        """시즌 진행(1경기 완료) 시 휴식 중인 선발 투수들의 휴식일을 1일씩 감소"""
+        for r_dict in [st.session_state.get("my_pitcher_rest_days", {}), st.session_state.get("enemy_pitcher_rest_days", {})]:
+            for p_idx in list(r_dict.keys()):
+                if r_dict[p_idx] > 0:
+                    r_dict[p_idx] -= 1
 
     def check_pitch_clock_violation(self, log_prefix: str) -> bool:
         self.update_is_attack()
