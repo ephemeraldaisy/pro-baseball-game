@@ -266,8 +266,6 @@ def main() -> None:
                         st.rerun()
                     except Exception:
                         st.error("❌ 유효하지 않은 암호 코드입니다.")
-                else:
-                    st.warning("코드를 입력해 주세요!")
 
         if st.button("🔒 로그아웃 (다른 계정으로 전환)", key="btn_do_logout"):
             st.session_state.logged_in = False
