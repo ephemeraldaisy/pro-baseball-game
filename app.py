@@ -567,6 +567,36 @@ def main() -> None:
             saved_key = f"saved_lineup_{st.session_state.my_team}"
             default_lineup = get_default_lineup(st.session_state.my_team)
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
+
+            st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
+
+            rest_days = st.session_state.get("my_pitcher_rest_days", {})
+            pitcher_names = {
+                1: "1선발 (ACE)",
+                2: "2선발",
+                3: "3선발",
+                4: "4선발"
+            }
+            cols = st.columns(4)
+            for i in range(1, 5):
+                rem_days = rest_days.get(i, 0)
+                with cols[i - 1]:
+                    if rem_days > 0:
+                        st.metric(
+                        label=f"🔴 {pitcher_names[i]}",
+                        value=f"휴식 중 (D-{rem_days})",
+                        delta=f"출전까지 {rem_days}경기",
+                        delta_color="inverse"
+                    )
+                else:
+                    st.metric(
+                        label=f"🟢 {pitcher_names[i]}",
+                        value="등판 가능",
+                        delta="준비 완료"
+                    )
+
+        st.caption("💡 **선발 투수(1~4번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수(5~8번)**는 상시 등판합니다.")
+        st.divider()
             
             with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
                 st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
@@ -747,6 +777,12 @@ def main() -> None:
                     st.dataframe(get_league_standings_df(), width="stretch")
         
                     if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
+                        if hasattr(PureKboEngine, 'advance_rest_days'):
+                            PureKboEngine.advance_rest_days()
+                        elif "my_pitcher_rest_days" in st.session_state:
+                            for p_idx in list(st.session_state.my_pitcher_rest_days.keys()):
+                                if st.session_state.my_pitcher_rest_days[p_idx] > 0:
+                                    st.session_state.my_pitcher_rest_days[p_idx] -= 1
                         st.session_state.full_kbo_engine = None
                         st.rerun()
             else:
