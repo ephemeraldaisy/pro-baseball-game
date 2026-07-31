@@ -598,57 +598,57 @@ def main() -> None:
         st.caption("💡 **선발 투수(1~4번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수(5~8번)**는 상시 등판합니다.")
         st.divider()
             
-            with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
-                st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
-                all_batters = []
-                for p_list in TEAM_ROSTERS[st.session_state.my_team]["batters"].values():
-                    all_batters.extend(p_list)
+        with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
+            st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
+            all_batters = []
+            for p_list in TEAM_ROSTERS[st.session_state.my_team]["batters"].values():
+                all_batters.extend(p_list)
+                
+            custom_lineup = []
+            col_l1, col_l2 = st.columns(2)
+            for idx in range(9):
+                target_col = col_l1 if idx < 5 else col_l2
+                with target_col:
+                    default_player = initial_lineup[idx] if idx < len(initial_lineup) else all_batters[idx % len(all_batters)]
+                    d_idx = all_batters.index(default_player) if default_player in all_batters else 0
                     
-                custom_lineup = []
-                col_l1, col_l2 = st.columns(2)
-                for idx in range(9):
-                    target_col = col_l1 if idx < 5 else col_l2
-                    with target_col:
-                        default_player = initial_lineup[idx] if idx < len(initial_lineup) else all_batters[idx % len(all_batters)]
-                        d_idx = all_batters.index(default_player) if default_player in all_batters else 0
-                        
-                        sel = st.selectbox(
-                            f"**{idx+1}번 타자**", options=all_batters, index=d_idx,
-                            key=f"start_lineup_select_{idx}_{st.session_state.my_team}"
-                        )
-                        custom_lineup.append(sel)
+                    sel = st.selectbox(
+                        f"**{idx+1}번 타자**", options=all_batters, index=d_idx,
+                        key=f"start_lineup_select_{idx}_{st.session_state.my_team}"
+                    )
+                    custom_lineup.append(sel)
 
-                st.markdown("---")
-                b_col1, b_col2 = st.columns(2)
-                with b_col1:
-                    if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key=f"btn_save_lineup_{st.session_state.my_team}"):
-                        st.session_state[saved_key] = custom_lineup
-                        st.toast(f"✅ {st.session_state.my_team}의 선발 타순이 저장되었습니다!", icon="💾")
-                with b_col2:
-                    if st.button("🔄 기본 추천 타순으로 초기화", key=f"btn_reset_lineup_{st.session_state.my_team}"):
-                        if saved_key in st.session_state: del st.session_state[saved_key]
-                        st.toast("🔄 추천 타순으로 초기화되었습니다.", icon="🧹")
-                        st.rerun()
-            
-            has_duplicates = len(set(custom_lineup)) != len(custom_lineup)
-            if has_duplicates:
-                seen = set()
-                duplicates = set(p for p in custom_lineup if p in seen or seen.add(p))
-                dup_names = ", ".join(duplicates)
-                st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 구성해 주세요.")
-            else:
-                st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
-                    f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
-            
-            if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates, key="btn_play_ball_main"):
-                enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
-                st.session_state.full_kbo_engine = PureKboEngine(
-                    my_team=st.session_state.my_team, 
-                    enemy_team=enemy_team, 
-                    my_lineup=custom_lineup,
-                    starting_pitcher_idx=selected_sp_idx 
-                )
-                st.rerun()
+            st.markdown("---")
+            b_col1, b_col2 = st.columns(2)
+            with b_col1:
+                if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key=f"btn_save_lineup_{st.session_state.my_team}"):
+                    st.session_state[saved_key] = custom_lineup
+                    st.toast(f"✅ {st.session_state.my_team}의 선발 타순이 저장되었습니다!", icon="💾")
+            with b_col2:
+                if st.button("🔄 기본 추천 타순으로 초기화", key=f"btn_reset_lineup_{st.session_state.my_team}"):
+                    if saved_key in st.session_state: del st.session_state[saved_key]
+                    st.toast("🔄 추천 타순으로 초기화되었습니다.", icon="🧹")
+                    st.rerun()
+        
+        has_duplicates = len(set(custom_lineup)) != len(custom_lineup)
+        if has_duplicates:
+            seen = set()
+            duplicates = set(p for p in custom_lineup if p in seen or seen.add(p))
+            dup_names = ", ".join(duplicates)
+            st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 구성해 주세요.")
+        else:
+            st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
+                f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
+        
+        if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates, key="btn_play_ball_main"):
+            enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
+            st.session_state.full_kbo_engine = PureKboEngine(
+                my_team=st.session_state.my_team, 
+                enemy_team=enemy_team, 
+                my_lineup=custom_lineup,
+                starting_pitcher_idx=selected_sp_idx 
+            )
+            st.rerun()
 
         # -------------------------------------------------------------
         # 경기 진행 중 화면 (페넌트레이스 모드)
