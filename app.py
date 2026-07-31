@@ -587,13 +587,13 @@ def main() -> None:
                         value=f"휴식 중 (D-{rem_days})",
                         delta=f"출전까지 {rem_days}경기",
                         delta_color="inverse"
-                    )
-                else:
-                    st.metric(
-                        label=f"🟢 {pitcher_names[i]}",
-                        value="등판 가능",
-                        delta="준비 완료"
-                    )
+                        )
+                    else:
+                        st.metric(
+                            label=f"🟢 {pitcher_names[i]}",
+                            value="등판 가능",
+                            delta="준비 완료"
+                        )
 
         st.caption("💡 **선발 투수(1~4번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수(5~8번)**는 상시 등판합니다.")
         st.divider()
