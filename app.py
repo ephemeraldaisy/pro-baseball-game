@@ -568,6 +568,11 @@ def main() -> None:
             default_lineup = get_default_lineup(st.session_state.my_team)
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
 
+            if st.session_state.get("full_kbo_engine") is not None:
+                current_my_team = st.session_state.full_kbo_engine.my_team
+            else:
+                current_my_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
+
             st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
 
             rest_days = st.session_state.get("my_pitcher_rest_days", {})
@@ -602,11 +607,6 @@ def main() -> None:
             
         with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
             st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
-
-            current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
-
-            if "contract_team" in st.session_state and st.session_state.contract_team:
-                current_team = st.session_state.contract_team
             
             all_batters = []
             if current_team in TEAM_ROSTERS:
