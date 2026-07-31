@@ -18,7 +18,7 @@ from homerun_derby import render_homerun_derby_ui
 from bottom_of_the_ninth import render_homerun_game_ui
 from king_of_strikeout import render_king_of_strikeout_ui
 
-#리그 순위표 연산
+# 리그 순위표 연산
 def get_league_standings_df() -> pd.DataFrame:
     if "league_records" not in st.session_state:
         st.session_state.league_records = {team: {"W": 0, "L": 0, "D": 0} for team in TEAMS.keys()}
@@ -39,7 +39,7 @@ def get_league_standings_df() -> pd.DataFrame:
     df.index = df.index + 1
     return df
 
-#타 구단 8개 팀 무작위 시뮬레이션 
+# 타 구단 8개 팀 무작위 시뮬레이션 
 def simulate_other_teams_matches(my_team: str, enemy_team: str) -> list:
     if "league_records" not in st.session_state:
         get_league_standings_df()
@@ -136,8 +136,10 @@ def main() -> None:
     if "contract_team" not in st.session_state: st.session_state.contract_team = "💖 핑크 돌핀스"
     if "nc_diamonds" not in st.session_state: st.session_state.nc_diamonds = 1000
     if "full_kbo_engine" not in st.session_state: st.session_state.full_kbo_engine = None
+    if "my_pitcher_rest_days" not in st.session_state: st.session_state.my_pitcher_rest_days = {}
+    if "enemy_pitcher_rest_days" not in st.session_state: st.session_state.enemy_pitcher_rest_days = {}
 
-    #로그인 상태 
+    # 로그인 상태 
     if "logged_in" not in st.session_state: st.session_state.logged_in = False
     if "user_id" not in st.session_state: st.session_state.user_id = ""
     if "user_accounts" not in st.session_state: st.session_state.user_accounts = {} # 간단한 로컬 계정 저장소
@@ -152,7 +154,7 @@ def main() -> None:
         st.markdown("<h4 style='text-align: center;'>KBO 스타일 10대 구단 하이퍼 매니지먼트 & 리세마라</h4>", unsafe_allow_html=True)
         st.divider()
 
-        #ID & PW 입력
+        # ID & PW 입력
         if not st.session_state.logged_in:
             st.subheader("🔑 감독 계정 로그인 / 회원가입") 
             st.caption("사용하실 아이디와 비밀번호를 직접 입력해 주세요. (최초 입력 시 자동 가입됩니다)")
@@ -240,32 +242,12 @@ def main() -> None:
                 if not input_code.strip():
                     st.warning("코드를 입력해 주세요!")
                 else: 
-                    try:
-                        #Base64 
-                        raw_bytes = base64.b64decode(input_code.strip().encode('utf-8'))
-                        #zlib
-                        try:
-                            data = json.loads(decompressed.decode('utf-8'))
-
-                        except Exception:
-                            data = json.loads(raw_bytes.decode('utf-8'))
-                  
-                        # 3. 데이터 로드 (신형 단축키 / 구형 키 완벽 대입)
-                        st.session_state.nc_diamonds = data.get("d", data.get("diamonds", 1000))
-                        st.session_state.my_team = data.get("t", data.get("my_team", "💖 핑크 돌핀스"))
-                        st.session_state.contract_team = data.get("c", data.get("contract_team", st.session_state.my_team))
-                        st.session_state.pennant_game_count = data.get("g", data.get("pennant_game_count", 1))
-                        st.session_state.pennant_wins = data.get("w", data.get("pennant_wins", 0))
-                        st.session_state.pennant_loses = data.get("l", data.get("pennant_loses", 0))
-
-                        if "r" in data or "league_records" in data:
-                            st.session_state.league_records = data.get("r", data.get("league_records"))
-
+                    if load_from_compressed_code(input_code):
                         st.session_state.main_screen_passed = True
                         st.toast("🎉 데이터 복구 완료! 페넌트레이스를 이어갑니다.", icon="💾")
                         st.rerun()
-                    except Exception:
-                        st.error("❌ 유효하지 않은 암호 코드입니다.")
+                    else:
+                        st.error("❌ 유효하지 않거나 파손된 세이브 코드입니다.")
 
         if st.button("🔒 로그아웃 (다른 계정으로 전환)", key="btn_do_logout"):
             st.session_state.logged_in = False
@@ -370,97 +352,19 @@ def main() -> None:
         st.markdown("### 💾 세이브 / 로드")
         
         with st.expander("🔑 세이브 코드 발급"):
-            save_data = {
-                "diamonds": st.session_state.nc_diamonds,
-                "my_team": st.session_state.my_team,
-                "contract_team": st.session_state.contract_team,
-                "pennant_game_count": st.session_state.pennant_game_count,
-                "pennant_wins": st.session_state.pennant_wins,
-                "pennant_loses": st.session_state.pennant_loses,
-                "league_records": st.session_state.get("league_records", {})
-            }
-            if st.session_state.full_kbo_engine:
-                game = st.session_state.full_kbo_engine
-                save_data.update({
-                    "enemy_team": game.enemy_team, "is_home_team": game.is_home_team,
-                    "our_score": game.our_score, "enemy_score": game.enemy_score,
-                    "away_stats": game.away_stats, "home_stats": game.home_stats,
-                    "inning": game.inning, "phase": game.phase,
-                    "my_batter_number": game.my_batter_number, "enemy_batter_number": game.enemy_batter_number,
-                    "our_total_pitches": game.our_total_pitches, "enemy_total_pitches": game.enemy_total_pitches,
-                    "strike": game.strike, "ball": game.ball, "out_count": game.out_count,
-                    "base1": game.base1, "base2": game.base2, "base3": game.base3,
-                    "away_inning_scores": game.away_inning_scores, "home_inning_scores": game.home_inning_scores,
-                    "game_log": game.game_log, "pitch_history": game.pitch_history,
-                    "chzzk_chats": game.chzzk_chats, "hit_buff": game.hit_buff,
-                    "manager_ejected": game.manager_ejected, "my_pitcher_idx": game.my_pitcher_idx,
-                    "my_used_pitchers": list(game.my_used_pitchers),
-                    "my_pitchers": [{"name": p.name, "role": p.role, "max_stamina": p.max_stamina, "stamina": p.stamina, "pitches_thrown": p.pitches_thrown} for p in game.my_pitchers],
-                    "enemy_pitcher_idx": game.enemy_pitcher_idx, "enemy_used_pitchers": list(game.enemy_used_pitchers),
-                    "enemy_pitchers": [{"name": p.name, "role": p.role, "max_stamina": p.max_stamina, "stamina": p.stamina, "pitches_thrown": p.pitches_thrown} for p in game.enemy_pitchers]
-                })
-
-            json_str = json.dumps(save_data, ensure_ascii=False)
-            encoded_code = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
-            st.code(encoded_code, language="text")
-            st.caption("위 코드를 더블클릭해 복사해 보관하세요!")
+            short_code = generate_compressed_save_code()
+            st.code(short_code, language="text")
+            st.caption("위 코드를 복사하여 보관하시면 언제든 데이터를 복원할 수 있습니다!")
 
         with st.expander("🔓 코드 불러오기"):
             input_code_sb = st.text_input("코드 입력", key="save_code_sb_input", placeholder="세이브 코드를 붙여넣으세요")
             if st.button("📂 데이터 로드 실행", key="btn_sb_load"):
                 if input_code_sb.strip():
-                    try:
-                        decoded_bytes = base64.b64decode(input_code_sb.encode('utf-8'))
-                        data = json.loads(decoded_bytes.decode('utf-8'))
-                        
-                        st.session_state.nc_diamonds = data.get("diamonds", 1000)
-                        st.session_state.my_team = data.get("my_team", "💖 핑크 돌핀스")
-                        st.session_state.contract_team = data.get("contract_team", data.get("my_team", "💖 핑크 돌핀스"))
-                        st.session_state.pennant_game_count = data.get("pennant_game_count", 1)
-                        st.session_state.pennant_wins = data.get("pennant_wins", 0)
-                        st.session_state.pennant_loses = data.get("pennant_loses", 0)
-
-                        if "enemy_team" in data:
-                            loaded_game = PureKboEngine(data["my_team"], data["enemy_team"])
-                            loaded_game.is_home_team = data["is_home_team"]
-                            loaded_game.our_score = data["our_score"]
-                            loaded_game.enemy_score = data["enemy_score"]
-                            loaded_game.away_stats = data["away_stats"]
-                            loaded_game.home_stats = data["home_stats"]
-                            loaded_game.inning = data["inning"]
-                            loaded_game.phase = data["phase"]
-                            loaded_game.my_batter_number = data["my_batter_number"]
-                            loaded_game.enemy_batter_number = data["enemy_batter_number"]
-                            loaded_game.our_total_pitches = data["our_total_pitches"]
-                            loaded_game.enemy_total_pitches = data["enemy_total_pitches"]
-                            loaded_game.strike = data["strike"]
-                            loaded_game.ball = data["ball"]
-                            loaded_game.out_count = data["out_count"]
-                            loaded_game.base1 = data["base1"]
-                            loaded_game.base2 = data["base2"]
-                            loaded_game.base3 = data["base3"]
-                            loaded_game.away_inning_scores = data["away_inning_scores"]
-                            loaded_game.home_inning_scores = data["home_inning_scores"]
-                            loaded_game.game_log = data["game_log"]
-                            loaded_game.pitch_history = data["pitch_history"]
-                            loaded_game.chzzk_chats = data["chzzk_chats"]
-                            loaded_game.hit_buff = data["hit_buff"]
-                            loaded_game.manager_ejected = data.get("manager_ejected", False)
-
-                            loaded_game.my_pitcher_idx = data["my_pitcher_idx"]
-                            loaded_game.my_used_pitchers = set(data["my_used_pitchers"])
-                            loaded_game.my_pitchers = [PitcherDomain(p["name"], p["role"], p["max_stamina"]) for p in data["my_pitchers"]]
-                            for i, p in enumerate(loaded_game.my_pitchers): p.stamina = data["my_pitchers"][i]["stamina"]
-                            
-                            loaded_game.enemy_pitcher_idx = data["enemy_pitcher_idx"]
-                            loaded_game.enemy_used_pitchers = set(data["enemy_used_pitchers"])
-                            loaded_game.enemy_pitchers = [PitcherDomain(p["name"], p["role"], p["max_stamina"]) for p in data["enemy_pitchers"]]
-                            for i, p in enumerate(loaded_game.enemy_pitchers): p.stamina = data["enemy_pitchers"][i]["stamina"]
-
-                            st.session_state.full_kbo_engine = loaded_game
+                    if load_from_compressed_code(input_code_sb):
                         st.toast("🎉 세이브 데이터 로드 완료!", icon="💾")
                         st.rerun()
-                    except Exception: st.error("❌ 유효하지 않은 암호 코드입니다.")
+                    else:
+                        st.error("❌ 유효하지 않은 암호 코드입니다.")
 
         st.markdown("---")
         st.markdown("### 📊 상성 매트릭스 전체 열람")
@@ -519,16 +423,22 @@ def main() -> None:
         st.sidebar.markdown(f"📊 **시즌 진행도**: `{st.session_state.pennant_game_count} / 144 경기`")
         st.sidebar.markdown(f"📈 **현재 성적**: `{st.session_state.pennant_wins}승 {st.session_state.pennant_loses}패`")
 
+        # 안전 변수 current_team 정의 (NoneType 방지)
+        if st.session_state.get("full_kbo_engine") is not None:
+            current_team = st.session_state.full_kbo_engine.my_team
+        else:
+            current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
+
         # 경기 개시 전 팀 선택 및 라인업 세팅
         if st.session_state.full_kbo_engine is None:
             selected_team = st.selectbox(
                 "우리 팀 선택 (디폴트 신생팀: 💖 핑크 돌핀스):", 
                 list(TEAMS.keys()), 
-                index=list(TEAMS.keys()).index(st.session_state.my_team)
+                index=list(TEAMS.keys()).index(current_team) if current_team in TEAMS else 0
             )
 
             # 🚨 [감독 사퇴 / 이적 위약금 시스템]
-            if selected_team != st.session_state.contract_team:
+            if st.session_state.contract_team and selected_team != st.session_state.contract_team:
                 st.error(
                     f"🚨 **[감독 계약 파기 위약금 경고]**\n\n"
                     f"현재 **{st.session_state.contract_team}**과 144경기 계약 상태입니다!\n"
@@ -548,31 +458,30 @@ def main() -> None:
                         st.error("❌ 보유 다이아가 부족하여 위약금을 낼 수 없습니다! (비밀상점 충전 필요)")
             else:
                 st.session_state.my_team = selected_team
+                current_team = selected_team
 
-            sp_list = TEAM_ROSTERS[st.session_state.my_team]["pitchers"]["선발(5)"]
+            sp_list = TEAM_ROSTERS[current_team]["pitchers"]["선발(5)"]
             selected_sp_idx = st.selectbox("⚾ **오늘의 선발 투수 지명**",
                 options=list(range(len(sp_list))),
-                format_func=lambda x: f"{x+1}선발: {sp_list[x]} (체력: {TEAMS[st.session_state.my_team]['stamina']})",
-                key=f"select_sp_{st.session_state.my_team}"
+                format_func=lambda x: f"{x+1}선발: {sp_list[x]} (체력: {TEAMS[current_team]['stamina']})",
+                key=f"select_sp_{current_team}"
             )
             
-            st.markdown(f"#### 📊 {st.session_state.my_team}의 구단별 상성표 요약")
-            if st.session_state.my_team in df_matchup.index:
-                my_status = df_matchup.loc[[st.session_state.my_team]]
+            st.markdown(f"#### 📊 {current_team}의 구단별 상성표 요약")
+            if current_team in df_matchup.index:
+                my_status = df_matchup.loc[[current_team]]
                 try: styled_status = my_status.style.map(color_matchup_cells)
                 except AttributeError: styled_status = my_status.style.applymap(color_matchup_cells)
                 st.dataframe(styled_status, width="stretch")
 
             # 오늘의 선발 라인업 (1~9번 타순 커스텀)
-            saved_key = f"saved_lineup_{st.session_state.my_team}"
-            default_lineup = get_default_lineup(st.session_state.my_team)
+            saved_key = f"saved_lineup_{current_team}"
+            default_lineup = get_default_lineup(current_team)
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
 
-            if st.session_state.get("full_kbo_engine") is not None:
-                current_team = st.session_state.full_kbo_engine.my_team
-            else:
-                current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
-
+            # -------------------------------------------------------------
+            # 🏟️ 선발 로테이션 & 투수 휴식 현황판 (5선발)
+            # -------------------------------------------------------------
             st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
 
             rest_days = st.session_state.get("my_pitcher_rest_days", {})
@@ -590,10 +499,10 @@ def main() -> None:
                 with cols[i - 1]:
                     if rem_days > 0:
                         st.metric(
-                        label=f"🔴 {pitcher_names[i]}",
-                        value=f"휴식 중 (D-{rem_days})",
-                        delta=f"출전까지 {rem_days}경기",
-                        delta_color="inverse"
+                            label=f"🔴 {pitcher_names[i]}",
+                            value=f"휴식 중 (D-{rem_days})",
+                            delta=f"출전까지 {rem_days}경기",
+                            delta_color="inverse"
                         )
                     else:
                         st.metric(
@@ -602,73 +511,66 @@ def main() -> None:
                             delta="준비 완료"
                         )
 
-        st.caption("💡 **선발 투수(1~5번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수**는 상시 등판합니다.")
-        st.divider()
-            
-        with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
-            st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
-
-            current_team = st.session_state.get("my_team", "💖 핑크 돌핀스")
-
-            # 계약 팀이 별도로 존재하는 경우 안전하게 덮어쓰기
-            if "contract_team" in st.session_state and st.session_state.contract_team:
-                current_team = st.session_state.contract_team
-            
-            all_batters = []
-            if current_team in TEAM_ROSTERS:
-                for p_list in TEAM_ROSTERS[st.session_state.my_team]["batters"].values():
-                    all_batters.extend(p_list)
-
-            else:
-                first_team = list(TEAM_ROSTERS.keys())[0]
-                for p_list in TEAM_ROSTERS[first_team]["batters"].values():
-                    all_batters.extend(p_list)
+            st.caption("💡 **선발 투수(1~5번)**는 등판 후 5일간 휴식이 필요하며, **불펜 투수**는 상시 등판합니다.")
+            st.divider()
                 
-            custom_lineup = []
-            col_l1, col_l2 = st.columns(2)
-            for idx in range(9):
-                target_col = col_l1 if idx < 5 else col_l2
-                with target_col:
-                    default_player = initial_lineup[idx] if idx < len(initial_lineup) else all_batters[idx % len(all_batters)]
-                    d_idx = all_batters.index(default_player) if default_player in all_batters else 0
-                    
-                    sel = st.selectbox(
-                        f"**{idx+1}번 타자**", options=all_batters, index=d_idx,
-                        key=f"start_lineup_select_{idx}_{st.session_state.my_team}"
-                    )
-                    custom_lineup.append(sel)
+            with st.expander("⚙️ 오늘의 선발 라인업 (1~9번 타순 수동 커스텀)", expanded=True):
+                st.caption("💡 각 드롭다운에서 원하는 타자 및 타순을 조합할 수 있습니다.")
 
-            st.markdown("---")
-            b_col1, b_col2 = st.columns(2)
-            with b_col1:
-                if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key=f"btn_save_lineup_{st.session_state.my_team}"):
-                    st.session_state[saved_key] = custom_lineup
-                    st.toast(f"✅ {st.session_state.my_team}의 선발 타순이 저장되었습니다!", icon="💾")
-            with b_col2:
-                if st.button("🔄 기본 추천 타순으로 초기화", key=f"btn_reset_lineup_{st.session_state.my_team}"):
-                    if saved_key in st.session_state: del st.session_state[saved_key]
-                    st.toast("🔄 추천 타순으로 초기화되었습니다.", icon="🧹")
-                    st.rerun()
-        
-        has_duplicates = len(set(custom_lineup)) != len(custom_lineup)
-        if has_duplicates:
-            seen = set()
-            duplicates = set(p for p in custom_lineup if p in seen or seen.add(p))
-            dup_names = ", ".join(duplicates)
-            st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 구성해 주세요.")
-        else:
-            st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
-                f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
-        
-        if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates, key="btn_play_ball_main"):
-            enemy_team = random.choice([t for t in TEAMS.keys() if t != st.session_state.my_team])
-            st.session_state.full_kbo_engine = PureKboEngine(
-                my_team=st.session_state.my_team, 
-                enemy_team=enemy_team, 
-                my_lineup=custom_lineup,
-                starting_pitcher_idx=selected_sp_idx 
-            )
-            st.rerun()
+                all_batters = []
+                if current_team in TEAM_ROSTERS:
+                    for p_list in TEAM_ROSTERS[current_team]["batters"].values():
+                        all_batters.extend(p_list)
+                else:
+                    first_team = list(TEAM_ROSTERS.keys())[0]
+                    for p_list in TEAM_ROSTERS[first_team]["batters"].values():
+                        all_batters.extend(p_list)
+                    
+                custom_lineup = []
+                col_l1, col_l2 = st.columns(2)
+                for idx in range(9):
+                    target_col = col_l1 if idx < 5 else col_l2
+                    with target_col:
+                        default_player = initial_lineup[idx] if idx < len(initial_lineup) else all_batters[idx % len(all_batters)]
+                        d_idx = all_batters.index(default_player) if default_player in all_batters else 0
+                        
+                        sel = st.selectbox(
+                            f"**{idx+1}번 타자**", options=all_batters, index=d_idx,
+                            key=f"start_lineup_select_{idx}_{current_team}"
+                        )
+                        custom_lineup.append(sel)
+
+                st.markdown("---")
+                b_col1, b_col2 = st.columns(2)
+                with b_col1:
+                    if st.button("💾 현재 타순을 이 팀의 기본 오더로 저장", key=f"btn_save_lineup_{current_team}"):
+                        st.session_state[saved_key] = custom_lineup
+                        st.toast(f"✅ {current_team}의 선발 타순이 저장되었습니다!", icon="💾")
+                with b_col2:
+                    if st.button("🔄 기본 추천 타순으로 초기화", key=f"btn_reset_lineup_{current_team}"):
+                        if saved_key in st.session_state: del st.session_state[saved_key]
+                        st.toast("🔄 추천 타순으로 초기화되었습니다.", icon="🧹")
+                        st.rerun()
+            
+            has_duplicates = len(set(custom_lineup)) != len(custom_lineup)
+            if has_duplicates:
+                seen = set()
+                duplicates = set(p for p in custom_lineup if p in seen or seen.add(p))
+                dup_names = ", ".join(duplicates)
+                st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 구성해 주세요.")
+            else:
+                st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
+                    f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
+            
+            if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates, key="btn_play_ball_main"):
+                enemy_team = random.choice([t for t in TEAMS.keys() if t != current_team])
+                st.session_state.full_kbo_engine = PureKboEngine(
+                    my_team=current_team, 
+                    enemy_team=enemy_team, 
+                    my_lineup=custom_lineup,
+                    starting_pitcher_idx=selected_sp_idx 
+                )
+                st.rerun()
 
         # -------------------------------------------------------------
         # 경기 진행 중 화면 (페넌트레이스 모드)
