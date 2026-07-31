@@ -237,42 +237,30 @@ def main() -> None:
             input_code = st.text_input("세이브 코드 입력", key="main_save_input", placeholder="코드를 붙여넣으세요")
             
             if st.button("🔓 코드 검증 및 로드", key="btn_main_load"):
-                if input_code.strip():
+                if not input_code.strip():
+                    st.warning("코드를 입력해 주세요!")
+                else: 
                     try:
                         #Base64 
                         raw_bytes = base64.b64decode(input_code.strip().encode('utf-8'))
                         #zlib
                         try:
-                            decompressed = zlib.decompress(raw_bytes)
                             data = json.loads(decompressed.decode('utf-8'))
 
                         except Exception:
                             data = json.loads(raw_bytes.decode('utf-8'))
                   
-                        st.session_state.nc_diamonds = data.get("diamonds", 1000)
-                        st.session_state.my_team = data.get("my_team", "💖 핑크 돌핀스")
-                        st.session_state.contract_team = data.get("contract_team", data.get("my_team", "💖 핑크 돌핀스"))
-                        
-                        st.session_state.pennant_game_count = data.get("pennant_game_count", 1)
-                        st.session_state.pennant_wins = data.get("pennant_wins", 0)
-                        st.session_state.pennant_loses = data.get("pennant_loses", 0)
+                        # 3. 데이터 로드 (신형 단축키 / 구형 키 완벽 대입)
+                        st.session_state.nc_diamonds = data.get("d", data.get("diamonds", 1000))
+                        st.session_state.my_team = data.get("t", data.get("my_team", "💖 핑크 돌핀스"))
+                        st.session_state.contract_team = data.get("c", data.get("contract_team", st.session_state.my_team))
+                        st.session_state.pennant_game_count = data.get("g", data.get("pennant_game_count", 1))
+                        st.session_state.pennant_wins = data.get("w", data.get("pennant_wins", 0))
+                        st.session_state.pennant_loses = data.get("l", data.get("pennant_loses", 0))
 
-                        league_rec = data.get("r", data.get("league_records", None))
-                        
-                        if league_rec:
-                            st.session_state.league_records = league_rec 
+                        if "r" in data or "league_records" in data:
+                            st.session_state.league_records = data.get("r", data.get("league_records"))
 
-                        if st.session_state.get("logged_in") and st.session_state.user_id in st.session_state.user_accounts:
-                            user_acc = st.session_state.user_accounts[st.session_state.user_id]
-                            user_acc["diamonds"] = st.session_state.nc_diamonds
-                            user_acc["pennant_game_count"] = st.session_state.pennant_game_count
-                            user_acc["pennant_wins"] = st.session_state.pennant_wins
-                            user_acc["pennant_loses"] = st.session_state.pennant_loses
-                            user_acc["my_team"] = st.session_state.my_team
-                            user_acc["contract_team"] = st.session_state.contract_team
-                            if "league_records" in st.session_state:
-                                user_acc["league_records"] = st.session_state.league_records
-                    
                         st.session_state.main_screen_passed = True
                         st.toast("🎉 데이터 복구 완료! 페넌트레이스를 이어갑니다.", icon="💾")
                         st.rerun()
