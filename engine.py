@@ -121,6 +121,9 @@ class PureKboEngine:
         self.my_pitcher_idx = 0
         self.my_used_pitchers = {0}
 
+        #휴식 규정
+        self._check_and_apply_starter_rest(starting_pitcher_idx, is_defense=True)
+
         en_sp = TEAM_ROSTERS[enemy_team]["pitchers"]["선발(5)"]
         en_rp = TEAM_ROSTERS[enemy_team]["pitchers"]["중계/불펜(5)"]
         en_cl = TEAM_ROSTERS[enemy_team]["pitchers"]["마무리(1)"]
@@ -381,10 +384,12 @@ class PureKboEngine:
         """고의사구(Intentional Walk) 지시 처리"""
         if self.game_over: return
         self.update_is_attack()
-        
         if self.is_attack:
             st.warning("공격 턴에는 고의사구 작전을 지시할 수 없습니다.")
             return
+
+        self.process_one_pitch(is_defense=True)
+        self.strike = 0; self.ball = 0 
 
         p_my = self.get_current_my_pitcher()
         p_my.consume(1)
@@ -517,6 +522,8 @@ class PureKboEngine:
             st.warning("루상에 주자가 없습니다.")
             return
 
+        self.process_one_pitch(is_defense=False) 
+
         score_diff = self.our_score - self.enemy_score if self.is_attack else self.enemy_score - self.our_score
         if score_diff >= 6 and random.random() < 0.40:
             self.trigger_bench_clearing("6점 차 이상 큰 격차 상황에서 기습 도루를 감행하여 불문율을 위반했습니다!")
@@ -592,6 +599,8 @@ class PureKboEngine:
     def end_kbo_game(self) -> None:
         self.game_over = True
         a, h = self.get_away_score(), self.get_home_score()
+
+        PureKboEngine.advance_rest_days()
         
         if a == h: 
             self.game_result_msg = f"🤝 [무승부] 11회 {a}:{h} DRAW 종료."
@@ -665,10 +674,7 @@ class PureKboEngine:
             forbidden_indices.add(8)
 
         if hasattr(st, "session_state"):
-            if is_defense:
-                rest_dict = st.session_state.get("my_pitcher_rest_days", {})
-            else:
-                rest_dict = st.session_state.get("enemy_pitcher_rest_days", {})
+            rest_dict = st.session_state.get("my_pitcher_rest_days", {}) if is_defense else st.session_state.get("enemy_pitcher_rest_days", {})
         else:
             rest_dict = {}
             
@@ -734,17 +740,14 @@ class PureKboEngine:
 
     def _check_and_apply_starter_rest(self, pitch_idx: int, is_defense: bool) -> None:
         used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
-        rest_dict = (
-            st.session_state.my_pitcher_rest_days if is_defense 
-            else st.session_state.enemy_pitcher_rest_days
-        )
-        
         used_set.add(pitch_idx)
         # 1번~4번 투수(선발 로테이션)만 등판 후 5일 휴식 등록!
-        if 1 <= pitch_idx <= 5:
-            rest_dict[pitch_idx] = 5
+        if 0 <= pitch_idx <= 4:
+            if hasattr(st, "session_state"):
+                key = "my_pitcher_rest_days" if is_defense else "enemy_pitcher_rest_days"
+                if key in st.session_state:
+                    st.session_state[key][pitch_idx] = 5
 
-    @staticmethod 
     def advance_rest_days():
         """시즌 진행(1경기 완료) 시 휴식 중인 선발 투수들의 휴식일을 1일씩 감소"""
         for r_dict in [st.session_state.get("my_pitcher_rest_days", {}), st.session_state.get("enemy_pitcher_rest_days", {})]:
@@ -802,7 +805,8 @@ class PureKboEngine:
                 p_my.pitches_thrown += 1
             else:
                 p_my.consume(1)
-                
+
+            self.process_one_pitch(is_defense = True) 
             pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
             speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
             
@@ -901,6 +905,7 @@ class PureKboEngine:
             pitch_type = random.choice(["직구", "슬라이더", "체인지업", "커브", "포크볼", "싱커"])
             speed = random.randint(PITCH_SPECS.get(pitch_type, {"speed_min":135, "speed_max":148})["speed_min"], PITCH_SPECS.get(pitch_type, {"speed_max":148})["speed_max"])
 
+        self.process_one_pitch(is_defense=False) 
         runners_count = (1 if self.base1 else 0) + (1 if self.base2 else 0) + (1 if self.base3 else 0)
 
         strike_probability = 0.70
@@ -1305,6 +1310,16 @@ class PureKboEngine:
                         self.game_log.append(log_prefix + "⚾ 3루수 정면으로 빨려 들어가는 날카로운 라인드라이브 아웃!")
 
                 self.check_three_out_change()
+
+    def process_one_pitch(self, is_defense: bool):
+        if is_defense: 
+            p = self.get_current_my_pitcher()
+            p.consume(1)  # 🎯 무조건 딱 1구만 소비!
+            self.our_total_pitches += 1
+        else:
+            p = self.get_current_enemy_pitcher()
+            p.consume(1)  # 🎯 상대 투수도 무조건 딱 1구만 소비!
+            self.enemy_total_pitches += 1
 
     def process_pitch_hit_or_out(self, my_stats, enemy_stats, penalty, matchup_mod, log_prefix, is_strike_context: bool, is_defense: bool) -> None:
         self.update_is_attack()
