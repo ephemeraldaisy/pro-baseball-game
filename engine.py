@@ -245,7 +245,7 @@ class PureKboEngine:
         if selected_idx != self.my_pitcher_idx and selected_idx not in self.my_used_pitchers:
             self.my_pitcher_idx = selected_idx
             self.my_used_pitchers.add(selected_idx)
-            p = self.get_current_my_pytcher() if hasattr(self, 'get_current_my_pytcher') else self.get_current_my_pitcher()
+            p = self.get_current_my_pitcher()
             self.game_log.append(f"🔄 [감독 직접 교체] 벤치의 지시로 마운드 교체! [{p.role}] '{p.name}' 등판!")
             return True
         elif selected_idx == self.my_pitcher_idx:
@@ -623,6 +623,7 @@ class PureKboEngine:
         used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
         pitchers_list = self.my_pitchers if is_defense else self.enemy_pitchers 
         
+        # 🛡️ [수정] AttributeError 완치: 존재하지 않는 our_pitcher, enemy_pitcher 참조 방지
         if is_defense:
             current_pitcher = getattr(self, 'our_pitcher', None) or (
                 self.my_pitchers[self.my_pitcher_idx] 
@@ -636,7 +637,7 @@ class PureKboEngine:
                 else None
             )
 
-        #체력 10 이하/ 한 이닝 5실점 이상 강제 교체
+        # 체력 10 이하/ 한 이닝 5실점 이상 강제 교체
         is_forced_change = False
         if current_pitcher is not None: 
             stamina = getattr(current_pitcher, 'stamina', 100)
@@ -644,20 +645,19 @@ class PureKboEngine:
             if stamina <= 10 or inning_er >= 5:
                 is_forced_change = True
 
+        # 🛡️ [수정] index 속성이 없는 객체일 경우 세션 인덱스를 안전하게 반환
         if not is_forced_change and current_pitcher is not None:
-            current_idx = getattr(current_pitcher, 'index', -1)
-            if current_idx != -1:
-                return current_idx
+            return self.my_pitcher_idx if is_defense else self.enemy_pitcher_idx
         
         forbidden_indices = set()
-        #8회 전 마무리 금지, 7회 전 셋업맨 금지
+        # 8회 전 마무리 금지, 7회 전 셋업맨 금지
         if self.inning < 8:
-            forbidden_indices.add(8) #마무리
+            forbidden_indices.add(8) # 마무리
         if self.inning < 7:
-            forbidden_indices.add(6) #셋업맨 1, 2
+            forbidden_indices.add(6) # 셋업맨 1, 2
             forbidden_indices.add(7)
 
-        #4점차 이상 큰 격차 시 필승조 금지 
+        # 4점차 이상 큰 격차 시 필승조 금지 
         if abs(score_diff) >= 4:
             forbidden_indices.add(5)
             forbidden_indices.add(6)
@@ -672,7 +672,7 @@ class PureKboEngine:
             if days > 0 and 1 <= p_idx <= 4:  # 선발 투수(1~4번)만 금지 적용
                 forbidden_indices.add(p_idx)
             
-        #타깃 투수 산출
+        # 타깃 투수 산출
         target = -1
         
         if 1 <= score_diff <= 3:
