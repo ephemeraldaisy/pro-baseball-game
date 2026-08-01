@@ -622,7 +622,11 @@ class PureKboEngine:
 
         used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
         pitchers_list = self.my_pitchers if is_defense else self.enemy_pitchers 
-        current_pitcher = self.our_pitcher if is_defense else self.enemy_pitcher 
+        
+        if is_defense:
+            current_pitcher = getattr(self, 'our_pitcher', None) or (self.my_pitchers[self.my_pitcher_idx] if hasattr(self, 'my_pitchers') and self.my_pitcher_idx < len(self.my_pitchers) else None)
+        else:
+            current_pitcher = getattr(self, 'enemy_pitcher', None) or (self.enemy_pitchers[self.enemy_pitcher_idx] if hasattr(self, 'enemy_pitchers') and self.enemy_pitcher_idx < len(self.enemy_pitchers) else None)
 
         #체력 10 이하/ 한 이닝 5실점 이상 강제 교체
         is_forced_change = False
