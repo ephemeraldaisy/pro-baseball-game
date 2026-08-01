@@ -664,10 +664,14 @@ class PureKboEngine:
             forbidden_indices.add(7)
             forbidden_indices.add(8)
 
-        rest_dict = (
-            st.session_state.my_pitcher_rest_days if is_defense 
-            else st.session_state.enemy_pitcher_rest_days
-        )
+        if hasattr(st, "session_state"):
+            if is_defense:
+                rest_dict = st.session_state.get("my_pitcher_rest_days", {})
+            else:
+                rest_dict = st.session_state.get("enemy_pitcher_rest_days", {})
+        else:
+            rest_dict = {}
+            
         for p_idx, days in rest_dict.items():
             if days > 0 and 1 <= p_idx <= 4:  # 선발 투수(1~4번)만 금지 적용
                 forbidden_indices.add(p_idx)
