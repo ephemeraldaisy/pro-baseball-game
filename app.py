@@ -69,29 +69,26 @@ def generate_compressed_save_code() -> str:
         "g": st.session_state.get("pennant_game_count", 1),         # g = pennant_game_count
         "w": st.session_state.get("pennant_wins", 0),               # w = pennant_wins
         "l": st.session_state.get("pennant_loses", 0),              # l = pennant_loses
-        "r": st.session_state.get("league_records", {})             # r = league_records
+        "r": st.session_state.get("league_records", {}),            # r = league_records
+        "p_rest": st.session_state.get("my_pitcher_rest_days", {})  # 선발 휴식일 연동
     }
     
-    # 1. JSON 직렬화 ➔ 2. zlib 초고속 압축 ➔ 3. Base64 변환
     json_bytes = json.dumps(save_data, ensure_ascii=False).encode('utf-8')
-    compressed_bytes = zlib.compress(json_bytes, level=9) # 최고 압축률
+    compressed_bytes = zlib.compress(json_bytes, level=9)
     short_code = base64.b64encode(compressed_bytes).decode('utf-8')
     return short_code
 
 def load_from_compressed_code(code_str: str) -> bool:
-    """초단축 세이브 코드를 복원 (구형 길었던 세이브 코드도 자동 하위호환)"""
+    """초단축 세이브 코드를 복원"""
     try:
         raw_bytes = base64.b64decode(code_str.strip().encode('utf-8'))
         
-        # zlib 압축 풀기 시도
         try:
             decompressed = zlib.decompress(raw_bytes)
             data = json.loads(decompressed.decode('utf-8'))
         except Exception:
-            # zlib 압축이 안 된 옛날 길었던 코드일 경우 하위호환 처리
             data = json.loads(raw_bytes.decode('utf-8'))
 
-        # 데이터 세션 주입 (축약키 & 기존키 모두 호환)
         st.session_state.nc_diamonds = data.get("d", data.get("diamonds", 1000))
         st.session_state.my_team = data.get("t", data.get("my_team", "💖 핑크 돌핀스"))
         st.session_state.contract_team = data.get("c", data.get("contract_team", st.session_state.my_team))
@@ -103,7 +100,10 @@ def load_from_compressed_code(code_str: str) -> bool:
         if league_rec:
             st.session_state.league_records = league_rec
 
-        # 계정 데이터 동기화
+        p_rest = data.get("p_rest", None)
+        if p_rest:
+            st.session_state.my_pitcher_rest_days = {int(k): v for k, v in p_rest.items()}
+
         current_id = st.session_state.get("user_id")
         if current_id and "user_accounts" in st.session_state:
             if current_id in st.session_state.user_accounts:
@@ -136,13 +136,13 @@ def main() -> None:
     if "contract_team" not in st.session_state: st.session_state.contract_team = "💖 핑크 돌핀스"
     if "nc_diamonds" not in st.session_state: st.session_state.nc_diamonds = 1000
     if "full_kbo_engine" not in st.session_state: st.session_state.full_kbo_engine = None
-    if "my_pitcher_rest_days" not in st.session_state: st.session_state.my_pitcher_rest_days = {}
-    if "enemy_pitcher_rest_days" not in st.session_state: st.session_state.enemy_pitcher_rest_days = {}
+    if "my_pitcher_rest_days" not in st.session_state: st.session_state.my_pitcher_rest_days = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+    if "enemy_pitcher_rest_days" not in st.session_state: st.session_state.enemy_pitcher_rest_days = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
 
     # 로그인 상태 
     if "logged_in" not in st.session_state: st.session_state.logged_in = False
     if "user_id" not in st.session_state: st.session_state.user_id = ""
-    if "user_accounts" not in st.session_state: st.session_state.user_accounts = {} # 간단한 로컬 계정 저장소
+    if "user_accounts" not in st.session_state: st.session_state.user_accounts = {}
 
     df_matchup = pd.DataFrame.from_dict(MATCHUP_MATRIX, orient='index', columns=list(MATCHUP_MATRIX.keys()))
 
@@ -154,7 +154,6 @@ def main() -> None:
         st.markdown("<h4 style='text-align: center;'>KBO 스타일 10대 구단 하이퍼 매니지먼트 & 리세마라</h4>", unsafe_allow_html=True)
         st.divider()
 
-        # ID & PW 입력
         if not st.session_state.logged_in:
             st.subheader("🔑 감독 계정 로그인 / 회원가입") 
             st.caption("사용하실 아이디와 비밀번호를 직접 입력해 주세요. (최초 입력 시 자동 가입됩니다)")
@@ -170,11 +169,9 @@ def main() -> None:
                     if input_id.strip() and input_pw.strip():
                         accounts = st.session_state.user_accounts
                         if input_id in accounts:
-                            # 기존 계정 PW 검증
                             if accounts[input_id]["pw"] == input_pw:
                                 st.session_state.logged_in = True
                                 st.session_state.user_id = input_id
-                                # 계정에 저장된 다이아 및 데이터 복구
                                 user_data = accounts[input_id]
                                 st.session_state.nc_diamonds = user_data.get("diamonds", 1000)
                                 st.session_state.my_team = user_data.get("my_team", "💖 핑크 돌핀스")
@@ -190,7 +187,6 @@ def main() -> None:
                             else:
                                 st.error("❌ 비밀번호가 일치하지 않습니다!")
                         else:
-                            # 신규 계정 자동 가입 처리
                             accounts[input_id] = {
                                 "pw": input_pw,
                                 "diamonds": 1000,
@@ -207,7 +203,7 @@ def main() -> None:
                             st.rerun()
                     else:
                         st.warning("아이디와 비밀번호를 모두 입력해 주세요!")
-            st.stop() # 로그인 전에는 아래 화면 차단
+            st.stop()
 
         st.success(f"👤 현재 접속 중인 감독 계정: **{st.session_state.user_id}**님 (보유 다이아: {st.session_state.nc_diamonds} 💎)")
         st.markdown("---")
@@ -254,7 +250,7 @@ def main() -> None:
             st.session_state.user_id = ""
             st.rerun()
 
-        st.stop() # 메인 스크린에서는 진입 전까지 하단 렌더링을 차단합니다.
+        st.stop()
 
     # =================================================================
     # 🛠️ 사이드바 (상점 / 세이브·로드 / 설정 열람)
@@ -423,7 +419,6 @@ def main() -> None:
         st.sidebar.markdown(f"📊 **시즌 진행도**: `{st.session_state.pennant_game_count} / 144 경기`")
         st.sidebar.markdown(f"📈 **현재 성적**: `{st.session_state.pennant_wins}승 {st.session_state.pennant_loses}패`")
 
-        # 안전 변수 current_team 정의 (NoneType 방지)
         if st.session_state.get("full_kbo_engine") is not None:
             current_team = st.session_state.full_kbo_engine.my_team
         else:
@@ -437,7 +432,6 @@ def main() -> None:
                 index=list(TEAMS.keys()).index(current_team) if current_team in TEAMS else 0
             )
 
-            # 🚨 [감독 사퇴 / 이적 위약금 시스템]
             if st.session_state.contract_team and selected_team != st.session_state.contract_team:
                 st.error(
                     f"🚨 **[감독 계약 파기 위약금 경고]**\n\n"
@@ -480,33 +474,34 @@ def main() -> None:
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
 
             # -------------------------------------------------------------
-            # 🏟️ 선발 로테이션 & 투수 휴식 현황판 (5선발)
+            # 🏟️ [수정 완료] 선발 로테이션 & 투수 휴식 현황판 (실시간 차단 상태)
             # -------------------------------------------------------------
             st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
 
-            rest_days = st.session_state.get("my_pitcher_rest_days", {})
+            rest_days = st.session_state.get("my_pitcher_rest_days", {0: 0, 1: 0, 2: 0, 3: 0, 4: 0})
             pitcher_names = {
-                1: "1선발 (ACE)",
-                2: "2선발",
-                3: "3선발",
-                4: "4선발", 
-                5: "5선발"
+                0: "1선발 (ACE)",
+                1: "2선발",
+                2: "3선발",
+                3: "4선발", 
+                4: "5선발"
             }
             
             cols = st.columns(5)
-            for i in range(1, 6):
+            for i in range(5):
                 rem_days = rest_days.get(i, 0)
-                with cols[i - 1]:
+                sp_name = sp_list[i] if i < len(sp_list) else f"{i+1}선발"
+                with cols[i]:
                     if rem_days > 0:
                         st.metric(
-                            label=f"🔴 {pitcher_names[i]}",
+                            label=f"🔴 {pitcher_names[i]} ({sp_name})",
                             value=f"휴식 중 (D-{rem_days})",
-                            delta=f"출전까지 {rem_days}경기",
+                            delta=f"등판 불가 ({rem_days}경기)",
                             delta_color="inverse"
                         )
                     else:
                         st.metric(
-                            label=f"🟢 {pitcher_names[i]}",
+                            label=f"🟢 {pitcher_names[i]} ({sp_name})",
                             value="등판 가능",
                             delta="준비 완료"
                         )
@@ -553,17 +548,28 @@ def main() -> None:
                         st.rerun()
             
             has_duplicates = len(set(custom_lineup)) != len(custom_lineup)
+            
+            # 선택한 선발 투수가 휴식 중인지 방어 검사
+            is_pitcher_resting = rest_days.get(selected_sp_idx, 0) > 0
+            
+            if is_pitcher_resting:
+                st.error(f"🚨 **[등판 불가 경고]** {selected_sp_idx+1}선발 ({sp_list[selected_sp_idx]}) 투수는 현재 D-{rest_days[selected_sp_idx]} 휴식 중입니다! 다른 선발 투수를 지명해 주세요.")
+            
             if has_duplicates:
                 seen = set()
                 duplicates = set(p for p in custom_lineup if p in seen or seen.add(p))
                 dup_names = ", ".join(duplicates)
                 st.warning(f"⚠️ **라인업 중복 경고**: [{dup_names}] 선수가 중복 선택되었습니다! 서로 다른 9명의 타자로 구성해 주세요.")
-            else:
+            elif not is_pitcher_resting:
                 st.info(f"⚾ **선발 투수**: {sp_list[selected_sp_idx]} | "
                     f"📋 **선발 타순**: {' ➔ '.join([f'{i+1}.{p.split()[-1]}' for i, p in enumerate(custom_lineup)])}")
             
-            if st.button("⚾️ PLAY BALL!", type="primary", disabled=has_duplicates, key="btn_play_ball_main"):
+            if st.button("⚾️ PLAY BALL!", type="primary", disabled=(has_duplicates or is_pitcher_resting), key="btn_play_ball_main"):
                 enemy_team = random.choice([t for t in TEAMS.keys() if t != current_team])
+                
+                # 🎯 [핵심] 지명한 선발 투수의 5일 휴식을 세션 상태에 즉시 세팅
+                st.session_state.my_pitcher_rest_days[selected_sp_idx] = 5
+
                 st.session_state.full_kbo_engine = PureKboEngine(
                     my_team=current_team, 
                     enemy_team=enemy_team, 
@@ -699,12 +705,14 @@ def main() -> None:
                     st.dataframe(get_league_standings_df(), width="stretch")
         
                     if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
+                        # 🎯 [수정 완료] 경기가 완료될 때마다 휴식 중인 선발 투수 D-Day 1일씩 감소
                         if hasattr(PureKboEngine, 'advance_rest_days'):
                             PureKboEngine.advance_rest_days()
-                        elif "my_pitcher_rest_days" in st.session_state:
+                        else:
                             for p_idx in list(st.session_state.my_pitcher_rest_days.keys()):
                                 if st.session_state.my_pitcher_rest_days[p_idx] > 0:
                                     st.session_state.my_pitcher_rest_days[p_idx] -= 1
+                        
                         st.session_state.full_kbo_engine = None
                         st.rerun()
             else:
