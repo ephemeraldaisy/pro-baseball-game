@@ -741,19 +741,24 @@ class PureKboEngine:
     def _check_and_apply_starter_rest(self, pitch_idx: int, is_defense: bool) -> None:
         used_set = self.my_used_pitchers if is_defense else self.enemy_used_pitchers
         used_set.add(pitch_idx)
-        # 1번~4번 투수(선발 로테이션)만 등판 후 5일 휴식 등록!
+        # 1번~5번 투수(선발 로테이션)만 등판 후 5일 휴식 등록!
         if 0 <= pitch_idx <= 4:
             if hasattr(st, "session_state"):
                 key = "my_pitcher_rest_days" if is_defense else "enemy_pitcher_rest_days"
-                if key in st.session_state:
-                    st.session_state[key][pitch_idx] = 5
+                if key not in st.session_state:
+                    st.session_state[key] = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+                st.session_state[key][pitch_idx] = 5
+
+    @staticmethod 
 
     def advance_rest_days():
         """시즌 진행(1경기 완료) 시 휴식 중인 선발 투수들의 휴식일을 1일씩 감소"""
-        for r_dict in [st.session_state.get("my_pitcher_rest_days", {}), st.session_state.get("enemy_pitcher_rest_days", {})]:
-            for p_idx in list(r_dict.keys()):
-                if r_dict[p_idx] > 0:
-                    r_dict[p_idx] -= 1
+        if hasattr(st, "session_state"):
+            for r_key in ["my_pitcher_rest_days", "enemy_pitcher_rest_days"]:
+                r_dict = st.session_state.get(r_key, {})
+                for p_idx in list(r_dict.keys()):
+                    if r_dict[p_idx] > 0:
+                        r_dict[p_idx] -= 1
 
     def check_pitch_clock_violation(self, log_prefix: str) -> bool:
         self.update_is_attack()
