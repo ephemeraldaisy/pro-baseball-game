@@ -63,42 +63,20 @@ def simulate_other_teams_matches(my_team: str, enemy_team: str) -> list:
 def generate_compressed_save_code() -> str:
     """세션 데이터를 zlib으로 경량 압축하여 짧은 암호화 코드로 변환"""
     save_data = {
-        "d": st.session_state.get("nc_diamonds", 1000),             # d = diamonds
-        "t": st.session_state.get("my_team", "💖 핑크 돌핀스"),       # t = my_team
-        "c": st.session_state.get("contract_team", "💖 핑크 돌핀스"), # c = contract_team
-        "g": st.session_state.get("pennant_game_count", 1),         # g = pennant_game_count
-        "w": st.session_state.get("pennant_wins", 0),               # w = pennant_wins
-        "l": st.session_state.get("pennant_loses", 0),              # l = pennant_loses
-        "r": st.session_state.get("league_records", {}),            # r = league_records
-        "p_rest": st.session_state.get("my_pitcher_rest_days", {})  # 선발 휴식일 연동
+        "d": st.session_state.get("nc_diamonds", 1000),             
+        "t": st.session_state.get("my_team", "💖 핑크 돌핀스"),       
+        "c": st.session_state.get("contract_team", "💖 핑크 돌핀스"), 
+        "g": st.session_state.get("pennant_game_count", 1),         
+        "w": st.session_state.get("pennant_wins", 0),               
+        "l": st.session_state.get("pennant_loses", 0),              
+        "r": st.session_state.get("league_records", {}),            
+        "p_rest": st.session_state.get("my_pitcher_rest_days", {0:0,1:0,2:0,3:0,4:0})  
     }
     
     json_bytes = json.dumps(save_data, ensure_ascii=False).encode('utf-8')
     compressed_bytes = zlib.compress(json_bytes, level=9)
     short_code = base64.b64encode(compressed_bytes).decode('utf-8')
     return short_code
-
-def register_custom_save_code(custom_alias: str) -> str:
-    """원하는 커스텀 코드(예: MY_TEAM_01)에 현재 세이브 데이터를 매핑"""
-    if "custom_save_map" not in st.session_state:
-        st.session_state.custom_save_map = {}
-        
-    actual_code = generate_compressed_save_code()
-    # 입력받은 단어로 진짜 세이브 코드를 매핑
-    st.session_state.custom_save_map[custom_alias.strip()] = actual_code
-    return actual_code
-
-def load_by_custom_or_raw_code(code_str: str) -> bool:
-    """커스텀 코드 또는 원본 암호화 코드를 모두 감지하여 복원"""
-    target_code = code_str.strip()
-    
-    # 1. 커스텀 단어로 매핑된 코드가 있는지 확인
-    custom_map = st.session_state.get("custom_save_map", {})
-    if target_code in custom_map:
-        target_code = custom_map[target_code]
-        
-    # 2. 실제 세이브 코드 해독 실행
-    return load_from_compressed_code(target_code)
 
 def load_from_compressed_code(code_str: str) -> bool:
     """초단축 세이브 코드를 복원"""
@@ -123,8 +101,10 @@ def load_from_compressed_code(code_str: str) -> bool:
             st.session_state.league_records = league_rec
 
         p_rest = data.get("p_rest", None)
-        if p_rest:
+        if p_rest and isinstance(p_rest, dict):
             st.session_state.my_pitcher_rest_days = {int(k): v for k, v in p_rest.items()}
+        else:
+            st.session_state.my_pitcher_rest_days = {0:0, 1:0, 2:0, 3:0, 4:0}
 
         current_id = st.session_state.get("user_id")
         if current_id and "user_accounts" in st.session_state:
@@ -158,8 +138,12 @@ def main() -> None:
     if "contract_team" not in st.session_state: st.session_state.contract_team = "💖 핑크 돌핀스"
     if "nc_diamonds" not in st.session_state: st.session_state.nc_diamonds = 1000
     if "full_kbo_engine" not in st.session_state: st.session_state.full_kbo_engine = None
-    if "my_pitcher_rest_days" not in st.session_state: st.session_state.my_pitcher_rest_days = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
-    if "enemy_pitcher_rest_days" not in st.session_state: st.session_state.enemy_pitcher_rest_days = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+    
+    # 🎯 정상 1인 개별 휴식 딕셔너리 안전 초기화
+    if "my_pitcher_rest_days" not in st.session_state or not isinstance(st.session_state.my_pitcher_rest_days, dict): 
+        st.session_state.my_pitcher_rest_days = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+    if "enemy_pitcher_rest_days" not in st.session_state: 
+        st.session_state.enemy_pitcher_rest_days = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
 
     # 로그인 상태 
     if "logged_in" not in st.session_state: st.session_state.logged_in = False
@@ -369,28 +353,20 @@ def main() -> None:
         st.markdown("---")
         st.markdown("### 💾 세이브 / 로드")
         
-        with st.expander("🔑 지정 세이브 코드 발급"):
-            custom_key_input = st.text_input("원하는 세이브 코드명을 입력하세요", placeholder="예: MY_DOLPHIN_SAVE1")
-    
-            if st.button("📌 지정 코드로 발급받기"):
-                if custom_key_input.strip():
-                    register_custom_save_code(custom_key_input)
-                    st.success(f"✅ 커스텀 코드 **[{custom_key_input.strip()}]**(으)로 세이브 데이터가 지정되었습니다!")
-                else:
-                    st.warning("코드 이름을 입력해 주세요.")
-                    
-            st.caption("기본 암호화 코드:")
-            st.code(generate_compressed_save_code(), language="text")
-        
+        with st.expander("🔑 세이브 코드 발급"):
+            short_code = generate_compressed_save_code()
+            st.code(short_code, language="text")
+            st.caption("위 코드를 복사하여 보관하시면 언제든 데이터를 복원할 수 있습니다!")
+
         with st.expander("🔓 코드 불러오기"):
-            input_code_sb = st.text_input("코드 또는 지정 코드명 입력", key="save_code_sb_input", placeholder="세이브 코드를 입력하세요")
+            input_code_sb = st.text_input("코드 입력", key="save_code_sb_input", placeholder="세이브 코드를 붙여넣으세요")
             if st.button("📂 데이터 로드 실행", key="btn_sb_load"):
                 if input_code_sb.strip():
-                    if load_by_custom_or_raw_code(input_code_sb):
-                        st.toast("🎉 지정된 세이브 데이터 로드 완료!", icon="💾")
+                    if load_from_compressed_code(input_code_sb):
+                        st.toast("🎉 세이브 데이터 로드 완료!", icon="💾")
                         st.rerun()
                     else:
-                        st.error("❌ 유효하지 않은 세이브 코드입니다.")
+                        st.error("❌ 유효하지 않은 암호 코드입니다.")
 
         st.markdown("---")
         st.markdown("### 📊 상성 매트릭스 전체 열람")
@@ -504,7 +480,7 @@ def main() -> None:
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
 
             # -------------------------------------------------------------
-            # 🏟️ [수정 완료] 선발 로테이션 & 투수 휴식 현황판 (실시간 차단 상태)
+            # 🏟️ [전원 휴식 버그 완치] 선발 로테이션 & 투수 휴식 현황판
             # -------------------------------------------------------------
             st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
 
@@ -517,6 +493,15 @@ def main() -> None:
                 4: "5선발"
             }
             
+            # 🚨 5명 전원 휴식 상태인지 체크하는 방어 로직
+            all_resting = all(rest_days.get(i, 0) > 0 for i in range(5))
+            if all_resting:
+                st.warning("⚠️ **[선발진 방전]** 5명의 선발 투수가 모두 휴식 중입니다! 가장 휴식이 많이 진행된 투수가 긴급 등판합니다.")
+                # 전원 휴식 시 가장 D-Day가 작은 투수의 휴식을 해제해 락을 풉니다.
+                min_rest_idx = min(range(5), key=lambda i: rest_days.get(i, 5))
+                st.session_state.my_pitcher_rest_days[min_rest_idx] = 0
+                st.rerun()
+
             cols = st.columns(5)
             for i in range(5):
                 rem_days = rest_days.get(i, 0)
@@ -583,7 +568,7 @@ def main() -> None:
             is_pitcher_resting = rest_days.get(selected_sp_idx, 0) > 0
             
             if is_pitcher_resting:
-                st.error(f"🚨 **[등판 불가 경고]** {selected_sp_idx+1}선발 ({sp_list[selected_sp_idx]}) 투수는 현재 D-{rest_days[selected_sp_idx]} 휴식 중입니다! 다른 선발 투수를 지명해 주세요.")
+                st.error(f"🚨 **[등판 불가 경고]** {selected_sp_idx+1}선발 ({sp_list[selected_sp_idx]}) 투수는 현재 D-{rest_days[selected_sp_idx]} 휴식 중입니다! 다른 등판 가능(🟢) 투수를 선택해 주세요.")
             
             if has_duplicates:
                 seen = set()
@@ -597,7 +582,7 @@ def main() -> None:
             if st.button("⚾️ PLAY BALL!", type="primary", disabled=(has_duplicates or is_pitcher_resting), key="btn_play_ball_main"):
                 enemy_team = random.choice([t for t in TEAMS.keys() if t != current_team])
                 
-                # 🎯 [핵심] 지명한 선발 투수의 5일 휴식을 세션 상태에 즉시 세팅
+                # 🎯 [핵심] 오직 선택된 '해당 1명 투수'만 5일 휴식 등록!
                 st.session_state.my_pitcher_rest_days[selected_sp_idx] = 5
 
                 st.session_state.full_kbo_engine = PureKboEngine(
@@ -735,13 +720,10 @@ def main() -> None:
                     st.dataframe(get_league_standings_df(), width="stretch")
         
                     if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
-                        # 🎯 [수정 완료] 경기가 완료될 때마다 휴식 중인 선발 투수 D-Day 1일씩 감소
-                        if hasattr(PureKboEngine, 'advance_rest_days'):
-                            PureKboEngine.advance_rest_days()
-                        else:
-                            for p_idx in list(st.session_state.my_pitcher_rest_days.keys()):
-                                if st.session_state.my_pitcher_rest_days[p_idx] > 0:
-                                    st.session_state.my_pitcher_rest_days[p_idx] -= 1
+                        # 🎯 [핵심] 경기가 정상 종료되고 다음 경기로 넘어갈 때만 D-Day 1일씩 감소!
+                        for p_idx in list(st.session_state.my_pitcher_rest_days.keys()):
+                            if st.session_state.my_pitcher_rest_days[p_idx] > 0:
+                                st.session_state.my_pitcher_rest_days[p_idx] -= 1
                         
                         st.session_state.full_kbo_engine = None
                         st.rerun()
