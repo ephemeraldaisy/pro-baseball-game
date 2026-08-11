@@ -78,6 +78,28 @@ def generate_compressed_save_code() -> str:
     short_code = base64.b64encode(compressed_bytes).decode('utf-8')
     return short_code
 
+def register_custom_save_code(custom_alias: str) -> str:
+    """원하는 커스텀 코드(예: MY_TEAM_01)에 현재 세이브 데이터를 매핑"""
+    if "custom_save_map" not in st.session_state:
+        st.session_state.custom_save_map = {}
+        
+    actual_code = generate_compressed_save_code()
+    # 입력받은 단어로 진짜 세이브 코드를 매핑
+    st.session_state.custom_save_map[custom_alias.strip()] = actual_code
+    return actual_code
+
+def load_by_custom_or_raw_code(code_str: str) -> bool:
+    """커스텀 코드 또는 원본 암호화 코드를 모두 감지하여 복원"""
+    target_code = code_str.strip()
+    
+    # 1. 커스텀 단어로 매핑된 코드가 있는지 확인
+    custom_map = st.session_state.get("custom_save_map", {})
+    if target_code in custom_map:
+        target_code = custom_map[target_code]
+        
+    # 2. 실제 세이브 코드 해독 실행
+    return load_from_compressed_code(target_code)
+
 def load_from_compressed_code(code_str: str) -> bool:
     """초단축 세이브 코드를 복원"""
     try:
@@ -347,20 +369,28 @@ def main() -> None:
         st.markdown("---")
         st.markdown("### 💾 세이브 / 로드")
         
-        with st.expander("🔑 세이브 코드 발급"):
-            short_code = generate_compressed_save_code()
-            st.code(short_code, language="text")
-            st.caption("위 코드를 복사하여 보관하시면 언제든 데이터를 복원할 수 있습니다!")
-
+        with st.expander("🔑 지정 세이브 코드 발급"):
+            custom_key_input = st.text_input("원하는 세이브 코드명을 입력하세요", placeholder="예: MY_DOLPHIN_SAVE1")
+    
+            if st.button("📌 지정 코드로 발급받기"):
+                if custom_key_input.strip():
+                    register_custom_save_code(custom_key_input)
+                    st.success(f"✅ 커스텀 코드 **[{custom_key_input.strip()}]**(으)로 세이브 데이터가 지정되었습니다!")
+                else:
+                    st.warning("코드 이름을 입력해 주세요.")
+                    
+            st.caption("기본 암호화 코드:")
+            st.code(generate_compressed_save_code(), language="text")
+        
         with st.expander("🔓 코드 불러오기"):
-            input_code_sb = st.text_input("코드 입력", key="save_code_sb_input", placeholder="세이브 코드를 붙여넣으세요")
+            input_code_sb = st.text_input("코드 또는 지정 코드명 입력", key="save_code_sb_input", placeholder="세이브 코드를 입력하세요")
             if st.button("📂 데이터 로드 실행", key="btn_sb_load"):
                 if input_code_sb.strip():
-                    if load_from_compressed_code(input_code_sb):
-                        st.toast("🎉 세이브 데이터 로드 완료!", icon="💾")
+                    if load_by_custom_or_raw_code(input_code_sb):
+                        st.toast("🎉 지정된 세이브 데이터 로드 완료!", icon="💾")
                         st.rerun()
                     else:
-                        st.error("❌ 유효하지 않은 암호 코드입니다.")
+                        st.error("❌ 유효하지 않은 세이브 코드입니다.")
 
         st.markdown("---")
         st.markdown("### 📊 상성 매트릭스 전체 열람")
