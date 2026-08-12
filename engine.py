@@ -722,7 +722,6 @@ class PureKboEngine:
                 target = 1
 
         if target != -1 and target not in used_set and target not in forbidden_indices:
-            self._check_and_apply_starter_rest(target, is_defense)
             return target
 
         search_candidates = [5, 6, 7, 8, 1, 2, 3, 4] if score_diff >= 0 else [1, 2, 3, 4, 5, 6, 7, 8]
