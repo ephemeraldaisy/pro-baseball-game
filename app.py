@@ -480,7 +480,7 @@ def main() -> None:
             initial_lineup = st.session_state.get(saved_key, default_lineup) 
 
             # -------------------------------------------------------------
-            # 🏟️ [전원 휴식 버그 완치] 선발 로테이션 & 투수 휴식 현황판
+            # 🏟️ [전원 휴식 방전 및 동시 감소 버그 완치] 선발 현황판
             # -------------------------------------------------------------
             st.subheader("🏟️ 선발 로테이션 & 투수 휴식 현황")
 
@@ -493,11 +493,10 @@ def main() -> None:
                 4: "5선발"
             }
             
-            # 🚨 5명 전원 휴식 상태인지 체크하는 방어 로직
+            # 🚨 5명 전원 휴식 상태일 경우 기동 락 해제
             all_resting = all(rest_days.get(i, 0) > 0 for i in range(5))
             if all_resting:
                 st.warning("⚠️ **[선발진 방전]** 5명의 선발 투수가 모두 휴식 중입니다! 가장 휴식이 많이 진행된 투수가 긴급 등판합니다.")
-                # 전원 휴식 시 가장 D-Day가 작은 투수의 휴식을 해제해 락을 풉니다.
                 min_rest_idx = min(range(5), key=lambda i: rest_days.get(i, 5))
                 st.session_state.my_pitcher_rest_days[min_rest_idx] = 0
                 st.rerun()
@@ -582,7 +581,7 @@ def main() -> None:
             if st.button("⚾️ PLAY BALL!", type="primary", disabled=(has_duplicates or is_pitcher_resting), key="btn_play_ball_main"):
                 enemy_team = random.choice([t for t in TEAMS.keys() if t != current_team])
                 
-                # 🎯 [핵심] 오직 선택된 '해당 1명 투수'만 5일 휴식 등록!
+                # 🎯 [핵심] 오직 선택해서 던지는 해당 1명 투수만 5일 휴식 세팅!
                 st.session_state.my_pitcher_rest_days[selected_sp_idx] = 5
 
                 st.session_state.full_kbo_engine = PureKboEngine(
@@ -720,7 +719,7 @@ def main() -> None:
                     st.dataframe(get_league_standings_df(), width="stretch")
         
                     if st.button("다음 경기 준비하기 (시즌 진행)", type="primary", key="btn_next_pennant_game"):
-                        # 🎯 [핵심] 경기가 정상 종료되고 다음 경기로 넘어갈 때만 D-Day 1일씩 감소!
+                        # 🎯 [핵심] 경기가 정상 종료된 후, 현재 '휴식 중인(D > 0)' 투수들만 정직하게 1일 감소!
                         for p_idx in list(st.session_state.my_pitcher_rest_days.keys()):
                             if st.session_state.my_pitcher_rest_days[p_idx] > 0:
                                 st.session_state.my_pitcher_rest_days[p_idx] -= 1
