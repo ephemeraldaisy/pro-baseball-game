@@ -389,7 +389,9 @@ class PureKboEngine:
             return
 
         self.process_one_pitch(is_defense=True)
-        self.strike = 0; self.ball = 0 
+        #사사구에 1개 가산
+        self.add_stat("B", 1)
+        self.enemy_bb = getattr(self, 'enemy_bb', 0) + 1 
 
         p_my = self.get_current_my_pitcher()
         p_my.consume(1)
@@ -415,8 +417,7 @@ class PureKboEngine:
             self.game_log.append(f"🛑 [고의사구 지시] 투수가 스트라이크존 바깥으로 공을 빼며 안전하게 타자를 1루로 걸러냅니다.")
             
         bat = self.enemy_batter_number
-        self.enemy_batter_number = 1 if bat == 9 else bat + 1
-        
+        self.enemy_batter_number = 1 if bat == 9 else bat + 1  
         self.check_three_out_change()
 
     def check_weather_events(self) -> bool:
@@ -821,13 +822,14 @@ class PureKboEngine:
         penalty = p_my.get_penalty()
         matchup_mod = self.get_matchup_modifier(self.enemy_team, self.my_team)
 
+        if defense_choice == 2:
+            pitch_zone = 0  # 유인구는 100% 볼존
+        elif defense_choice == 3:
+            pitch_zone = random.randint(1, 9) if random.random() < 0.75 else 0  # 제구 위주 (25% 볼)
+        else:
+            pitch_zone = random.randint(1, 9) if random.random() < 0.65 else 0  # 정면 승부 (35% 볼)
+
         pitch_zone = random.randint(1, 9) if defense_choice != 2 else 0
-
-        self.pitch_history.append(f"{pitch_type} ({speed}km/h) - 존: {pitch_zone if pitch_zone != 0 else '외곽'}")
-        if len(self.pitch_history) > 3: self.pitch_history.pop(0)
-
-        if defense_choice == 3:
-            matchup_mod -= 0.05
 
         log_prefix = f"🥎 [{p_my.name} {speed}km/h {pitch_type}] -> "
 
@@ -1607,9 +1609,9 @@ class PureKboEngine:
             
         if gained > 0:
             self.update_live_scoreboard(gained)
-            self.game_log.append("🚶‍♂️ 볼넷 밀어내기 득점! 주자 전원 진루합니다. (+1점)")
+            self.game_log.append("🚶‍♂️ 사사구 밀어내기 득점! 주자 전원 진루합니다. (+1점)")
         else:
-            self.game_log.append("🚶‍♂️ 볼넷 출루! 주자가 한 베이스씩 밀려 나갑니다.")
+            self.game_log.append("🚶‍♂️ 사사구 출루! 주자가 한 베이스씩 밀려 나갑니다. (사사구 +1)")
             
         if not is_defense:
             bat = self.my_batter_number
